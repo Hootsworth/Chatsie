@@ -14,13 +14,24 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   }
 
   try {
-    // Default fallback to free Google STUN servers
-    let iceServers = [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' },
-      { urls: 'stun:stun3.l.google.com:19302' },
-      { urls: 'stun:stun4.l.google.com:19302' }
+    // Default fallback to free Google STUN and Metered TURN servers
+    let iceServers: any[] = [
+      {
+        urls: [
+          'stun:stun.l.google.com:19302',
+          'stun:stun1.l.google.com:19302',
+          'stun:openrelay.metered.ca:80'
+        ]
+      },
+      {
+        urls: [
+          'turn:openrelay.metered.ca:80',
+          'turn:openrelay.metered.ca:443',
+          'turn:openrelay.metered.ca:443?transport=tcp'
+        ],
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      }
     ];
 
     const twilioSid = process.env.TWILIO_ACCOUNT_SID;

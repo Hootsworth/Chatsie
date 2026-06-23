@@ -84,13 +84,30 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
         const response = await fetch(`${apiUrl}/api/turn-credentials`);
         if (response.ok) {
           const data = await response.json();
-          if (data.iceServers) {
-            return { iceServers: data.iceServers };
+          if (data.iceServers && data.iceServers.length > 0) {
+            // Check if there is at least one TURN server in the returned list
+            const hasTurn = data.iceServers.some((server: any) => {
+              if (Array.isArray(server.urls)) {
+                return server.urls.some((url: string) => url.startsWith('turn:'));
+              }
+              return typeof server.urls === 'string' && server.urls.startsWith('turn:');
+            });
+
+            if (hasTurn) {
+              return { iceServers: data.iceServers };
+            } else {
+              console.warn('useWebRTC: Fetched ICE servers do not contain any TURN servers. Merging default TURN servers.');
+              // Filter to get TURN servers from defaultIceServers
+              const turnFallbacks = defaultIceServers.filter(server => {
+                return server.urls.some((url: string) => url.startsWith('turn:'));
+              });
+              return { iceServers: [...data.iceServers, ...turnFallbacks] };
+            }
           }
         }
       }
     } catch (e) {
-      console.warn('Failed to fetch TURN credentials from serverless endpoint, falling back to STUN:', e);
+      console.warn('Failed to fetch TURN credentials from serverless endpoint, falling back to defaults:', e);
     }
     return { iceServers: defaultIceServers };
   };
