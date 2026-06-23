@@ -77,7 +77,10 @@ export const MeetingRoom: React.FC = () => {
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
 
   // Pre-join Lobby states and refs
-  const [isLobbyPassed, setIsLobbyPassed] = useState(false);
+  const [isLobbyPassed, setIsLobbyPassed] = useState(() => {
+    if (!code) return false;
+    return sessionStorage.getItem(`lobby_passed_${code}`) === 'true';
+  });
   const [lobbyStream, setLobbyStream] = useState<MediaStream | null>(null);
   const lobbyVideoRef = React.useCallback((node: HTMLVideoElement | null) => {
     if (node && lobbyStream) {
@@ -232,6 +235,9 @@ export const MeetingRoom: React.FC = () => {
       setLobbyStream(null);
     }
     setIsLobbyPassed(true);
+    if (code) {
+      sessionStorage.setItem(`lobby_passed_${code}`, 'true');
+    }
   };
 
   // Invoke WebRTC Hook (only once security criteria are met: passcode verified AND lobby passed)
@@ -400,7 +406,8 @@ export const MeetingRoom: React.FC = () => {
         // Check if passcode is required
         if (meeting.passcode && !isUserHost) {
           setPasscodeGateRequired(true);
-          setPasscodeGatePassed(false);
+          const wasPasscodePassed = sessionStorage.getItem(`passcode_passed_${code}`) === 'true';
+          setPasscodeGatePassed(wasPasscodePassed);
         } else {
           setPasscodeGateRequired(false);
           setPasscodeGatePassed(true);
@@ -408,7 +415,8 @@ export const MeetingRoom: React.FC = () => {
 
         // Check if waiting room is needed
         if (meeting.is_waiting_room_enabled && !isUserHost) {
-          setWaitingStatus('waiting');
+          const wasWaitingStatusApproved = sessionStorage.getItem(`waiting_status_approved_${code}`) === 'true';
+          setWaitingStatus(wasWaitingStatusApproved ? 'approved' : 'waiting');
         } else {
           setWaitingStatus('none');
         }
@@ -492,6 +500,11 @@ export const MeetingRoom: React.FC = () => {
     }
 
     // Stop streams & clean up
+    if (code) {
+      sessionStorage.removeItem(`lobby_passed_${code}`);
+      sessionStorage.removeItem(`passcode_passed_${code}`);
+      sessionStorage.removeItem(`waiting_status_approved_${code}`);
+    }
     resetWebRTCState();
     resetMeetingState();
     navigate('/');
@@ -541,7 +554,12 @@ export const MeetingRoom: React.FC = () => {
     return (
       <PasswordPrompt 
         meetingCode={code || ''} 
-        onSuccess={() => setPasscodeGatePassed(true)} 
+        onSuccess={() => {
+          setPasscodeGatePassed(true);
+          if (code) {
+            sessionStorage.setItem(`passcode_passed_${code}`, 'true');
+          }
+        }} 
       />
     );
   }
