@@ -243,22 +243,35 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
     setVideoMute(nextState);
 
     if (nextState) {
-      // Mute (Turn OFF camera): Stop all video tracks and remove them
+      // Mute (Turn OFF camera): Stop all video tracks and create a new stream without video
       if (localStreamRef.current) {
         localStreamRef.current.getVideoTracks().forEach(track => {
           track.stop();
-          localStreamRef.current?.removeTrack(track);
         });
+        const audioTracks = localStreamRef.current.getAudioTracks();
+        const newStream = new MediaStream([...audioTracks]);
+        localStreamRef.current = newStream;
+        setLocalStream(newStream);
       }
+      
+      // Replace track with null in all peer connections
+      peerConnections.current.forEach(async (pc) => {
+        const videoSender = pc.getTransceivers().find(t => t.receiver.track.kind === 'video')?.sender;
+        if (videoSender) {
+          await videoSender.replaceTrack(null);
+        }
+      });
+
       // Broadcast status to other peers
       signalingClient.toggleMediaStatus('video', true);
     } else {
-      // Unmute (Turn ON camera): Stop old tracks (if any) and request a new one
+      // Unmute (Turn ON camera): Stop old tracks and request a new one
+      let audioTracks: MediaStreamTrack[] = [];
       if (localStreamRef.current) {
         localStreamRef.current.getVideoTracks().forEach(track => {
           track.stop();
-          localStreamRef.current?.removeTrack(track);
         });
+        audioTracks = localStreamRef.current.getAudioTracks();
       }
 
       const videoConstraints: MediaTrackConstraints = {
@@ -276,8 +289,10 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
         });
         const freshVideoTrack = freshStream.getVideoTracks()[0];
         
-        if (freshVideoTrack && localStreamRef.current) {
-          localStreamRef.current.addTrack(freshVideoTrack);
+        if (freshVideoTrack) {
+          const newStream = new MediaStream([...audioTracks, freshVideoTrack]);
+          localStreamRef.current = newStream;
+          setLocalStream(newStream);
           
           // Replace track in all peer connections if not screen sharing
           if (!isScreenSharingRef.current) {
@@ -296,7 +311,7 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
       // Broadcast status to other peers
       signalingClient.toggleMediaStatus('video', false);
     }
-  }, [selectedVideoInput, setVideoMute]);
+  }, [selectedVideoInput, setVideoMute, setLocalStream]);
 
   // Toggle Screen Share
   const toggleScreenShare = useCallback(async () => {
