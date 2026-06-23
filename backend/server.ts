@@ -105,15 +105,20 @@ app.get('/api/meetings', requireAuth(), async (req, res) => {
 app.post('/api/meetings', requireAuth(), async (req, res) => {
   try {
     const userId = (req as any).auth.userId;
-    const { title, passcode, isWaitingRoomEnabled, scheduledStart, duration } = req.body;
+    const { title, passcode, isWaitingRoomEnabled, scheduledStart, duration, code: customCode } = req.body;
 
     if (!title) {
       return res.status(400).json({ error: 'Title is required' });
     }
 
-    let code = generateRoomCode();
+    let code = customCode || generateRoomCode();
     let isUnique = false;
     let checkAttempts = 0;
+
+    // Only check for uniqueness if we are generating a random code
+    if (customCode) {
+      isUnique = true; 
+    }
 
     while (!isUnique && checkAttempts < 5) {
       const { data: existing } = await supabase
@@ -154,7 +159,111 @@ app.post('/api/meetings', requireAuth(), async (req, res) => {
   }
 });
 
-// POST: Verify Meeting Passcode
+// GET: Fetch Meeting by Code (and its chat history)
+app.get('/api/meetings/:code', async (req, res) => {
+  try {
+    const { code } = req.params;
+
+    const { data: meeting, error: dbError } = await supabase
+      .from('meetings')
+      .select('*')
+      .eq('code', code)
+      .maybeSingle();
+
+    if (dbError) {
+      return res.status(500).json({ error: 'Failed to query meeting', details: dbError.message });
+    }
+
+    if (!meeting) {
+      return res.status(404).json({ error: 'Meeting not found' });
+    }
+
+    // Load chat history
+    const { data: messages, error: msgError } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('meeting_id', meeting.id)
+      .order('created_at', { ascending: true });
+
+    if (msgError) {
+      console.error('Failed to fetch chat history:', msgError);
+    }
+
+    res.status(200).json({ meeting, messages: messages || [] });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Internal Server Error', details: error.message });
+  }
+});
+
+// POST: Insert Chat Message
+app.post('/api/meetings/:code/chat', requireAuth(), async (req, res) => {
+  try {
+    const { code } = req.params;
+    const userId = (req as any).auth.userId;
+    const { message, senderName } = req.body;
+
+    if (!message || !senderName) {
+      return res.status(400).json({ error: 'Message and senderName are required' });
+    }
+
+    // First get the meeting ID
+    const { data: meeting } = await supabase
+      .from('meetings')
+      .select('id')
+      .eq('code', code)
+      .maybeSingle();
+
+    if (!meeting) {
+      return res.status(404).json({ error: 'Meeting not found' });
+    }
+
+    const { error } = await supabase
+      .from('chat_messages')
+      .insert({
+        meeting_id: meeting.id,
+        user_id: userId,
+        sender_name: senderName,
+        message
+      });
+
+    if (error) {
+      return res.status(500).json({ error: 'Failed to insert chat message', details: error.message });
+    }
+
+    res.status(201).json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Internal Server Error', details: error.message });
+  }
+});
+app.patch('/api/meetings/:code/close', requireAuth(), async (req, res) => {
+  try {
+    const { code } = req.params;
+    const userId = (req as any).auth.userId;
+
+    const { data: meeting } = await supabase
+      .from('meetings')
+      .select('host_id')
+      .eq('code', code)
+      .maybeSingle();
+
+    if (!meeting || meeting.host_id !== userId) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const { error } = await supabase
+      .from('meetings')
+      .update({ is_active: false })
+      .eq('code', code);
+
+    if (error) {
+      return res.status(500).json({ error: 'Failed to close meeting', details: error.message });
+    }
+
+    res.status(200).json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Internal Server Error', details: error.message });
+  }
+});
 // We use clerkMiddleware() globally, so requireAuth is not added here so unauthenticated users can access it if needed (but currently they might need to sign in to access the room). 
 // Since requireAuth() is NOT passed here, it allows guests if we ever support them.
 app.post('/api/verify-passcode', async (req, res) => {

@@ -420,42 +420,53 @@ export const MeetingRoom: React.FC = () => {
       setMeetingError(null);
       
       try {
-        const { data: meeting, error: dbError } = await supabase
-          .from('meetings')
-          .select('*')
-          .eq('code', code)
-          .maybeSingle();
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || 'http://localhost:5001';
+        let token = null;
+        try {
+          token = await getToken();
+        } catch(e){}
 
-        if (dbError) throw dbError;
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
 
-        let activeMeeting = meeting;
+        let meetingRes = await fetch(`${backendUrl}/api/meetings/${code}`, { headers });
+        let activeMeeting = null;
+        let messages = [];
 
-        if (!activeMeeting) {
+        if (meetingRes.status === 404) {
           const isPersonalRoom = code.startsWith('personal-');
           const ownerUsername = isPersonalRoom ? code.replace('personal-', '') : null;
           const isOwner = isPersonalRoom && user && user.id === ownerUsername;
           
           if (isOwner) {
-            // Auto-create personal room if host joins for the first time
-            const { data: newMeeting, error: createError } = await supabase
-              .from('meetings')
-              .insert({
-                code: code,
+            // Auto-create personal room
+            const createRes = await fetch(`${backendUrl}/api/meetings`, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({
                 title: `${user.fullName}'s Personal Meeting Room`,
-                host_id: user.id,
-                is_waiting_room_enabled: false,
-                is_active: true
+                code: code,
+                isWaitingRoomEnabled: false
               })
-              .select()
-              .single();
-
-            if (createError) throw createError;
-            activeMeeting = newMeeting;
+            });
+            if (!createRes.ok) {
+              const errData = await createRes.json();
+              throw new Error(errData.error || 'Failed to create personal room');
+            }
+            const data = await createRes.json();
+            activeMeeting = data.meeting;
           } else {
             setMeetingError('Meeting not found. Please verify the code.');
             setIsLoadingMeeting(false);
             return;
           }
+        } else if (!meetingRes.ok) {
+          const errData = await meetingRes.json();
+          throw new Error(errData.error || 'Failed to connect to database.');
+        } else {
+          const data = await meetingRes.json();
+          activeMeeting = data.meeting;
+          messages = data.messages || [];
         }
 
         setCurrentMeeting(activeMeeting as Meeting);
@@ -483,17 +494,8 @@ export const MeetingRoom: React.FC = () => {
           setWaitingStatus('none');
         }
 
-        // Load persistent chat history from Supabase
-        const { data: messages, error: msgError } = await supabase
-          .from('chat_messages')
-          .select('*')
-          .eq('meeting_id', activeMeeting.id)
-          .order('created_at', { ascending: true });
-
-        if (msgError) {
-          console.warn('Could not fetch chat history:', msgError);
-        } else if (messages) {
-          const chatMsgs = messages.map(m => ({
+        if (messages.length > 0) {
+          const chatMsgs = messages.map((m: any) => ({
             id: m.id,
             senderId: m.user_id || 'guest',
             userId: m.user_id || 'guest',
@@ -552,10 +554,15 @@ export const MeetingRoom: React.FC = () => {
 
       // Close room in db
       try {
-        await supabase
-          .from('meetings')
-          .update({ is_active: false })
-          .eq('code', code || '');
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || 'http://localhost:5001';
+        let token = null;
+        try {
+          token = await getToken();
+        } catch(e){}
+        await fetch(`${backendUrl}/api/meetings/${code}/close`, {
+          method: 'PATCH',
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
       } catch (e) {
         console.error(e);
       }

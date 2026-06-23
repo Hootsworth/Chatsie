@@ -3,6 +3,7 @@ import { useMeetingStore } from '../../stores/meetingStore';
 import { signalingClient } from '../../services/signaling';
 import supabase from '../../services/supabase';
 import { Send, Smile } from 'lucide-react';
+import { useAuth } from '@clerk/clerk-react';
 import { Input, Button } from '../ui';
 
 interface ChatPanelProps {
@@ -14,6 +15,7 @@ interface ChatPanelProps {
 export const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, userId, username }) => {
   const { chatMessages } = useMeetingStore();
   const [text, setText] = useState('');
+  const { getToken } = useAuth();
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -31,25 +33,25 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, userId, username }
     const messageText = text.trim();
     if (!messageText) return;
 
-    // Save message to Supabase database for persistence
+    // Save message to database for persistence
     try {
-      const { data: meeting } = await supabase
-        .from('meetings')
-        .select('id')
-        .eq('code', roomId)
-        .maybeSingle();
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || 'http://localhost:5001';
+      let token = null;
+      try {
+        token = await getToken();
+      } catch(e){}
 
-      if (meeting) {
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-        const cleanUserId = uuidRegex.test(userId) ? userId : null;
-
-        await supabase.from('chat_messages').insert({
-          meeting_id: meeting.id,
-          user_id: cleanUserId,
-          sender_name: username,
-          message: messageText
-        });
-      }
+      await fetch(`${backendUrl}/api/meetings/${roomId}/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          message: messageText,
+          senderName: username
+        })
+      });
     } catch (err) {
       console.error('Failed to persist chat message in database:', err);
     }
@@ -69,25 +71,25 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, userId, username }
   };
 
   const sendEmoji = async (emoji: string) => {
-    // Save emoji message to Supabase database for persistence
+    // Save emoji message to database for persistence
     try {
-      const { data: meeting } = await supabase
-        .from('meetings')
-        .select('id')
-        .eq('code', roomId)
-        .maybeSingle();
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || 'http://localhost:5001';
+      let token = null;
+      try {
+        token = await getToken();
+      } catch(e){}
 
-      if (meeting) {
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-        const cleanUserId = uuidRegex.test(userId) ? userId : null;
-
-        await supabase.from('chat_messages').insert({
-          meeting_id: meeting.id,
-          user_id: cleanUserId,
-          sender_name: username,
-          message: emoji
-        });
-      }
+      await fetch(`${backendUrl}/api/meetings/${roomId}/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          message: emoji,
+          senderName: username
+        })
+      });
     } catch (err) {
       console.error('Failed to persist emoji message in database:', err);
     }

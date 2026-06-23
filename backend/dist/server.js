@@ -24,6 +24,17 @@ app.get('/health', (req, res) => {
 });
 // Setup Clerk globally for any authenticated routes
 app.use((0, express_2.clerkMiddleware)());
+const supabase_js_1 = require("@supabase/supabase-js");
+const supabaseUrl = process.env.SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabase = (0, supabase_js_1.createClient)(supabaseUrl, supabaseServiceKey);
+function generateRoomCode() {
+    const chars = 'abcdefghijklmnopqrstuvwxyz';
+    const part1 = Array.from({ length: 3 }, () => chars[Math.floor(Math.random() * 26)]).join('');
+    const part2 = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * 26)]).join('');
+    const part3 = Array.from({ length: 3 }, () => chars[Math.floor(Math.random() * 26)]).join('');
+    return `${part1}-${part2}-${part3}`;
+}
 // LiveKit Token Generation Endpoint
 app.post('/api/livekit/token', (0, express_2.requireAuth)(), async (req, res) => {
     const { roomName, participantName } = req.body;
@@ -48,6 +59,167 @@ app.post('/api/livekit/token', (0, express_2.requireAuth)(), async (req, res) =>
     catch (error) {
         console.error('Error generating LiveKit token:', error);
         res.status(500).json({ error: 'Failed to generate token' });
+    }
+});
+// GET: List User's Scheduled Meetings
+app.get('/api/meetings', (0, express_2.requireAuth)(), async (req, res) => {
+    try {
+        const userId = req.auth.userId;
+        const listHistory = req.query.history === 'true';
+        let query = supabase
+            .from('meetings')
+            .select('*')
+            .eq('host_id', userId);
+        if (listHistory) {
+            query = query.lt('scheduled_start', new Date().toISOString());
+        }
+        else {
+            query = query.or(`scheduled_start.gte.${new Date().toISOString()},scheduled_start.is.null`);
+        }
+        const { data: meetings, error: dbError } = await query.order('scheduled_start', { ascending: true });
+        if (dbError) {
+            return res.status(500).json({ error: 'Failed to fetch meetings', details: dbError.message });
+        }
+        res.status(200).json({ meetings });
+    }
+    catch (error) {
+        res.status(500).json({ error: 'Internal Server Error', details: error.message });
+    }
+});
+// POST: Create a New Meeting
+app.post('/api/meetings', (0, express_2.requireAuth)(), async (req, res) => {
+    try {
+        const userId = req.auth.userId;
+        const { title, passcode, isWaitingRoomEnabled, scheduledStart, duration } = req.body;
+        if (!title) {
+            return res.status(400).json({ error: 'Title is required' });
+        }
+        let code = generateRoomCode();
+        let isUnique = false;
+        let checkAttempts = 0;
+        while (!isUnique && checkAttempts < 5) {
+            const { data: existing } = await supabase
+                .from('meetings')
+                .select('id')
+                .eq('code', code)
+                .maybeSingle();
+            if (!existing) {
+                isUnique = true;
+            }
+            else {
+                code = generateRoomCode();
+                checkAttempts++;
+            }
+        }
+        const { data: newMeeting, error: insertError } = await supabase
+            .from('meetings')
+            .insert({
+            code,
+            title,
+            host_id: userId,
+            passcode: passcode || null,
+            is_waiting_room_enabled: !!isWaitingRoomEnabled,
+            scheduled_start: scheduledStart || null,
+            duration: duration ? parseInt(duration, 10) : null
+        })
+            .select()
+            .single();
+        if (insertError) {
+            return res.status(500).json({ error: 'Failed to create meeting', details: insertError.message });
+        }
+        res.status(201).json({ meeting: newMeeting });
+    }
+    catch (error) {
+        res.status(500).json({ error: 'Internal Server Error', details: error.message });
+    }
+});
+// POST: Verify Meeting Passcode
+// We use clerkMiddleware() globally, so requireAuth is not added here so unauthenticated users can access it if needed (but currently they might need to sign in to access the room). 
+// Since requireAuth() is NOT passed here, it allows guests if we ever support them.
+app.post('/api/verify-passcode', async (req, res) => {
+    try {
+        const { code, passcode } = req.body;
+        if (!code) {
+            return res.status(400).json({ error: 'Meeting code is required' });
+        }
+        const { data: meeting, error: dbError } = await supabase
+            .from('meetings')
+            .select('id, passcode')
+            .eq('code', code)
+            .maybeSingle();
+        if (dbError) {
+            return res.status(500).json({ error: 'Failed to query meeting', details: dbError.message });
+        }
+        if (!meeting) {
+            return res.status(404).json({ error: 'Meeting not found' });
+        }
+        if (meeting.passcode && meeting.passcode !== passcode) {
+            return res.status(401).json({ success: false, error: 'Incorrect passcode' });
+        }
+        res.status(200).json({ success: true, meetingId: meeting.id });
+    }
+    catch (error) {
+        res.status(500).json({ error: 'Internal Server Error', details: error.message });
+    }
+});
+// GET: Turn Credentials
+app.get('/api/turn-credentials', async (req, res) => {
+    try {
+        let iceServers = [
+            {
+                urls: [
+                    'stun:stun.l.google.com:19302',
+                    'stun:stun1.l.google.com:19302',
+                    'stun:openrelay.metered.ca:80'
+                ]
+            },
+            {
+                urls: [
+                    'turn:openrelay.metered.ca:80',
+                    'turn:openrelay.metered.ca:443',
+                    'turn:openrelay.metered.ca:443?transport=tcp'
+                ],
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+            }
+        ];
+        const twilioSid = process.env.TWILIO_ACCOUNT_SID;
+        const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
+        if (twilioSid && twilioAuthToken) {
+            try {
+                const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Tokens.json`;
+                const auth = Buffer.from(`${twilioSid}:${twilioAuthToken}`).toString('base64');
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Basic ${auth}` }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.ice_servers) {
+                        iceServers = data.ice_servers;
+                    }
+                }
+            }
+            catch (twilioErr) {
+                console.error('Error fetching Twilio TURN credentials:', twilioErr);
+            }
+        }
+        else {
+            const staticTurnUrl = process.env.STATIC_TURN_URL;
+            const staticTurnUser = process.env.STATIC_TURN_USERNAME;
+            const staticTurnCred = process.env.STATIC_TURN_CREDENTIAL;
+            if (staticTurnUrl && staticTurnUser && staticTurnCred) {
+                iceServers.push({
+                    urls: staticTurnUrl,
+                    username: staticTurnUser,
+                    credential: staticTurnCred
+                });
+            }
+        }
+        res.status(200).json({ iceServers });
+    }
+    catch (error) {
+        res.status(500).json({ error: 'Internal Server Error', details: error.message });
     }
 });
 const server = http_1.default.createServer(app);
