@@ -302,7 +302,7 @@ export const Dashboard: React.FC = () => {
     e.preventDefault();
     if (!joinCode) return;
     
-    let code = joinCode.trim();
+    let code = joinCode.trim().toLowerCase();
     if (code.includes('/room/')) {
       code = code.split('/room/')[1].split('?')[0];
     }

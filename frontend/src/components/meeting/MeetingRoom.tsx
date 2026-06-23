@@ -21,7 +21,8 @@ import { DeviceSelector } from './DeviceSelector';
 import { Copy, Check, Info, Users, Keyboard, Mic, MicOff, Video, VideoOff, Camera, User } from 'lucide-react';
 
 export const MeetingRoom: React.FC = () => {
-  const { code } = useParams<{ code: string }>();
+  const { code: rawCode } = useParams<{ code: string }>();
+  const code = rawCode?.trim().toLowerCase() || '';
   const navigate = useNavigate();
   
   const { user, profile } = useAuthStore();

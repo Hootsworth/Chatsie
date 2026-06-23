@@ -228,8 +228,14 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
       let state: 'good' | 'fair' | 'poor' | 'disconnected' = 'good';
       if (pc.connectionState === 'connecting') state = 'fair';
       if (pc.connectionState === 'failed') state = 'poor';
-      if (pc.connectionState === 'disconnected' || pc.connectionState === 'closed') {
+      if (pc.connectionState === 'disconnected' || pc.connectionState === 'closed' || pc.connectionState === 'failed') {
         state = 'disconnected';
+        try {
+          pc.close();
+        } catch (e) {
+          // already closed
+        }
+        peerConnections.current.delete(targetSocketId);
         removeRemoteStream(targetSocketId);
         removeParticipant(targetSocketId);
       }
