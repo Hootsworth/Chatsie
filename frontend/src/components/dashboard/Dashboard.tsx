@@ -277,7 +277,7 @@ export const Dashboard: React.FC = () => {
               </p>
               <p className="text-[10px] text-muted font-semibold leading-none mt-0.5">{user?.primaryEmailAddress?.emailAddress}</p>
             </div>
-            <UserButton afterSignOutUrl="#/signin" />
+            <UserButton afterSignOutUrl="/signin" />
           </div>
         </div>
       </header>
