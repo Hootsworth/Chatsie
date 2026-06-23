@@ -425,7 +425,7 @@ export const MeetingRoom: React.FC = () => {
         if (!activeMeeting) {
           const isPersonalRoom = code.startsWith('personal-');
           const ownerUsername = isPersonalRoom ? code.replace('personal-', '') : null;
-          const isOwner = isPersonalRoom && user && profile && profile.username === ownerUsername;
+          const isOwner = isPersonalRoom && user && profile && profile.username?.toLowerCase() === ownerUsername?.toLowerCase();
 
           if (isOwner) {
             // Auto-create personal meeting session in DB
