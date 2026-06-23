@@ -619,9 +619,9 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
       
       let pc = peerConnections.current.get(senderId);
       
-      // If we receive a new offer but already have a connection, close the old one to avoid state conflicts
-      if (signal.type === 'offer' && pc) {
-        console.log(`Received fresh WebRTC offer from ${senderId} but connection already exists. Closing stale connection.`);
+      // If we receive a new offer but already have a connection, close the old one only if it is not pending (stale or connected)
+      if (signal.type === 'offer' && pc && !['new', 'connecting'].includes(pc.connectionState)) {
+        console.log(`Received WebRTC offer from ${senderId} but connection already exists in state ${pc.connectionState}. Closing old connection.`);
         closePeerConnection(senderId);
         pc = undefined;
       }
