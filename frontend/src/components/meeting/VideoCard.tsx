@@ -64,7 +64,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({
       )}
 
       {/* Video Feed */}
-      {stream && !isMutedVideo ? (
+      {stream && (
         isLocal && isScreenShare ? (
           /* Prevent infinite mirror preview for local user */
           <div className="flex flex-col items-center justify-center space-y-4 z-0 select-none p-6 text-center text-on-dark-soft animate-in fade-in duration-300">
@@ -83,13 +83,15 @@ export const VideoCard: React.FC<VideoCardProps> = ({
             ref={videoRef}
             autoPlay
             playsInline
-            muted={true} // Always mute video element to prevent double audio / feedback
+            muted={isLocal} // Mute local preview to prevent feedback, keep remote unmuted
             className={`w-full h-full object-cover rounded-xl ${isLocal && !isScreenShare ? 'transform scale-x-[-1]' : ''}`}
           />
         )
-      ) : (
-        /* Video Off placeholder avatar */
-        <div className="flex flex-col items-center justify-center space-y-3.5 z-0 select-none">
+      )}
+
+      {/* Video Off placeholder avatar (overlays the video card when camera is off/muted) */}
+      {(!stream || (isMutedVideo && !isScreenShare)) && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center space-y-3.5 z-10 select-none bg-surface-dark rounded-xl">
           <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center border border-primary/20 shadow-inner">
             <User className="w-8 h-8" />
           </div>
@@ -97,20 +99,6 @@ export const VideoCard: React.FC<VideoCardProps> = ({
             {username}
           </span>
         </div>
-      )}
-
-      {/* Separate, dedicated audio playback element for remote participants */}
-      {stream && !isLocal && (
-        <audio
-          autoPlay
-          playsInline
-          ref={(node) => {
-            if (node) {
-              node.srcObject = stream;
-            }
-          }}
-          style={{ display: 'none' }}
-        />
       )}
 
       {/* Name and audio muted status bar (bottom left overlay) */}

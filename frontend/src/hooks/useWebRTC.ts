@@ -453,6 +453,7 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
 
   // Core signaling and connection loop
   useEffect(() => {
+    if (!roomId) return;
     if (waitingStatus === 'denied') return;
 
     let active = true;

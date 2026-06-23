@@ -390,21 +390,45 @@ export const MeetingRoom: React.FC = () => {
 
         if (dbError) throw dbError;
 
-        if (!meeting) {
-          setMeetingError('Meeting not found. Please verify the code.');
-          setIsLoadingMeeting(false);
-          return;
+        let activeMeeting = meeting;
+
+        if (!activeMeeting) {
+          const isPersonalRoom = code.startsWith('personal-');
+          const ownerUsername = isPersonalRoom ? code.replace('personal-', '') : null;
+          const isOwner = isPersonalRoom && user && profile && profile.username === ownerUsername;
+
+          if (isOwner) {
+            // Auto-create personal meeting session in DB
+            const { data: newMeeting, error: createError } = await supabase
+              .from('meetings')
+              .insert({
+                code,
+                title: `${profile.full_name}'s Personal Meeting Room`,
+                host_id: user.id,
+                is_waiting_room_enabled: false,
+                is_active: true
+              })
+              .select()
+              .single();
+
+            if (createError) throw createError;
+            activeMeeting = newMeeting;
+          } else {
+            setMeetingError('Meeting not found. Please verify the code.');
+            setIsLoadingMeeting(false);
+            return;
+          }
         }
 
-        setCurrentMeeting(meeting as Meeting);
+        setCurrentMeeting(activeMeeting as Meeting);
 
         // Determine if user is host or participant
-        const isUserHost = user && meeting.host_id === user.id;
+        const isUserHost = user && activeMeeting.host_id === user.id;
         const resolvedRole = isUserHost ? 'host' : 'participant';
         setMyRole(resolvedRole);
 
         // Check if passcode is required
-        if (meeting.passcode && !isUserHost) {
+        if (activeMeeting.passcode && !isUserHost) {
           setPasscodeGateRequired(true);
           const wasPasscodePassed = sessionStorage.getItem(`passcode_passed_${code}`) === 'true';
           setPasscodeGatePassed(wasPasscodePassed);
@@ -414,7 +438,7 @@ export const MeetingRoom: React.FC = () => {
         }
 
         // Check if waiting room is needed
-        if (meeting.is_waiting_room_enabled && !isUserHost) {
+        if (activeMeeting.is_waiting_room_enabled && !isUserHost) {
           const wasWaitingStatusApproved = sessionStorage.getItem(`waiting_status_approved_${code}`) === 'true';
           setWaitingStatus(wasWaitingStatusApproved ? 'approved' : 'waiting');
         } else {
@@ -425,7 +449,7 @@ export const MeetingRoom: React.FC = () => {
         const { data: messages, error: msgError } = await supabase
           .from('chat_messages')
           .select('*')
-          .eq('meeting_id', meeting.id)
+          .eq('meeting_id', activeMeeting.id)
           .order('created_at', { ascending: true });
 
         if (msgError) {
