@@ -154,8 +154,20 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => {
         if (localStreamRef.current) {
-          const sender = pc.addTrack(track, localStreamRef.current);
-          if (track.kind === 'video') {
+          let trackToSend = track;
+          let streamToSend = localStreamRef.current;
+
+          if (track.kind === 'video' && isScreenSharingRef.current && screenShareStreamRef.current) {
+            const screenTrack = screenShareStreamRef.current.getVideoTracks()[0];
+            if (screenTrack) {
+              trackToSend = screenTrack;
+              streamToSend = screenShareStreamRef.current;
+              console.log('useWebRTC: Adding screen share video track to new peer connection instead of camera');
+            }
+          }
+
+          const sender = pc.addTrack(trackToSend, streamToSend);
+          if (trackToSend.kind === 'video') {
             limitSenderBitrate(sender); // Constrain video bitrate to 250 kbps
           }
         }
@@ -415,6 +427,12 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
           isMutedVideo: p.isMutedVideo,
           isHandRaised: p.isHandRaised
         });
+
+        // Skip connection recreation if connection to peer already exists
+        if (peerConnections.current.has(p.socketId)) {
+          console.log(`Connection to peer ${p.socketId} already exists. Skipping connection creation.`);
+          continue;
+        }
 
         // Create WebRTC connection. Since we joined last, we initiate connection to existing peers
         const pc = await createPeerConnection(p.socketId, iceConfig);

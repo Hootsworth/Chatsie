@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useCallback } from 'react';
 import { MicOff, Hand, Signal, User, Monitor } from 'lucide-react';
 import { Card } from '../ui';
 
@@ -25,15 +25,9 @@ export const VideoCard: React.FC<VideoCardProps> = ({
   isActiveSpeaker,
   connectionQuality = 'good'
 }) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    if (videoRef.current) {
-      if (stream) {
-        videoRef.current.srcObject = stream;
-      } else {
-        videoRef.current.srcObject = null;
-      }
+  const videoRef = useCallback((node: HTMLVideoElement | null) => {
+    if (node) {
+      node.srcObject = stream;
     }
   }, [stream]);
 
@@ -89,7 +83,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({
             ref={videoRef}
             autoPlay
             playsInline
-            muted={isLocal} // Critical: mute local loopback to avoid audio feedback
+            muted={true} // Always mute video element to prevent double audio / feedback
             className={`w-full h-full object-cover rounded-xl ${isLocal && !isScreenShare ? 'transform scale-x-[-1]' : ''}`}
           />
         )
@@ -103,6 +97,20 @@ export const VideoCard: React.FC<VideoCardProps> = ({
             {username}
           </span>
         </div>
+      )}
+
+      {/* Separate, dedicated audio playback element for remote participants */}
+      {stream && !isLocal && (
+        <audio
+          autoPlay
+          playsInline
+          ref={(node) => {
+            if (node) {
+              node.srcObject = stream;
+            }
+          }}
+          style={{ display: 'none' }}
+        />
       )}
 
       {/* Name and audio muted status bar (bottom left overlay) */}

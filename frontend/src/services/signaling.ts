@@ -248,6 +248,10 @@ class SupabaseSignalingClient implements ISignalingClient {
       .on('broadcast', { event: 'waiting-room-action' }, (payload) => {
         const { targetSocketId, action } = payload.payload;
         if (targetSocketId === this.clientSocketId) {
+          if (action === 'approve' && this.user) {
+            this.user.isWaiting = false;
+            this.updatePresence();
+          }
           this.emit('waiting-status', { status: action === 'approve' ? 'approved' : 'denied' });
         }
       })
@@ -344,6 +348,7 @@ class SupabaseSignalingClient implements ISignalingClient {
   disconnect(): void {
     if (this.channel) {
       this.channel.unsubscribe();
+      supabase.removeChannel(this.channel);
       this.channel = null;
     }
   }

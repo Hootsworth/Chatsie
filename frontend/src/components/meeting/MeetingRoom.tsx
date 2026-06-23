@@ -79,7 +79,11 @@ export const MeetingRoom: React.FC = () => {
   // Pre-join Lobby states and refs
   const [isLobbyPassed, setIsLobbyPassed] = useState(false);
   const [lobbyStream, setLobbyStream] = useState<MediaStream | null>(null);
-  const lobbyVideoRef = React.useRef<HTMLVideoElement>(null);
+  const lobbyVideoRef = React.useCallback((node: HTMLVideoElement | null) => {
+    if (node && lobbyStream) {
+      node.srcObject = lobbyStream;
+    }
+  }, [lobbyStream]);
 
   // Helper to fetch devices inside the lobby
   const getDevicesForLobby = async () => {
@@ -200,12 +204,7 @@ export const MeetingRoom: React.FC = () => {
     };
   }, [selectedVideoInput, selectedAudioInput, isLobbyPassed, isLoadingMeeting, meetingError, isPasscodeGateRequired, isPasscodeGatePassed]);
 
-  // Bind video element whenever lobbyStream or videoRef changes
-  useEffect(() => {
-    if (lobbyVideoRef.current && lobbyStream) {
-      lobbyVideoRef.current.srcObject = lobbyStream;
-    }
-  }, [lobbyStream, isLobbyPassed]);
+
 
   const handleToggleLobbyAudio = () => {
     const nextState = !isMutedAudio;
