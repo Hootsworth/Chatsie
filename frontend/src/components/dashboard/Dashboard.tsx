@@ -230,7 +230,7 @@ export const Dashboard: React.FC = () => {
 
   const handleCopyPersonalLink = () => {
     if (!user) return;
-    const personalLink = `${window.location.origin}/room/personal-${user.id}`;
+    const personalLink = `${window.location.origin}${import.meta.env.BASE_URL}room/personal-${user.id}`;
     navigator.clipboard.writeText(personalLink);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
@@ -363,7 +363,7 @@ export const Dashboard: React.FC = () => {
             
             <div className="mt-4 flex items-center bg-canvas rounded-lg p-2 border border-hairline">
               <span className="text-xs font-mono text-muted truncate mr-2 select-all flex-grow pl-1.5">
-                {window.location.origin}/room/personal-{user?.id}
+                {window.location.origin}{import.meta.env.BASE_URL}room/personal-{user?.id}
               </span>
               <div className="flex space-x-2 flex-shrink-0">
                 <button

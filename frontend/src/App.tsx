@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { HashRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { ClerkProvider, SignedIn, SignedOut, SignIn, SignUp } from '@clerk/clerk-react';
 import { Dashboard } from './components/dashboard/Dashboard';
 import { MeetingRoom } from './components/meeting/MeetingRoom';
@@ -50,7 +50,7 @@ const KickedPage: React.FC = () => {
 // Simple hook to navigation outside route contexts
 function useNavigateHelper() {
   const navigate = React.useCallback(() => {
-    window.location.href = '/';
+    window.location.href = import.meta.env.BASE_URL;
   }, []);
   return navigate;
 }
@@ -136,7 +136,7 @@ export const App: React.FC = () => {
   }, []);
 
   return (
-    <Router>
+    <Router basename={import.meta.env.BASE_URL}>
       <ClerkWithRoutes />
     </Router>
   );
