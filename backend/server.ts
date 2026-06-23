@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 5001;
 
 app.use(cors({
   origin: '*',
-  methods: ['GET', 'POST']
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS']
 }));
 
 app.use(express.json());
