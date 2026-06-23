@@ -40,7 +40,7 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
     setConnectionQuality
   } = useWebRTCStore();
 
-  // Keep references to peer connections in a mutable ref (non-react state)
+  // Keep references to peer connections in a mutable ref keyed by userId
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
   const localStreamRef = useRef<MediaStream | null>(null);
   const screenShareStreamRef = useRef<MediaStream | null>(null);
@@ -112,7 +112,6 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
               return config;
             } else {
               console.warn('useWebRTC: Fetched ICE servers do not contain any TURN servers. Merging default TURN servers.');
-              // Filter to get TURN servers from defaultIceServers
               const turnFallbacks = defaultIceServers.filter(server => {
                 return server.urls.some((url: string) => url.startsWith('turn:'));
               });
@@ -197,10 +196,10 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
     }
   }, [setLocalStream, setScreenShareStream, setScreenSharing]);
 
-  // Create an RTCPeerConnection for a remote peer
-  const createPeerConnection = useCallback(async (targetSocketId: string, iceConfig: RTCConfiguration): Promise<RTCPeerConnection> => {
+  // Create an RTCPeerConnection for a remote peer (keyed by targetUserId)
+  const createPeerConnection = useCallback(async (targetUserId: string, iceConfig: RTCConfiguration): Promise<RTCPeerConnection> => {
     const pc = new RTCPeerConnection(iceConfig);
-    peerConnections.current.set(targetSocketId, pc);
+    peerConnections.current.set(targetUserId, pc);
 
     // Add local tracks to the connection
     if (localStreamRef.current) {
@@ -229,20 +228,20 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
     // ICE Candidate handler
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        signalingClient.sendSignal(targetSocketId, { candidate: event.candidate });
+        signalingClient.sendSignal(targetUserId, { candidate: event.candidate });
       }
     };
 
     // Remote Track Handler
     pc.ontrack = (event) => {
-      console.log(`Received remote track from ${targetSocketId}:`, event.track.kind);
+      console.log(`Received remote track from ${targetUserId}:`, event.track.kind);
       const remoteStream = event.streams[0];
-      addRemoteStream(targetSocketId, remoteStream);
+      addRemoteStream(targetUserId, remoteStream);
     };
 
     // Connection Quality State Monitor
     pc.onconnectionstatechange = () => {
-      console.log(`Peer ${targetSocketId} connection state changed to:`, pc.connectionState);
+      console.log(`Peer ${targetUserId} connection state changed to:`, pc.connectionState);
       
       let state: 'good' | 'fair' | 'poor' | 'disconnected' = 'good';
       if (pc.connectionState === 'connecting') state = 'fair';
@@ -250,22 +249,22 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
       
       const isDead = pc.connectionState === 'failed' || pc.connectionState === 'closed';
       const isDisconnected = pc.connectionState === 'disconnected';
-      const isSignalingDeparted = departedSignalingPeers.current.has(targetSocketId);
+      const isSignalingDeparted = departedSignalingPeers.current.has(targetUserId);
       
       if (isDead || (isDisconnected && isSignalingDeparted)) {
         state = 'disconnected';
-        departedSignalingPeers.current.delete(targetSocketId);
+        departedSignalingPeers.current.delete(targetUserId);
         try {
           pc.close();
         } catch (e) {
           // already closed
         }
-        peerConnections.current.delete(targetSocketId);
-        iceCandidateQueues.current.delete(targetSocketId);
-        removeRemoteStream(targetSocketId);
-        removeParticipant(targetSocketId);
+        peerConnections.current.delete(targetUserId);
+        iceCandidateQueues.current.delete(targetUserId);
+        removeRemoteStream(targetUserId);
+        removeParticipant(targetUserId);
       }
-      setConnectionQuality(targetSocketId, state);
+      setConnectionQuality(targetUserId, state);
     };
 
     // Listen to ICE connection state for fallback diagnostics
@@ -279,15 +278,15 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
   }, [addRemoteStream, removeRemoteStream, removeParticipant, setConnectionQuality]);
 
   // Clean up a peer connection
-  const closePeerConnection = useCallback((socketId: string) => {
-    const pc = peerConnections.current.get(socketId);
+  const closePeerConnection = useCallback((userId: string) => {
+    const pc = peerConnections.current.get(userId);
     if (pc) {
       pc.close();
-      peerConnections.current.delete(socketId);
+      peerConnections.current.delete(userId);
     }
-    iceCandidateQueues.current.delete(socketId);
-    removeRemoteStream(socketId);
-    removeParticipant(socketId);
+    iceCandidateQueues.current.delete(userId);
+    removeRemoteStream(userId);
+    removeParticipant(userId);
   }, [removeRemoteStream, removeParticipant]);
 
   // Toggle local Audio mute
@@ -322,7 +321,7 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
       
       // Replace track with null in all peer connections
       peerConnections.current.forEach(async (pc) => {
-        const videoSender = pc.getTransceivers().find(t => t.receiver.track.kind === 'video')?.sender;
+        const videoSender = pc.getSenders().find(s => s.track?.kind === 'video');
         if (videoSender) {
           await videoSender.replaceTrack(null);
         }
@@ -363,7 +362,7 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
           // Replace track in all peer connections if not screen sharing
           if (!isScreenSharingRef.current) {
             peerConnections.current.forEach(async (pc) => {
-              const videoSender = pc.getTransceivers().find(t => t.receiver.track.kind === 'video')?.sender;
+              const videoSender = pc.getSenders().find(s => s.track?.kind === 'video');
               if (videoSender) {
                 await videoSender.replaceTrack(freshVideoTrack);
               }
@@ -396,7 +395,7 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
       if (localStreamRef.current) {
         const cameraVideoTrack = localStreamRef.current.getVideoTracks()[0];
         peerConnections.current.forEach(async (pc) => {
-          const videoSender = pc.getTransceivers().find(t => t.receiver.track.kind === 'video')?.sender;
+          const videoSender = pc.getSenders().find(s => s.track?.kind === 'video');
           if (videoSender && cameraVideoTrack) {
             await videoSender.replaceTrack(cameraVideoTrack);
           }
@@ -426,7 +425,7 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
 
         // Replace video track on all peer connections
         peerConnections.current.forEach(async (pc) => {
-          const videoSender = pc.getTransceivers().find(t => t.receiver.track.kind === 'video')?.sender;
+          const videoSender = pc.getSenders().find(s => s.track?.kind === 'video');
           if (videoSender) {
             await videoSender.replaceTrack(screenVideoTrack);
           }
@@ -504,7 +503,6 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
         voiceCleanup.current = createVoiceActivityDetector(stream, (isSpeaking) => {
           if (isSpeaking && !isMutedAudioRef.current) {
             setActiveSpeaker('local');
-            // Broadcast local voice activity to peers
             signalingClient.raiseHand(false); // Can trigger mini metadata pulses or rely on presence sync
           } else {
             setActiveSpeaker(null);
@@ -568,7 +566,7 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
       if (!active) return;
       
       for (const p of participants) {
-        departedSignalingPeers.current.delete(p.socketId);
+        departedSignalingPeers.current.delete(p.userId);
         
         addParticipant({
           socketId: p.socketId,
@@ -581,42 +579,40 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
         });
 
         // Skip connection recreation if connection to peer already exists and is active/pending
-        if (peerConnections.current.has(p.socketId)) {
-          const existingPc = peerConnections.current.get(p.socketId);
+        if (peerConnections.current.has(p.userId)) {
+          const existingPc = peerConnections.current.get(p.userId);
           if (existingPc && ['new', 'connecting', 'connected'].includes(existingPc.connectionState)) {
-            console.log(`Connection to peer ${p.socketId} already exists in active/pending state: ${existingPc.connectionState}. Skipping connection creation.`);
+            console.log(`Connection to peer ${p.userId} already exists in active/pending state: ${existingPc.connectionState}. Skipping connection creation.`);
             continue;
           } else {
-            console.log(`Connection to peer ${p.socketId} exists but state is ${existingPc?.connectionState}. Re-creating connection.`);
-            closePeerConnection(p.socketId);
+            console.log(`Connection to peer ${p.userId} exists but state is ${existingPc?.connectionState}. Re-creating connection.`);
+            closePeerConnection(p.userId);
           }
         }
 
-        // Deterministic role: Only the peer with the lexicographically smaller socket ID initiates the offer
-        const mySocketId = signalingClient.getSocketId();
-        const isOfferer = mySocketId < p.socketId;
+        // Deterministic role: lexicographical userId comparison
+        const isOfferer = userId < p.userId;
 
         if (isOfferer) {
-          console.log(`We are the offerer for peer ${p.socketId} (${mySocketId} < ${p.socketId}). Initiating connection.`);
-          const pc = await createPeerConnection(p.socketId, iceConfig);
+          console.log(`We are the offerer for peer ${p.userId} (${userId} < ${p.userId}). Initiating connection.`);
+          const pc = await createPeerConnection(p.userId, iceConfig);
           try {
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
-            signalingClient.sendSignal(p.socketId, offer);
+            signalingClient.sendSignal(p.userId, offer);
           } catch (err) {
             console.error('Error creating WebRTC offer:', err);
           }
         } else {
-          console.log(`We are the answerer for peer ${p.socketId} (${mySocketId} > ${p.socketId}). Waiting for offer.`);
-          // Just prepare the peer connection so it's ready, but don't send offer
-          await createPeerConnection(p.socketId, iceConfig);
+          console.log(`We are the answerer for peer ${p.userId} (${userId} > ${p.userId}). Preparing connection & waiting for offer.`);
+          await createPeerConnection(p.userId, iceConfig);
         }
       }
     };
 
     const handlePeerJoined = (p: any) => {
-      console.log(`Peer joined notification: ${p.username} (${p.socketId})`);
-      departedSignalingPeers.current.delete(p.socketId);
+      console.log(`Peer joined notification: ${p.username} (${p.userId})`);
+      departedSignalingPeers.current.delete(p.userId);
       
       addParticipant({
         socketId: p.socketId,
@@ -627,61 +623,100 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
         isMutedVideo: p.isMutedVideo,
         isHandRaised: p.isHandRaised
       });
+
+      // Deterministic role: lexicographical userId comparison
+      const isOfferer = userId < p.userId;
+      if (isOfferer) {
+        const startOffer = async () => {
+          const iceConfig = await fetchIceServers();
+          if (!active) return;
+          
+          if (peerConnections.current.has(p.userId)) {
+            const existingPc = peerConnections.current.get(p.userId);
+            if (existingPc && ['new', 'connecting', 'connected'].includes(existingPc.connectionState)) {
+              console.log(`Connection to joined peer ${p.userId} already active/pending. Skipping.`);
+              return;
+            }
+            closePeerConnection(p.userId);
+          }
+          
+          console.log(`Initiating offer to newly joined peer ${p.userId} (${userId} < ${p.userId})`);
+          const pc = await createPeerConnection(p.userId, iceConfig);
+          try {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            signalingClient.sendSignal(p.userId, offer);
+          } catch (err) {
+            console.error('Error creating WebRTC offer for joined peer:', err);
+          }
+        };
+        startOffer();
+      } else {
+        const prepAnswering = async () => {
+          const iceConfig = await fetchIceServers();
+          if (!active) return;
+          if (!peerConnections.current.has(p.userId)) {
+            console.log(`Preparing answering connection for newly joined peer ${p.userId}`);
+            await createPeerConnection(p.userId, iceConfig);
+          }
+        };
+        prepAnswering();
+      }
     };
 
-    const handleSignal = async ({ senderId, signal }: any) => {
+    const handleSignal = async ({ senderUserId, signal }: any) => {
       const iceConfig = await fetchIceServers();
       if (!active) return;
       
-      let pc = peerConnections.current.get(senderId);
+      let pc = peerConnections.current.get(senderUserId);
       
-      // If we receive a new offer but already have a connection, close the old one only if it is not pending (stale or connected)
+      // If we receive a new offer but already have a connection, close the old one only if it is not pending
       if (signal.type === 'offer' && pc && !['new', 'connecting'].includes(pc.connectionState)) {
-        console.log(`Received WebRTC offer from ${senderId} but connection already exists in state ${pc.connectionState}. Closing old connection.`);
-        closePeerConnection(senderId);
+        console.log(`Received WebRTC offer from ${senderUserId} but connection already exists in state ${pc.connectionState}. Closing old connection.`);
+        closePeerConnection(senderUserId);
         pc = undefined;
       }
       
       // If peer connection doesn't exist, create it (answering peer)
       if (!pc) {
-        pc = await createPeerConnection(senderId, iceConfig);
+        pc = await createPeerConnection(senderUserId, iceConfig);
       }
 
       if (signal.type === 'offer') {
         try {
           await pc.setRemoteDescription(new RTCSessionDescription(signal));
-          console.log(`Successfully set remote offer description for peer ${senderId}`);
+          console.log(`Successfully set remote offer description for peer ${senderUserId}`);
           
           // Drain queued ICE candidates
-          const queue = iceCandidateQueues.current.get(senderId) || [];
-          console.log(`Draining ${queue.length} queued ICE candidates for peer ${senderId}`);
+          const queue = iceCandidateQueues.current.get(senderUserId) || [];
+          console.log(`Draining ${queue.length} queued ICE candidates for peer ${senderUserId}`);
           for (const candidate of queue) {
             await pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => {
-              console.warn(`Failed to add queued ICE candidate for peer ${senderId}:`, e);
+              console.warn(`Failed to add queued ICE candidate for peer ${senderUserId}:`, e);
             });
           }
-          iceCandidateQueues.current.delete(senderId);
+          iceCandidateQueues.current.delete(senderUserId);
 
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
-          signalingClient.sendSignal(senderId, answer);
+          signalingClient.sendSignal(senderUserId, answer);
         } catch (err) {
           console.error('Error handling WebRTC offer:', err);
         }
       } else if (signal.type === 'answer') {
         try {
           await pc.setRemoteDescription(new RTCSessionDescription(signal));
-          console.log(`Successfully set remote answer description for peer ${senderId}`);
+          console.log(`Successfully set remote answer description for peer ${senderUserId}`);
 
           // Drain queued ICE candidates
-          const queue = iceCandidateQueues.current.get(senderId) || [];
-          console.log(`Draining ${queue.length} queued ICE candidates for peer ${senderId}`);
+          const queue = iceCandidateQueues.current.get(senderUserId) || [];
+          console.log(`Draining ${queue.length} queued ICE candidates for peer ${senderUserId}`);
           for (const candidate of queue) {
             await pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => {
-              console.warn(`Failed to add queued ICE candidate for peer ${senderId}:`, e);
+              console.warn(`Failed to add queued ICE candidate for peer ${senderUserId}:`, e);
             });
           }
-          iceCandidateQueues.current.delete(senderId);
+          iceCandidateQueues.current.delete(senderUserId);
         } catch (err) {
           console.error('Error setting remote answer:', err);
         }
@@ -692,10 +727,10 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
             await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
           } else {
             // Queue the candidate until remote description is applied
-            const queue = iceCandidateQueues.current.get(senderId) || [];
+            const queue = iceCandidateQueues.current.get(senderUserId) || [];
             queue.push(signal.candidate);
-            iceCandidateQueues.current.set(senderId, queue);
-            console.log(`Queued ICE candidate for peer ${senderId} (remoteDescription is not yet set)`);
+            iceCandidateQueues.current.set(senderUserId, queue);
+            console.log(`Queued ICE candidate for peer ${senderUserId} (remoteDescription is not yet set)`);
           }
         } catch (err) {
           console.error('Error adding ICE candidate:', err);
@@ -703,16 +738,16 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
       }
     };
 
-    const handlePeerLeft = ({ socketId }: any) => {
-      console.log(`Peer left signaling channel: ${socketId}`);
-      departedSignalingPeers.current.add(socketId);
+    const handlePeerLeft = ({ userId }: any) => {
+      console.log(`Peer left signaling channel: ${userId}`);
+      departedSignalingPeers.current.add(userId);
       
-      const pc = peerConnections.current.get(socketId);
+      const pc = peerConnections.current.get(userId);
       // Only close WebRTC if connection is not active
       if (!pc || pc.connectionState !== 'connected') {
-        closePeerConnection(socketId);
+        closePeerConnection(userId);
       } else {
-        console.log(`WebRTC connection to ${socketId} is still connected. Keeping streaming active.`);
+        console.log(`WebRTC connection to ${userId} is still connected. Keeping streaming active.`);
       }
     };
 
@@ -720,12 +755,12 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
       addChatMessage(msg);
     };
 
-    const handleHandRaised = ({ socketId, isRaised }: any) => {
-      updateParticipantHand(socketId, isRaised);
+    const handleHandRaised = ({ userId, isRaised }: any) => {
+      updateParticipantHand(userId, isRaised);
     };
 
-    const handlePeerMutedStatus = ({ socketId, type, isMuted }: any) => {
-      updateParticipantMute(socketId, type, isMuted);
+    const handlePeerMutedStatus = ({ userId, type, isMuted }: any) => {
+      updateParticipantMute(userId, type, isMuted);
     };
 
     const handleMuteCommand = ({ type }: any) => {

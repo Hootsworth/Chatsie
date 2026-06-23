@@ -62,9 +62,9 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
 
         {/* Remote Video Cards */}
         {participants.map((p) => {
-          const rStream = remoteStreams.get(p.socketId) || null;
+          const rStream = remoteStreams.get(p.userId) || null;
           return (
-            <div key={p.socketId} className="w-full h-full min-h-[160px]">
+            <div key={p.userId} className="w-full h-full min-h-[160px]">
               <VideoCard
                 stream={rStream}
                 username={p.username}
@@ -72,8 +72,8 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
                 isMutedAudio={p.isMutedAudio}
                 isMutedVideo={p.isMutedVideo}
                 isHandRaised={p.isHandRaised}
-                isActiveSpeaker={activeSpeaker === p.socketId}
-                connectionQuality={connectionQuality[p.socketId] || 'good'}
+                isActiveSpeaker={activeSpeaker === p.userId}
+                connectionQuality={connectionQuality[p.userId] || 'good'}
               />
             </div>
           );

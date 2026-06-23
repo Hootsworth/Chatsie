@@ -73,9 +73,9 @@ interface MeetingState {
   setMyRole: (role: 'host' | 'participant') => void;
   setParticipants: (participants: Participant[]) => void;
   addParticipant: (participant: Participant) => void;
-  removeParticipant: (socketId: string) => void;
-  updateParticipantMute: (socketId: string, type: 'audio' | 'video', isMuted: boolean) => void;
-  updateParticipantHand: (socketId: string, isRaised: boolean) => void;
+  removeParticipant: (userId: string) => void;
+  updateParticipantMute: (userId: string, type: 'audio' | 'video', isMuted: boolean) => void;
+  updateParticipantHand: (userId: string, isRaised: boolean) => void;
   setWaitingRoomList: (list: Array<{ socketId: string; userId: string; username: string }>) => void;
   setWaitingStatus: (status: 'none' | 'waiting' | 'approved' | 'denied') => void;
   setPasscodeGateRequired: (required: boolean) => void;
@@ -115,20 +115,24 @@ export const useMeetingStore = create<MeetingState>((set) => ({
   setParticipants: (participants) => set({ participants }),
   
   addParticipant: (participant) => set((state) => {
-    // Avoid duplicates
-    if (state.participants.some(p => p.socketId === participant.socketId)) {
-      return { participants: state.participants };
+    // Avoid duplicates by tracking userId
+    if (state.participants.some(p => p.userId === participant.userId)) {
+      return {
+        participants: state.participants.map(p => 
+          p.userId === participant.userId ? { ...p, ...participant } : p
+        )
+      };
     }
     return { participants: [...state.participants, participant] };
   }),
   
-  removeParticipant: (socketId) => set((state) => ({
-    participants: state.participants.filter(p => p.socketId !== socketId)
+  removeParticipant: (userId) => set((state) => ({
+    participants: state.participants.filter(p => p.userId !== userId)
   })),
 
-  updateParticipantMute: (socketId, type, isMuted) => set((state) => ({
+  updateParticipantMute: (userId, type, isMuted) => set((state) => ({
     participants: state.participants.map(p => {
-      if (p.socketId === socketId) {
+      if (p.userId === userId) {
         return type === 'audio' 
           ? { ...p, isMutedAudio: isMuted } 
           : { ...p, isMutedVideo: isMuted };
@@ -137,9 +141,9 @@ export const useMeetingStore = create<MeetingState>((set) => ({
     })
   })),
 
-  updateParticipantHand: (socketId, isRaised) => set((state) => ({
+  updateParticipantHand: (userId, isRaised) => set((state) => ({
     participants: state.participants.map(p => 
-      p.socketId === socketId ? { ...p, isHandRaised: isRaised } : p
+      p.userId === userId ? { ...p, isHandRaised: isRaised } : p
     )
   })),
 

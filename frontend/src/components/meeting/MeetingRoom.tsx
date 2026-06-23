@@ -301,11 +301,11 @@ export const MeetingRoom: React.FC = () => {
   useEffect(() => {
     if (!shouldConnectWebRTC) return;
 
-    const handleCaption = ({ senderId, username, text, isFinal }: { senderId: string; username: string; text: string; isFinal: boolean }) => {
+    const handleCaption = ({ senderUserId, username, text, isFinal }: { senderUserId: string; username: string; text: string; isFinal: boolean }) => {
       // 1. Update transient overlay captions
       setActiveCaptions(prev => ({
         ...prev,
-        [senderId]: {
+        [senderUserId]: {
           username,
           text,
           timestamp: Date.now()
@@ -313,7 +313,7 @@ export const MeetingRoom: React.FC = () => {
       }));
 
       // 2. Update persistent transcript log
-      addOrUpdateTranscript(senderId, username, text, isFinal);
+      addOrUpdateTranscript(senderUserId, username, text, isFinal);
     };
 
     signalingClient.on('caption', handleCaption);
@@ -344,10 +344,10 @@ export const MeetingRoom: React.FC = () => {
   useEffect(() => {
     if (!shouldConnectWebRTC) return;
 
-    const handleReaction = ({ senderId, type }: { senderId: string; type: string }) => {
+    const handleReaction = ({ senderUserId, type }: { senderUserId: string; type: string }) => {
       setReactionList(prev => [
         ...prev,
-        { id: `${senderId}-${Date.now()}-${Math.random()}`, emoji: type }
+        { id: `${senderUserId}-${Date.now()}-${Math.random()}`, emoji: type }
       ]);
     };
 

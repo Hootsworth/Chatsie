@@ -1,6 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import supabase from './supabase';
+import { useMeetingStore } from '../stores/meetingStore';
 
 export interface SignalingEventMap {
   'peer-joined': (data: {
@@ -12,8 +13,8 @@ export interface SignalingEventMap {
     isMutedVideo: boolean;
     isHandRaised: boolean;
   }) => void;
-  'peer-left': (data: { socketId: string }) => void;
-  'signal': (data: { senderId: string; signal: any }) => void;
+  'peer-left': (data: { userId: string; socketId: string }) => void;
+  'signal': (data: { senderUserId: string; signal: any }) => void;
   'chat-received': (data: {
     id: string;
     senderId: string;
@@ -22,27 +23,27 @@ export interface SignalingEventMap {
     text: string;
     timestamp: number;
   }) => void;
-  'hand-raised': (data: { socketId: string; isRaised: boolean }) => void;
-  'peer-muted-status': (data: { socketId: string; type: 'audio' | 'video'; isMuted: boolean }) => void;
+  'hand-raised': (data: { userId: string; isRaised: boolean }) => void;
+  'peer-muted-status': (data: { userId: string; type: 'audio' | 'video'; isMuted: boolean }) => void;
   'mute-command': (data: { type: 'audio' | 'video' }) => void;
   'kicked-command': () => void;
   'waiting-status': (data: { status: 'waiting' | 'approved' | 'denied' }) => void;
   'waiting-room-list-update': (data: { participants: Array<{ socketId: string; userId: string; username: string }> }) => void;
   'room-participants': (data: { participants: Array<any> }) => void;
-  'caption': (data: { senderId: string; username: string; text: string; isFinal: boolean }) => void;
-  'reaction': (data: { senderId: string; type: string }) => void;
+  'caption': (data: { senderUserId: string; username: string; text: string; isFinal: boolean }) => void;
+  'reaction': (data: { senderUserId: string; type: string }) => void;
 }
 
 export interface ISignalingClient {
   connect(roomId: string, user: { userId: string; username: string; role: 'host' | 'participant'; isWaiting: boolean }): void;
   disconnect(): void;
-  sendSignal(targetId: string, signal: any): void;
+  sendSignal(targetUserId: string, signal: any): void;
   sendChat(text: string): void;
   raiseHand(isRaised: boolean): void;
-  mutePeer(targetSocketId: string, type: 'audio' | 'video'): void;
+  mutePeer(targetUserId: string, type: 'audio' | 'video'): void;
   toggleMediaStatus(type: 'audio' | 'video', isMuted: boolean): void;
-  kickPeer(targetSocketId: string): void;
-  waitingRoomAction(targetSocketId: string, action: 'approve' | 'deny'): void;
+  kickPeer(targetUserId: string): void;
+  waitingRoomAction(targetUserId: string, action: 'approve' | 'deny'): void;
   on<K extends keyof SignalingEventMap>(event: K, listener: SignalingEventMap[K]): void;
   off<K extends keyof SignalingEventMap>(event: K, listener: SignalingEventMap[K]): void;
   getSocketId(): string;
@@ -71,7 +72,12 @@ class SocketIOSignalingClient implements ISignalingClient {
 
     this.socket = io(this.serverUrl, {
       transports: ['websocket'],
-      autoConnect: true
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000
     });
 
     this.socket.on('connect', () => {
@@ -108,8 +114,8 @@ class SocketIOSignalingClient implements ISignalingClient {
     }
   }
 
-  sendSignal(targetId: string, signal: any): void {
-    this.socket?.emit('signal', { targetId, signal });
+  sendSignal(targetUserId: string, signal: any): void {
+    this.socket?.emit('signal', { targetUserId, signal });
   }
 
   sendChat(text: string): void {
@@ -129,9 +135,9 @@ class SocketIOSignalingClient implements ISignalingClient {
     }
   }
 
-  mutePeer(targetSocketId: string, type: 'audio' | 'video'): void {
+  mutePeer(targetUserId: string, type: 'audio' | 'video'): void {
     if (this.socket) {
-      this.socket.emit('mute-peer', { roomId: this.roomId, targetSocketId, type });
+      this.socket.emit('mute-peer', { roomId: this.roomId, targetUserId, type });
     }
   }
 
@@ -141,15 +147,15 @@ class SocketIOSignalingClient implements ISignalingClient {
     }
   }
 
-  kickPeer(targetSocketId: string): void {
+  kickPeer(targetUserId: string): void {
     if (this.socket) {
-      this.socket.emit('kick-peer', { roomId: this.roomId, targetSocketId });
+      this.socket.emit('kick-peer', { roomId: this.roomId, targetUserId });
     }
   }
 
-  waitingRoomAction(targetSocketId: string, action: 'approve' | 'deny'): void {
+  waitingRoomAction(targetUserId: string, action: 'approve' | 'deny'): void {
     if (this.socket) {
-      this.socket.emit('waiting-room-action', { roomId: this.roomId, targetSocketId, action });
+      this.socket.emit('waiting-room-action', { roomId: this.roomId, targetUserId, action });
     }
   }
 
@@ -173,7 +179,12 @@ class SocketIOSignalingClient implements ISignalingClient {
 
   off<K extends keyof SignalingEventMap>(event: K, listener: SignalingEventMap[K]): void {
     const list = this.listeners.get(event) || [];
-    this.listeners.set(event, list.filter(l => l !== listener));
+    list.forEach((l, index) => {
+      if (l === listener) {
+        list.splice(index, 1);
+      }
+    });
+    this.listeners.set(event, list);
   }
 
   getSocketId(): string {
@@ -186,7 +197,6 @@ class SocketIOSignalingClient implements ISignalingClient {
   }
 }
 
-
 // ----------------------------------------------------
 // 2. SUPABASE REALTIME SIGNALING CLIENT IMPLEMENTATION
 // ----------------------------------------------------
@@ -196,7 +206,7 @@ class SupabaseSignalingClient implements ISignalingClient {
   private clientSocketId: string;
   private user: { userId: string; username: string; role: 'host' | 'participant'; isWaiting: boolean } | null = null;
   
-  // Track local states to syncrealtime changes
+  // Track local states to sync realtime changes
   private localStates = {
     isHandRaised: false,
     isMutedAudio: false,
@@ -225,29 +235,29 @@ class SupabaseSignalingClient implements ISignalingClient {
     // 1. Broadcast Listeners (Signals, Chat, Mutes)
     this.channel
       .on('broadcast', { event: 'signal' }, (payload) => {
-        const { senderId, targetId, signal } = payload.payload;
-        if (targetId === this.clientSocketId) {
-          this.emit('signal', { senderId, signal });
+        const { senderUserId, targetUserId, signal } = payload.payload;
+        if (targetUserId === this.user?.userId) {
+          this.emit('signal', { senderUserId, signal });
         }
       })
       .on('broadcast', { event: 'chat' }, (payload) => {
         this.emit('chat-received', payload.payload);
       })
       .on('broadcast', { event: 'mute-command' }, (payload) => {
-        const { targetSocketId, type } = payload.payload;
-        if (targetSocketId === this.clientSocketId) {
+        const { targetUserId, type } = payload.payload;
+        if (targetUserId === this.user?.userId) {
           this.emit('mute-command', { type });
         }
       })
       .on('broadcast', { event: 'kicked-command' }, (payload) => {
-        const { targetSocketId } = payload.payload;
-        if (targetSocketId === this.clientSocketId) {
+        const { targetUserId } = payload.payload;
+        if (targetUserId === this.user?.userId) {
           this.emit('kicked-command');
         }
       })
       .on('broadcast', { event: 'waiting-room-action' }, (payload) => {
-        const { targetSocketId, action } = payload.payload;
-        if (targetSocketId === this.clientSocketId) {
+        const { targetUserId, action } = payload.payload;
+        if (targetUserId === this.user?.userId) {
           if (action === 'approve' && this.user) {
             this.user.isWaiting = false;
             this.updatePresence();
@@ -293,7 +303,7 @@ class SupabaseSignalingClient implements ISignalingClient {
       });
 
       // Update room-participants for active ones (excluding ourselves)
-      const otherActiveParticipants = participants.filter(p => p.socketId !== this.clientSocketId);
+      const otherActiveParticipants = participants.filter(p => p.userId !== this.user?.userId);
       this.emit('room-participants', { participants: otherActiveParticipants });
 
       // Update waiting list for hosts
@@ -304,7 +314,7 @@ class SupabaseSignalingClient implements ISignalingClient {
 
     this.channel.on('presence', { event: 'join' }, ({ key, newPresences }) => {
       newPresences.forEach((presence: any) => {
-        if (key !== this.clientSocketId && !presence.isWaiting) {
+        if (presence.userId !== this.user?.userId && !presence.isWaiting) {
           this.emit('peer-joined', {
             socketId: key,
             userId: presence.userId,
@@ -320,7 +330,11 @@ class SupabaseSignalingClient implements ISignalingClient {
 
     this.channel.on('presence', { event: 'leave' }, ({ key }) => {
       if (key !== this.clientSocketId) {
-        this.emit('peer-left', { socketId: key });
+        // Resolve socketId (key) to userId by searching the participants store
+        const participant = useMeetingStore.getState().participants.find(p => p.socketId === key);
+        if (participant) {
+          this.emit('peer-left', { userId: participant.userId, socketId: key });
+        }
       }
     });
 
@@ -353,25 +367,24 @@ class SupabaseSignalingClient implements ISignalingClient {
     }
   }
 
-  sendSignal(targetId: string, signal: any): void {
+  sendSignal(targetUserId: string, signal: any): void {
     this.channel?.send({
       type: 'broadcast',
       event: 'signal',
       payload: {
-        senderId: this.clientSocketId,
-        targetId,
+        senderUserId: this.user?.userId,
+        targetUserId,
         signal
       }
     });
   }
 
   sendChat(text: string): void {
-    // Send to other peers
     if (!this.user) return;
     
     const msg = {
-      id: `${this.clientSocketId}-${Date.now()}`,
-      senderId: this.clientSocketId,
+      id: `${this.user.userId}-${Date.now()}`,
+      senderId: this.user.userId,
       userId: this.user.userId,
       username: this.user.username,
       text,
@@ -394,19 +407,19 @@ class SupabaseSignalingClient implements ISignalingClient {
       type: 'broadcast',
       event: 'caption',
       payload: {
-        senderId: this.clientSocketId,
+        senderUserId: this.user.userId,
         username: this.user.username,
         text,
         isFinal
       }
     });
-    this.emit('caption', { senderId: this.clientSocketId, username: this.user.username, text, isFinal });
+    this.emit('caption', { senderUserId: this.user.userId, username: this.user.username, text, isFinal });
   }
 
   sendReaction(type: string): void {
     if (!this.user) return;
     const payload = {
-      senderId: this.clientSocketId,
+      senderUserId: this.user.userId,
       type
     };
     this.channel?.send({
@@ -426,20 +439,19 @@ class SupabaseSignalingClient implements ISignalingClient {
       type: 'broadcast',
       event: 'hand-raised',
       payload: {
-        socketId: this.clientSocketId,
+        userId: this.user?.userId,
         isRaised
       }
     });
-    this.emit('hand-raised', { socketId: this.clientSocketId, isRaised });
+    this.emit('hand-raised', { userId: this.user?.userId || '', isRaised });
   }
 
-  mutePeer(targetSocketId: string, type: 'audio' | 'video'): void {
-    // Send command to specific target
+  mutePeer(targetUserId: string, type: 'audio' | 'video'): void {
     this.channel?.send({
       type: 'broadcast',
       event: 'mute-command',
       payload: {
-        targetSocketId,
+        targetUserId,
         type
       }
     });
@@ -456,30 +468,30 @@ class SupabaseSignalingClient implements ISignalingClient {
       type: 'broadcast',
       event: 'peer-muted-status',
       payload: {
-        socketId: this.clientSocketId,
+        userId: this.user?.userId,
         type,
         isMuted
       }
     });
-    this.emit('peer-muted-status', { socketId: this.clientSocketId, type, isMuted });
+    this.emit('peer-muted-status', { userId: this.user?.userId || '', type, isMuted });
   }
 
-  kickPeer(targetSocketId: string): void {
+  kickPeer(targetUserId: string): void {
     this.channel?.send({
       type: 'broadcast',
       event: 'kicked-command',
       payload: {
-        targetSocketId
+        targetUserId
       }
     });
   }
 
-  waitingRoomAction(targetSocketId: string, action: 'approve' | 'deny'): void {
+  waitingRoomAction(targetUserId: string, action: 'approve' | 'deny'): void {
     this.channel?.send({
       type: 'broadcast',
       event: 'waiting-room-action',
       payload: {
-        targetSocketId,
+        targetUserId,
         action
       }
     });
@@ -493,7 +505,12 @@ class SupabaseSignalingClient implements ISignalingClient {
 
   off<K extends keyof SignalingEventMap>(event: K, listener: SignalingEventMap[K]): void {
     const list = this.listeners.get(event) || [];
-    this.listeners.set(event, list.filter(l => l !== listener));
+    list.forEach((l, index) => {
+      if (l === listener) {
+        list.splice(index, 1);
+      }
+    });
+    this.listeners.set(event, list);
   }
 
   getSocketId(): string {

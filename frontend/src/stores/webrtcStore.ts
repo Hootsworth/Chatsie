@@ -9,7 +9,7 @@ interface WebRTCState {
   // Streams
   localStream: MediaStream | null;
   screenShareStream: MediaStream | null;
-  remoteStreams: Map<string, MediaStream>; // socketId -> MediaStream
+  remoteStreams: Map<string, MediaStream>; // userId -> MediaStream
   
   // Media States
   isMutedAudio: boolean;
@@ -28,17 +28,17 @@ interface WebRTCState {
   selectedAudioOutput: string;
   
   // Active Speaker
-  activeSpeaker: string | null; // socketId or 'local'
+  activeSpeaker: string | null; // userId or 'local'
   
   // Peer Network Connection Quality
-  // socketId -> 'good' | 'fair' | 'poor' | 'disconnected'
+  // userId -> 'good' | 'fair' | 'poor' | 'disconnected'
   connectionQuality: Record<string, 'good' | 'fair' | 'poor' | 'disconnected'>;
 
   // Actions
   setLocalStream: (stream: MediaStream | null) => void;
   setScreenShareStream: (stream: MediaStream | null) => void;
-  addRemoteStream: (socketId: string, stream: MediaStream) => void;
-  removeRemoteStream: (socketId: string) => void;
+  addRemoteStream: (userId: string, stream: MediaStream) => void;
+  removeRemoteStream: (userId: string) => void;
   
   setAudioMute: (isMuted: boolean) => void;
   setVideoMute: (isMuted: boolean) => void;
@@ -51,7 +51,7 @@ interface WebRTCState {
   setSelectedAudioOutput: (deviceId: string) => void;
   
   setActiveSpeaker: (speaker: string | null) => void;
-  setConnectionQuality: (socketId: string, quality: 'good' | 'fair' | 'poor' | 'disconnected') => void;
+  setConnectionQuality: (userId: string, quality: 'good' | 'fair' | 'poor' | 'disconnected') => void;
   resetWebRTCState: () => void;
 }
 
@@ -79,18 +79,18 @@ export const useWebRTCStore = create<WebRTCState>((set) => ({
   setLocalStream: (stream) => set({ localStream: stream }),
   setScreenShareStream: (stream) => set({ screenShareStream: stream }),
   
-  addRemoteStream: (socketId, stream) => set((state) => {
+  addRemoteStream: (userId, stream) => set((state) => {
     const updated = new Map(state.remoteStreams);
-    updated.set(socketId, stream);
+    updated.set(userId, stream);
     return { remoteStreams: updated };
   }),
   
-  removeRemoteStream: (socketId) => set((state) => {
+  removeRemoteStream: (userId) => set((state) => {
     const updated = new Map(state.remoteStreams);
-    updated.delete(socketId);
+    updated.delete(userId);
     
     const quality = { ...state.connectionQuality };
-    delete quality[socketId];
+    delete quality[userId];
     
     return { 
       remoteStreams: updated,
@@ -115,10 +115,10 @@ export const useWebRTCStore = create<WebRTCState>((set) => ({
   
   setActiveSpeaker: (speaker) => set({ activeSpeaker: speaker }),
   
-  setConnectionQuality: (socketId, quality) => set((state) => ({
+  setConnectionQuality: (userId, quality) => set((state) => ({
     connectionQuality: {
       ...state.connectionQuality,
-      [socketId]: quality
+      [userId]: quality
     }
   })),
 
