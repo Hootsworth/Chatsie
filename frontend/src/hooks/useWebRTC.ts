@@ -534,11 +534,15 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
   }, [selectedAudioInput, selectedVideoInput, setLocalStream, stopLocalTracks, setActiveSpeaker]);
 
   // Watch for device change and reinitialize local stream
+  // Covers: hosts (waitingStatus 'none'), participants without waiting room (waitingStatus 'none'),
+  // and participants approved through the waiting room (waitingStatus 'approved').
+  // Only activate when we have a valid roomId (i.e., user has passed the lobby).
   useEffect(() => {
-    if (waitingStatus === 'approved' || (waitingStatus === 'none' && myRole === 'host')) {
+    if (!roomId) return; // Don't init stream until lobby is passed and we have a room to join
+    if (waitingStatus === 'approved' || waitingStatus === 'none') {
       initializeLocalStream();
     }
-  }, [selectedAudioInput, selectedVideoInput, initializeLocalStream, waitingStatus, myRole]);
+  }, [roomId, selectedAudioInput, selectedVideoInput, initializeLocalStream, waitingStatus, myRole]);
 
   // Callback refs to avoid recreation of main useEffect loop
   const initializeLocalStreamRef = useRef(initializeLocalStream);
@@ -551,10 +555,61 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
   useEffect(() => { toggleAudioRef.current = toggleAudio; }, [toggleAudio]);
   useEffect(() => { toggleVideoRef.current = toggleVideo; }, [toggleVideo]);
 
+  // Lightweight signaling connection for waiting room participants.
+  // They need to be on the signaling channel to receive approval/denial events
+  // from the host, but their local stream isn't ready yet.
+  useEffect(() => {
+    if (!roomId) return;
+    if (waitingStatus !== 'waiting') return;
+
+    const handleWaitingStatus = ({ status }: any) => {
+      console.log('Waiting room status update (pre-connection):', status);
+      setWaitingStatus(status);
+      if (status === 'approved') {
+        if (roomId) {
+          sessionStorage.setItem(`waiting_status_approved_${roomId}`, 'true');
+        }
+        // Initialize stream now — once localStreamReady becomes true,
+        // the main signaling effect will take over with full peer connection setup.
+        initializeLocalStreamRef.current();
+      }
+    };
+
+    const handleKickedCommand = () => {
+      console.warn('You have been kicked by the host (waiting room).');
+      sessionStorage.removeItem(`lobby_passed_${roomId}`);
+      sessionStorage.removeItem(`passcode_passed_${roomId}`);
+      sessionStorage.removeItem(`waiting_status_approved_${roomId}`);
+      window.location.href = `/kicked?room=${roomId}`;
+    };
+
+    const handleWaitingRoomListUpdate = ({ participants }: any) => {
+      setWaitingRoomList(participants);
+    };
+
+    signalingClient.on('waiting-status', handleWaitingStatus);
+    signalingClient.on('kicked-command', handleKickedCommand);
+    signalingClient.on('waiting-room-list-update', handleWaitingRoomListUpdate);
+
+    signalingClient.connect(roomId, {
+      userId,
+      username,
+      role: myRole,
+      isWaiting: true
+    });
+
+    return () => {
+      signalingClient.off('waiting-status', handleWaitingStatus);
+      signalingClient.off('kicked-command', handleKickedCommand);
+      signalingClient.off('waiting-room-list-update', handleWaitingRoomListUpdate);
+      signalingClient.disconnect();
+    };
+  }, [roomId, userId, username, myRole, waitingStatus, setWaitingStatus, setWaitingRoomList]);
+
   // Core signaling and connection loop
   useEffect(() => {
     if (!roomId) return;
-    if (waitingStatus === 'denied') return;
+    if (waitingStatus === 'denied' || waitingStatus === 'waiting') return;
     if (!localStreamReady) return;
 
     let active = true;
