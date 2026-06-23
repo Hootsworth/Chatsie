@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useMeetingStore } from '../stores/meetingStore';
 import { useWebRTCStore } from '../stores/webrtcStore';
 import type { DeviceInfo } from '../stores/webrtcStore';
@@ -6,6 +6,8 @@ import { signalingClient } from '../services/signaling';
 import { limitSenderBitrate, createVoiceActivityDetector } from '../utils/webrtc-utils';
 
 export const useWebRTC = (roomId: string, userId: string, username: string) => {
+  const [localStreamReady, setLocalStreamReady] = useState(false);
+
   const {
     myRole,
     waitingStatus,
@@ -428,6 +430,7 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
   // Setup local media stream
   const initializeLocalStream = useCallback(async () => {
     stopLocalTracks();
+    setLocalStreamReady(false);
 
     const videoConstraints: MediaTrackConstraints = {
       width: { ideal: 640 },
@@ -445,10 +448,26 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: videoConstraints,
-        audio: audioConstraints
-      });
+      let stream: MediaStream;
+      try {
+        // Try getting both video and audio
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: videoConstraints,
+          audio: audioConstraints
+        });
+      } catch (err) {
+        console.warn('useWebRTC: Failed to get both audio and video, trying audio-only...', err);
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: audioConstraints
+          });
+        } catch (err2) {
+          console.warn('useWebRTC: Failed audio-only, trying video-only...', err2);
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: videoConstraints
+          });
+        }
+      }
 
       localStreamRef.current = stream;
       setLocalStream(stream);
@@ -465,15 +484,17 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
       }
 
       // Voice Activity Detector setup (to highlight active speaker)
-      voiceCleanup.current = createVoiceActivityDetector(stream, (isSpeaking) => {
-        if (isSpeaking && !isMutedAudioRef.current) {
-          setActiveSpeaker('local');
-          // Broadcast local voice activity to peers
-          signalingClient.raiseHand(false); // Can trigger mini metadata pulses or rely on presence sync
-        } else {
-          setActiveSpeaker(null);
-        }
-      }).cleanup;
+      if (audioTrack) {
+        voiceCleanup.current = createVoiceActivityDetector(stream, (isSpeaking) => {
+          if (isSpeaking && !isMutedAudioRef.current) {
+            setActiveSpeaker('local');
+            // Broadcast local voice activity to peers
+            signalingClient.raiseHand(false); // Can trigger mini metadata pulses or rely on presence sync
+          } else {
+            setActiveSpeaker(null);
+          }
+        }).cleanup;
+      }
 
       // Replace tracks in all active peer connections
       peerConnections.current.forEach((pc) => {
@@ -492,7 +513,9 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
       });
 
     } catch (error) {
-      console.error('Failed to get local stream:', error);
+      console.error('Failed to get any local stream:', error);
+    } finally {
+      setLocalStreamReady(true);
     }
   }, [selectedAudioInput, selectedVideoInput, setLocalStream, stopLocalTracks, setActiveSpeaker]);
 
@@ -518,6 +541,7 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
   useEffect(() => {
     if (!roomId) return;
     if (waitingStatus === 'denied') return;
+    if (!localStreamReady) return;
 
     let active = true;
 
@@ -728,6 +752,7 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
     username,
     myRole,
     waitingStatus,
+    localStreamReady,
     getDevices,
     createPeerConnection,
     closePeerConnection,
