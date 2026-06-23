@@ -564,11 +564,11 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
           isHandRaised: p.isHandRaised
         });
 
-        // Skip connection recreation if connection to peer already exists and is connected
+        // Skip connection recreation if connection to peer already exists and is active/pending
         if (peerConnections.current.has(p.socketId)) {
           const existingPc = peerConnections.current.get(p.socketId);
-          if (existingPc && existingPc.connectionState === 'connected') {
-            console.log(`Connection to peer ${p.socketId} already exists and is connected. Skipping connection creation.`);
+          if (existingPc && ['new', 'connecting', 'connected'].includes(existingPc.connectionState)) {
+            console.log(`Connection to peer ${p.socketId} already exists in active/pending state: ${existingPc.connectionState}. Skipping connection creation.`);
             continue;
           } else {
             console.log(`Connection to peer ${p.socketId} exists but state is ${existingPc?.connectionState}. Re-creating connection.`);
