@@ -1,0 +1,580 @@
+import { useEffect, useRef, useCallback } from 'react';
+import { useMeetingStore } from '../stores/meetingStore';
+import { useWebRTCStore } from '../stores/webrtcStore';
+import type { DeviceInfo } from '../stores/webrtcStore';
+import { signalingClient } from '../services/signaling';
+import { limitSenderBitrate, createVoiceActivityDetector } from '../utils/webrtc-utils';
+
+export const useWebRTC = (roomId: string, userId: string, username: string) => {
+  const {
+    myRole,
+    waitingStatus,
+    addParticipant,
+    removeParticipant,
+    updateParticipantMute,
+    updateParticipantHand,
+    setWaitingStatus,
+    setWaitingRoomList,
+    addChatMessage
+  } = useMeetingStore();
+
+  const {
+    localStream,
+    screenShareStream,
+    isMutedAudio,
+    isMutedVideo,
+    isScreenSharing,
+    selectedAudioInput,
+    selectedVideoInput,
+    setLocalStream,
+    setScreenShareStream,
+    addRemoteStream,
+    removeRemoteStream,
+    setAudioMute,
+    setVideoMute,
+    setScreenSharing,
+    setDevices,
+    setActiveSpeaker,
+    setConnectionQuality
+  } = useWebRTCStore();
+
+  // Keep references to peer connections in a mutable ref (non-react state)
+  const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const screenShareStreamRef = useRef<MediaStream | null>(null);
+  
+  // Refs for current states to avoid stale closures in WebRTC callbacks
+  const isMutedAudioRef = useRef(isMutedAudio);
+  const isMutedVideoRef = useRef(isMutedVideo);
+  const isScreenSharingRef = useRef(isScreenSharing);
+  
+  // Ref for voice activity cleanup
+  const voiceCleanup = useRef<(() => void) | null>(null);
+
+  // Sync refs with state changes
+  useEffect(() => { isMutedAudioRef.current = isMutedAudio; }, [isMutedAudio]);
+  useEffect(() => { isMutedVideoRef.current = isMutedVideo; }, [isMutedVideo]);
+  useEffect(() => { isScreenSharingRef.current = isScreenSharing; }, [isScreenSharing]);
+
+  // Default ICE servers if API fails
+  const defaultIceServers = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' }
+  ];
+
+  // Fetch ICE configuration from serverless backend
+  const fetchIceServers = async (): Promise<RTCConfiguration> => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      if (apiUrl && apiUrl !== 'undefined' && apiUrl !== 'null') {
+        const response = await fetch(`${apiUrl}/api/turn-credentials`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.iceServers) {
+            return { iceServers: data.iceServers };
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to fetch TURN credentials from serverless endpoint, falling back to STUN:', e);
+    }
+    return { iceServers: defaultIceServers };
+  };
+
+  // Get available user audio/video devices
+  const getDevices = useCallback(async () => {
+    try {
+      // Prompt permissions first if not already granted
+      await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      
+      const audio: DeviceInfo[] = [];
+      const video: DeviceInfo[] = [];
+      const speaker: DeviceInfo[] = [];
+      
+      devices.forEach(device => {
+        const payload = { deviceId: device.deviceId, label: device.label || `${device.kind} (Default)` };
+        if (device.kind === 'audioinput') audio.push(payload);
+        else if (device.kind === 'videoinput') video.push(payload);
+        else if (device.kind === 'audiooutput') speaker.push(payload);
+      });
+      
+      setDevices(audio, video, speaker);
+    } catch (error) {
+      console.error('Error fetching media devices:', error);
+    }
+  }, [setDevices]);
+
+  // Stop all active tracks on local streams
+  const stopLocalTracks = useCallback(() => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current = null;
+      setLocalStream(null);
+    }
+    if (screenShareStreamRef.current) {
+      screenShareStreamRef.current.getTracks().forEach(track => track.stop());
+      screenShareStreamRef.current = null;
+      setScreenShareStream(null);
+      setScreenSharing(false);
+    }
+    if (voiceCleanup.current) {
+      voiceCleanup.current();
+      voiceCleanup.current = null;
+    }
+  }, [setLocalStream, setScreenShareStream, setScreenSharing]);
+
+  // Create an RTCPeerConnection for a remote peer
+  const createPeerConnection = useCallback(async (targetSocketId: string, iceConfig: RTCConfiguration): Promise<RTCPeerConnection> => {
+    const pc = new RTCPeerConnection(iceConfig);
+    peerConnections.current.set(targetSocketId, pc);
+
+    // Add local tracks to the connection
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => {
+        if (localStreamRef.current) {
+          const sender = pc.addTrack(track, localStreamRef.current);
+          if (track.kind === 'video') {
+            limitSenderBitrate(sender); // Constrain video bitrate to 250 kbps
+          }
+        }
+      });
+    }
+
+    // ICE Candidate handler
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        signalingClient.sendSignal(targetSocketId, { candidate: event.candidate });
+      }
+    };
+
+    // Remote Track Handler
+    pc.ontrack = (event) => {
+      console.log(`Received remote track from ${targetSocketId}:`, event.track.kind);
+      const remoteStream = event.streams[0];
+      addRemoteStream(targetSocketId, remoteStream);
+    };
+
+    // Connection Quality State Monitor
+    pc.onconnectionstatechange = () => {
+      console.log(`Peer ${targetSocketId} connection state changed to:`, pc.connectionState);
+      
+      let state: 'good' | 'fair' | 'poor' | 'disconnected' = 'good';
+      if (pc.connectionState === 'connecting') state = 'fair';
+      if (pc.connectionState === 'failed') state = 'poor';
+      if (pc.connectionState === 'disconnected' || pc.connectionState === 'closed') {
+        state = 'disconnected';
+        removeRemoteStream(targetSocketId);
+        removeParticipant(targetSocketId);
+      }
+      setConnectionQuality(targetSocketId, state);
+    };
+
+    // Listen to ICE connection state for fallback diagnostics
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === 'failed') {
+        pc.restartIce(); // Attempt connection recovery
+      }
+    };
+
+    return pc;
+  }, [addRemoteStream, removeRemoteStream, removeParticipant, setConnectionQuality]);
+
+  // Clean up a peer connection
+  const closePeerConnection = useCallback((socketId: string) => {
+    const pc = peerConnections.current.get(socketId);
+    if (pc) {
+      pc.close();
+      peerConnections.current.delete(socketId);
+    }
+    removeRemoteStream(socketId);
+    removeParticipant(socketId);
+  }, [removeRemoteStream, removeParticipant]);
+
+  // Toggle local Audio mute
+  const toggleAudio = useCallback(() => {
+    const nextState = !isMutedAudioRef.current;
+    setAudioMute(nextState);
+    if (localStreamRef.current) {
+      localStreamRef.current.getAudioTracks().forEach(track => {
+        track.enabled = !nextState;
+      });
+    }
+    // Broadcast status to other peers
+    signalingClient.toggleMediaStatus('audio', nextState);
+  }, [setAudioMute]);
+
+  // Toggle local Video mute
+  const toggleVideo = useCallback(() => {
+    const nextState = !isMutedVideoRef.current;
+    setVideoMute(nextState);
+    if (localStreamRef.current) {
+      localStreamRef.current.getVideoTracks().forEach(track => {
+        track.enabled = !nextState;
+      });
+    }
+    // Broadcast status to other peers
+    signalingClient.toggleMediaStatus('video', nextState);
+  }, [setVideoMute]);
+
+  // Toggle Screen Share
+  const toggleScreenShare = useCallback(async () => {
+    const isSharing = isScreenSharingRef.current;
+    if (isSharing) {
+      // Stop Screen Sharing and restore camera track
+      if (screenShareStreamRef.current) {
+        screenShareStreamRef.current.getTracks().forEach(track => track.stop());
+        screenShareStreamRef.current = null;
+        setScreenShareStream(null);
+      }
+      
+      setScreenSharing(false);
+      
+      // Restore camera track to all peers
+      if (localStreamRef.current) {
+        const cameraVideoTrack = localStreamRef.current.getVideoTracks()[0];
+        peerConnections.current.forEach(async (pc) => {
+          const senders = pc.getSenders();
+          const videoSender = senders.find(s => s.track?.kind === 'video');
+          if (videoSender && cameraVideoTrack) {
+            await videoSender.replaceTrack(cameraVideoTrack);
+          }
+        });
+      }
+    } else {
+      try {
+        // Request Screen Capture stream
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { frameRate: { max: 30 } },
+          audio: true
+        });
+        
+        screenShareStreamRef.current = screenStream;
+        setScreenShareStream(screenStream);
+        setScreenSharing(true);
+
+        const screenVideoTrack = screenStream.getVideoTracks()[0];
+
+        // Replace video track on all peer connections
+        peerConnections.current.forEach(async (pc) => {
+          const senders = pc.getSenders();
+          const videoSender = senders.find(s => s.track?.kind === 'video');
+          if (videoSender) {
+            await videoSender.replaceTrack(screenVideoTrack);
+          }
+        });
+
+        // Add handler for when user clicks native browser "Stop sharing" button
+        screenVideoTrack.onended = () => {
+          toggleScreenShare(); // recursive trigger to restore camera
+        };
+
+      } catch (error) {
+        console.error('Error starting screen share:', error);
+      }
+    }
+  }, [setScreenShareStream, setScreenSharing]);
+
+  // Setup local media stream
+  const initializeLocalStream = useCallback(async () => {
+    stopLocalTracks();
+
+    const videoConstraints: MediaTrackConstraints = {
+      width: { ideal: 640 },
+      height: { ideal: 360 },
+      frameRate: { ideal: 24 }
+    };
+
+    if (selectedVideoInput) {
+      videoConstraints.deviceId = { exact: selectedVideoInput };
+    }
+
+    const audioConstraints: MediaTrackConstraints = {};
+    if (selectedAudioInput) {
+      audioConstraints.deviceId = { exact: selectedAudioInput };
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: videoConstraints,
+        audio: audioConstraints
+      });
+
+      localStreamRef.current = stream;
+      setLocalStream(stream);
+
+      // Apply initial mute states
+      const videoTrack = stream.getVideoTracks()[0];
+      const audioTrack = stream.getAudioTracks()[0];
+
+      if (videoTrack) {
+        videoTrack.enabled = !isMutedVideoRef.current;
+      }
+      if (audioTrack) {
+        audioTrack.enabled = !isMutedAudioRef.current;
+      }
+
+      // Voice Activity Detector setup (to highlight active speaker)
+      voiceCleanup.current = createVoiceActivityDetector(stream, (isSpeaking) => {
+        if (isSpeaking && !isMutedAudioRef.current) {
+          setActiveSpeaker('local');
+          // Broadcast local voice activity to peers
+          signalingClient.raiseHand(false); // Can trigger mini metadata pulses or rely on presence sync
+        } else {
+          setActiveSpeaker(null);
+        }
+      }).cleanup;
+
+      // Replace tracks in all active peer connections
+      peerConnections.current.forEach((pc) => {
+        const senders = pc.getSenders();
+        const videoSender = senders.find(s => s.track?.kind === 'video');
+        const audioSender = senders.find(s => s.track?.kind === 'audio');
+        
+        if (audioSender && audioTrack) {
+          audioSender.replaceTrack(audioTrack).catch(err => console.error('Error replacing audio track:', err));
+        }
+        
+        // Only replace video track if we are not screen sharing
+        if (!isScreenSharingRef.current && videoSender && videoTrack) {
+          videoSender.replaceTrack(videoTrack).catch(err => console.error('Error replacing video track:', err));
+        }
+      });
+
+    } catch (error) {
+      console.error('Failed to get local stream:', error);
+    }
+  }, [selectedAudioInput, selectedVideoInput, setLocalStream, stopLocalTracks, setActiveSpeaker]);
+
+  // Watch for device change and reinitialize local stream
+  useEffect(() => {
+    if (waitingStatus === 'approved' || (waitingStatus === 'none' && myRole === 'host')) {
+      initializeLocalStream();
+    }
+  }, [selectedAudioInput, selectedVideoInput, initializeLocalStream, waitingStatus, myRole]);
+
+  // Callback refs to avoid recreation of main useEffect loop
+  const initializeLocalStreamRef = useRef(initializeLocalStream);
+  const stopLocalTracksRef = useRef(stopLocalTracks);
+  const toggleAudioRef = useRef(toggleAudio);
+  const toggleVideoRef = useRef(toggleVideo);
+
+  useEffect(() => { initializeLocalStreamRef.current = initializeLocalStream; }, [initializeLocalStream]);
+  useEffect(() => { stopLocalTracksRef.current = stopLocalTracks; }, [stopLocalTracks]);
+  useEffect(() => { toggleAudioRef.current = toggleAudio; }, [toggleAudio]);
+  useEffect(() => { toggleVideoRef.current = toggleVideo; }, [toggleVideo]);
+
+  // Core signaling and connection loop
+  useEffect(() => {
+    if (waitingStatus === 'denied') return;
+
+    let active = true;
+
+    // Define named handlers to allow proper cleanup in off()
+    const handleRoomParticipants = async ({ participants }: any) => {
+      console.log('Received list of active room participants:', participants);
+      const iceConfig = await fetchIceServers();
+      if (!active) return;
+      
+      for (const p of participants) {
+        addParticipant({
+          socketId: p.socketId,
+          userId: p.userId,
+          username: p.username,
+          role: p.role,
+          isMutedAudio: p.isMutedAudio,
+          isMutedVideo: p.isMutedVideo,
+          isHandRaised: p.isHandRaised
+        });
+
+        // Create WebRTC connection. Since we joined last, we initiate connection to existing peers
+        const pc = await createPeerConnection(p.socketId, iceConfig);
+        
+        try {
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          signalingClient.sendSignal(p.socketId, offer);
+        } catch (err) {
+          console.error('Error creating WebRTC offer:', err);
+        }
+      }
+    };
+
+    const handlePeerJoined = (p: any) => {
+      console.log(`Peer joined notification: ${p.username} (${p.socketId})`);
+      addParticipant({
+        socketId: p.socketId,
+        userId: p.userId,
+        username: p.username,
+        role: p.role as any,
+        isMutedAudio: p.isMutedAudio,
+        isMutedVideo: p.isMutedVideo,
+        isHandRaised: p.isHandRaised
+      });
+    };
+
+    const handleSignal = async ({ senderId, signal }: any) => {
+      const iceConfig = await fetchIceServers();
+      if (!active) return;
+      
+      let pc = peerConnections.current.get(senderId);
+      
+      // If peer connection doesn't exist, create it (answering peer)
+      if (!pc) {
+        pc = await createPeerConnection(senderId, iceConfig);
+      }
+
+      if (signal.type === 'offer') {
+        try {
+          await pc.setRemoteDescription(new RTCSessionDescription(signal));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          signalingClient.sendSignal(senderId, answer);
+        } catch (err) {
+          console.error('Error handling WebRTC offer:', err);
+        }
+      } else if (signal.type === 'answer') {
+        try {
+          await pc.setRemoteDescription(new RTCSessionDescription(signal));
+        } catch (err) {
+          console.error('Error setting remote answer:', err);
+        }
+      } else if (signal.candidate) {
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+        } catch (err) {
+          console.error('Error adding ICE candidate:', err);
+        }
+      }
+    };
+
+    const handlePeerLeft = ({ socketId }: any) => {
+      console.log(`Peer left: ${socketId}`);
+      closePeerConnection(socketId);
+    };
+
+    const handleChatReceived = (msg: any) => {
+      addChatMessage(msg);
+    };
+
+    const handleHandRaised = ({ socketId, isRaised }: any) => {
+      updateParticipantHand(socketId, isRaised);
+    };
+
+    const handlePeerMutedStatus = ({ socketId, type, isMuted }: any) => {
+      updateParticipantMute(socketId, type, isMuted);
+    };
+
+    const handleMuteCommand = ({ type }: any) => {
+      if (type === 'audio' && !isMutedAudioRef.current) {
+        toggleAudioRef.current();
+      } else if (type === 'video' && !isMutedVideoRef.current) {
+        toggleVideoRef.current();
+      }
+    };
+
+    const handleKickedCommand = () => {
+      console.warn('You have been kicked by the host.');
+      window.location.href = `/kicked?room=${roomId}`;
+    };
+
+    const handleWaitingStatus = ({ status }: any) => {
+      console.log('Waiting room status update:', status);
+      setWaitingStatus(status);
+      if (status === 'approved') {
+        // Re-trigger connecting to peers after approval
+        initializeLocalStreamRef.current();
+      }
+    };
+
+    const handleWaitingRoomListUpdate = ({ participants }: any) => {
+      setWaitingRoomList(participants);
+    };
+
+    const setupSignaling = async () => {
+      // Setup signaling event handlers
+      signalingClient.on('room-participants', handleRoomParticipants);
+      signalingClient.on('peer-joined', handlePeerJoined);
+      signalingClient.on('signal', handleSignal);
+      signalingClient.on('peer-left', handlePeerLeft);
+      signalingClient.on('chat-received', handleChatReceived);
+      signalingClient.on('hand-raised', handleHandRaised);
+      signalingClient.on('peer-muted-status', handlePeerMutedStatus);
+      signalingClient.on('mute-command', handleMuteCommand);
+      signalingClient.on('kicked-command', handleKickedCommand);
+      signalingClient.on('waiting-status', handleWaitingStatus);
+      signalingClient.on('waiting-room-list-update', handleWaitingRoomListUpdate);
+
+      // Finally, connect to signaling client
+      const isWaiting = myRole === 'participant' && waitingStatus === 'waiting';
+      signalingClient.connect(roomId, {
+        userId,
+        username,
+        role: myRole,
+        isWaiting
+      });
+
+      // Broadcast initial media status as soon as we connect
+      signalingClient.toggleMediaStatus('audio', isMutedAudioRef.current);
+      signalingClient.toggleMediaStatus('video', isMutedVideoRef.current);
+    };
+
+    getDevices();
+    setupSignaling();
+
+    return () => {
+      active = false;
+      signalingClient.disconnect();
+      
+      // Remove all event listeners using the correct stored references
+      signalingClient.off('room-participants', handleRoomParticipants);
+      signalingClient.off('peer-joined', handlePeerJoined);
+      signalingClient.off('signal', handleSignal);
+      signalingClient.off('peer-left', handlePeerLeft);
+      signalingClient.off('chat-received', handleChatReceived);
+      signalingClient.off('hand-raised', handleHandRaised);
+      signalingClient.off('peer-muted-status', handlePeerMutedStatus);
+      signalingClient.off('mute-command', handleMuteCommand);
+      signalingClient.off('kicked-command', handleKickedCommand);
+      signalingClient.off('waiting-status', handleWaitingStatus);
+      signalingClient.off('waiting-room-list-update', handleWaitingRoomListUpdate);
+
+      // Close all peer connections
+      peerConnections.current.forEach((pc) => {
+        pc.close();
+      });
+      peerConnections.current.clear();
+      
+      stopLocalTracksRef.current();
+    };
+  }, [
+    roomId,
+    userId,
+    username,
+    myRole,
+    waitingStatus,
+    getDevices,
+    createPeerConnection,
+    closePeerConnection,
+    addParticipant,
+    addChatMessage,
+    updateParticipantHand,
+    updateParticipantMute,
+    setWaitingStatus,
+    setWaitingRoomList
+  ]);
+
+  return {
+    localStream,
+    screenShareStream,
+    isMutedAudio,
+    isMutedVideo,
+    isScreenSharing,
+    toggleAudio,
+    toggleVideo,
+    toggleScreenShare,
+    getDevices
+  };
+};

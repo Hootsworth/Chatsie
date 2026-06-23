@@ -1,0 +1,168 @@
+import { create } from 'zustand';
+
+export interface Meeting {
+  id: string;
+  code: string;
+  title: string;
+  host_id: string;
+  passcode: string | null;
+  is_waiting_room_enabled: boolean;
+  is_locked: boolean;
+  is_active: boolean;
+  scheduled_start: string | null;
+  duration: number | null;
+  created_at: string;
+}
+
+export interface Participant {
+  socketId: string;
+  userId: string;
+  username: string;
+  role: 'host' | 'participant';
+  isMutedAudio: boolean;
+  isMutedVideo: boolean;
+  isHandRaised: boolean;
+}
+
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  userId: string;
+  username: string;
+  text: string;
+  timestamp: number;
+}
+
+interface MeetingState {
+  // Current Active Meeting details
+  currentMeeting: Meeting | null;
+  // Local participant details
+  myRole: 'host' | 'participant';
+  // List of other active participants
+  participants: Participant[];
+  // List of participants waiting to enter
+  waitingRoomList: Array<{ socketId: string; userId: string; username: string }>;
+  // Entry status: none, waiting, approved, denied
+  waitingStatus: 'none' | 'waiting' | 'approved' | 'denied';
+  // Passcode gate state
+  isPasscodeGateRequired: boolean;
+  isPasscodeGatePassed: boolean;
+  // Persistent chat history
+  chatMessages: ChatMessage[];
+  
+  // UI states
+  isChatPanelOpen: boolean;
+  isParticipantsPanelOpen: boolean;
+  isSettingsOpen: boolean;
+  isShortcutsOpen: boolean;
+  
+  // Actions
+  setCurrentMeeting: (meeting: Meeting | null) => void;
+  setMyRole: (role: 'host' | 'participant') => void;
+  setParticipants: (participants: Participant[]) => void;
+  addParticipant: (participant: Participant) => void;
+  removeParticipant: (socketId: string) => void;
+  updateParticipantMute: (socketId: string, type: 'audio' | 'video', isMuted: boolean) => void;
+  updateParticipantHand: (socketId: string, isRaised: boolean) => void;
+  setWaitingRoomList: (list: Array<{ socketId: string; userId: string; username: string }>) => void;
+  setWaitingStatus: (status: 'none' | 'waiting' | 'approved' | 'denied') => void;
+  setPasscodeGateRequired: (required: boolean) => void;
+  setPasscodeGatePassed: (passed: boolean) => void;
+  addChatMessage: (message: ChatMessage) => void;
+  setChatMessages: (messages: ChatMessage[]) => void;
+  
+  // UI Actions
+  toggleChatPanel: () => void;
+  toggleParticipantsPanel: () => void;
+  setSettingsOpen: (isOpen: boolean) => void;
+  setShortcutsOpen: (isOpen: boolean) => void;
+  resetMeetingState: () => void;
+}
+
+export const useMeetingStore = create<MeetingState>((set) => ({
+  currentMeeting: null,
+  myRole: 'participant',
+  participants: [],
+  waitingRoomList: [],
+  waitingStatus: 'none',
+  isPasscodeGateRequired: false,
+  isPasscodeGatePassed: false,
+  chatMessages: [],
+  
+  isChatPanelOpen: false,
+  isParticipantsPanelOpen: false,
+  isSettingsOpen: false,
+  isShortcutsOpen: false,
+
+  setCurrentMeeting: (meeting) => set({ currentMeeting: meeting }),
+  setMyRole: (role) => set({ myRole: role }),
+  setParticipants: (participants) => set({ participants }),
+  
+  addParticipant: (participant) => set((state) => {
+    // Avoid duplicates
+    if (state.participants.some(p => p.socketId === participant.socketId)) {
+      return { participants: state.participants };
+    }
+    return { participants: [...state.participants, participant] };
+  }),
+  
+  removeParticipant: (socketId) => set((state) => ({
+    participants: state.participants.filter(p => p.socketId !== socketId)
+  })),
+
+  updateParticipantMute: (socketId, type, isMuted) => set((state) => ({
+    participants: state.participants.map(p => {
+      if (p.socketId === socketId) {
+        return type === 'audio' 
+          ? { ...p, isMutedAudio: isMuted } 
+          : { ...p, isMutedVideo: isMuted };
+      }
+      return p;
+    })
+  })),
+
+  updateParticipantHand: (socketId, isRaised) => set((state) => ({
+    participants: state.participants.map(p => 
+      p.socketId === socketId ? { ...p, isHandRaised: isRaised } : p
+    )
+  })),
+
+  setWaitingRoomList: (list) => set({ waitingRoomList: list }),
+  setWaitingStatus: (status) => set({ waitingStatus: status }),
+  setPasscodeGateRequired: (required) => set({ isPasscodeGateRequired: required }),
+  setPasscodeGatePassed: (passed) => set({ isPasscodeGatePassed: passed }),
+  
+  addChatMessage: (message) => set((state) => ({
+    chatMessages: [...state.chatMessages, message]
+  })),
+  
+  setChatMessages: (messages) => set({ chatMessages: messages }),
+
+  toggleChatPanel: () => set((state) => ({ 
+    isChatPanelOpen: !state.isChatPanelOpen,
+    isParticipantsPanelOpen: false // Close other panel to preserve UI space
+  })),
+
+  toggleParticipantsPanel: () => set((state) => ({ 
+    isParticipantsPanelOpen: !state.isParticipantsPanelOpen,
+    isChatPanelOpen: false // Close other panel to preserve UI space
+  })),
+
+  setSettingsOpen: (isOpen) => set({ isSettingsOpen: isOpen }),
+  setShortcutsOpen: (isOpen) => set({ isShortcutsOpen: isOpen }),
+
+  resetMeetingState: () => set({
+    currentMeeting: null,
+    myRole: 'participant',
+    participants: [],
+    waitingRoomList: [],
+    waitingStatus: 'none',
+    isPasscodeGateRequired: false,
+    isPasscodeGatePassed: false,
+    chatMessages: [],
+    isChatPanelOpen: false,
+    isParticipantsPanelOpen: false,
+    isSettingsOpen: false,
+    isShortcutsOpen: false
+  })
+}));
