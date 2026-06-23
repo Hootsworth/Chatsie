@@ -10,7 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@clerk/clerk-react": "^5.61.8",
+    "@livekit/components-react": "^2.9.21",
+    "@livekit/components-styles": "^1.2.0",
     "@supabase/supabase-js": "^2.108.2",
+    "livekit-client": "^2.19.2",
     "lucide-react": "^1.21.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",

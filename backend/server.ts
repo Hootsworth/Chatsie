@@ -3,6 +3,8 @@ import http from 'http';
 import { Server, Socket } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { AccessToken } from 'livekit-server-sdk';
+import { clerkMiddleware, requireAuth } from '@clerk/express';
 
 dotenv.config();
 
@@ -19,6 +21,41 @@ app.use(express.json());
 // Basic health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', uptime: process.uptime() });
+});
+
+// Setup Clerk globally for any authenticated routes
+app.use(clerkMiddleware());
+
+// LiveKit Token Generation Endpoint
+app.post('/api/livekit/token', requireAuth(), async (req, res) => {
+  const { roomName, participantName } = req.body;
+  const participantIdentity = (req as any).auth.userId;
+
+  if (!roomName || !participantIdentity) {
+    return res.status(400).json({ error: 'roomName and participantIdentity are required' });
+  }
+
+  const apiKey = process.env.LIVEKIT_API_KEY;
+  const apiSecret = process.env.LIVEKIT_API_SECRET;
+
+  if (!apiKey || !apiSecret) {
+    return res.status(500).json({ error: 'LiveKit API credentials are not configured on the server' });
+  }
+
+  try {
+    const at = new AccessToken(apiKey, apiSecret, {
+      identity: participantIdentity,
+      name: participantName || participantIdentity,
+    });
+    
+    at.addGrant({ roomJoin: true, room: roomName, canPublish: true, canSubscribe: true });
+    
+    const token = await at.toJwt();
+    res.json({ token });
+  } catch (error) {
+    console.error('Error generating LiveKit token:', error);
+    res.status(500).json({ error: 'Failed to generate token' });
+  }
 });
 
 const server = http.createServer(app);

@@ -8,6 +8,8 @@ const http_1 = __importDefault(require("http"));
 const socket_io_1 = require("socket.io");
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
+const livekit_server_sdk_1 = require("livekit-server-sdk");
+const express_2 = require("@clerk/express");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5001;
@@ -19,6 +21,34 @@ app.use(express_1.default.json());
 // Basic health check endpoint
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', uptime: process.uptime() });
+});
+// Setup Clerk globally for any authenticated routes
+app.use((0, express_2.clerkMiddleware)());
+// LiveKit Token Generation Endpoint
+app.post('/api/livekit/token', (0, express_2.requireAuth)(), async (req, res) => {
+    const { roomName, participantName } = req.body;
+    const participantIdentity = req.auth.userId;
+    if (!roomName || !participantIdentity) {
+        return res.status(400).json({ error: 'roomName and participantIdentity are required' });
+    }
+    const apiKey = process.env.LIVEKIT_API_KEY;
+    const apiSecret = process.env.LIVEKIT_API_SECRET;
+    if (!apiKey || !apiSecret) {
+        return res.status(500).json({ error: 'LiveKit API credentials are not configured on the server' });
+    }
+    try {
+        const at = new livekit_server_sdk_1.AccessToken(apiKey, apiSecret, {
+            identity: participantIdentity,
+            name: participantName || participantIdentity,
+        });
+        at.addGrant({ roomJoin: true, room: roomName, canPublish: true, canSubscribe: true });
+        const token = await at.toJwt();
+        res.json({ token });
+    }
+    catch (error) {
+        console.error('Error generating LiveKit token:', error);
+        res.status(500).json({ error: 'Failed to generate token' });
+    }
 });
 const server = http_1.default.createServer(app);
 const io = new socket_io_1.Server(server, {

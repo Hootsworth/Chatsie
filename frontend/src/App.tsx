@@ -1,45 +1,16 @@
 import React, { useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from './stores/authStore';
-import { SignIn } from './components/auth/SignIn';
-import { SignUp } from './components/auth/SignUp';
-import { ForgotPassword } from './components/auth/ForgotPassword';
-import { ResetPassword } from './components/auth/ResetPassword';
+import { ClerkProvider, SignedIn, SignedOut, SignIn, SignUp } from '@clerk/clerk-react';
 import { Dashboard } from './components/dashboard/Dashboard';
 import { MeetingRoom } from './components/meeting/MeetingRoom';
 import { Card, Button } from './components/ui';
 import { AlertTriangle, Home } from 'lucide-react';
 
-// ----------------------------------------------------
-// PROTECTED ROUTE WRAPPER
-// ----------------------------------------------------
-interface ProtectedRouteProps {
-  children: React.ReactElement;
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
+if (!PUBLISHABLE_KEY) {
+  throw new Error("Missing Publishable Key. Please set VITE_CLERK_PUBLISHABLE_KEY in your .env.local file");
 }
-
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { user, isLoading } = useAuthStore();
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-950 text-gray-500 transition-colors duration-200">
-        <div className="flex flex-col items-center space-y-4">
-          <svg className="animate-spin h-8 w-8 text-brand-600" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-          <span className="text-xs font-bold tracking-wide">Authenticating...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to="/signin" replace />;
-  }
-
-  return children;
-};
 
 // ----------------------------------------------------
 // KICKED PAGE COMPONENT
@@ -88,12 +59,7 @@ function useNavigateHelper() {
 // MAIN APP ROUTING COMPONENT
 // ----------------------------------------------------
 export const App: React.FC = () => {
-  const initializeAuth = useAuthStore((state) => state.initialize);
-
-  // Initialize Auth state on mount
   useEffect(() => {
-    initializeAuth();
-
     // Initialize theme from local storage
     const isDark = document.documentElement.classList.contains('dark') || 
                    localStorage.getItem('theme') === 'dark';
@@ -102,42 +68,66 @@ export const App: React.FC = () => {
     } else {
       document.documentElement.classList.remove('dark');
     }
-  }, [initializeAuth]);
+  }, []);
 
   return (
-    <Router>
-      <Routes>
-        {/* Auth routes */}
-        <Route path="/signin" element={<SignIn />} />
-        <Route path="/signup" element={<SignUp />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/kicked" element={<KickedPage />} />
+    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+      <Router>
+        <Routes>
+          {/* Auth routes using Clerk Components */}
+          <Route 
+            path="/signin/*" 
+            element={
+              <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-950">
+                <SignIn routing="path" path="/signin" signUpUrl="/signup" fallbackRedirectUrl="/" />
+              </div>
+            } 
+          />
+          <Route 
+            path="/signup/*" 
+            element={
+              <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-950">
+                <SignUp routing="path" path="/signup" signInUrl="/signin" fallbackRedirectUrl="/" />
+              </div>
+            } 
+          />
+          <Route path="/kicked" element={<KickedPage />} />
 
-        {/* Protected Dashboard */}
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
+          {/* Protected Dashboard */}
+          <Route
+            path="/"
+            element={
+              <>
+                <SignedIn>
+                  <Dashboard />
+                </SignedIn>
+                <SignedOut>
+                  <Navigate to="/signin" replace />
+                </SignedOut>
+              </>
+            }
+          />
 
-        {/* Protected Video Meeting Room */}
-        <Route
-          path="/room/:code"
-          element={
-            <ProtectedRoute>
-              <MeetingRoom />
-            </ProtectedRoute>
-          }
-        />
+          {/* Protected Video Meeting Room */}
+          <Route
+            path="/room/:code"
+            element={
+              <>
+                <SignedIn>
+                  <MeetingRoom />
+                </SignedIn>
+                <SignedOut>
+                  <Navigate to="/signin" replace />
+                </SignedOut>
+              </>
+            }
+          />
 
-        {/* Fallback redirect */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Router>
+          {/* Fallback redirect */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Router>
+    </ClerkProvider>
   );
 };
 

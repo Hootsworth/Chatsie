@@ -1,7 +1,7 @@
 import React from 'react';
 import { useMeetingStore } from '../../stores/meetingStore';
-import { useWebRTCStore } from '../../stores/webrtcStore';
 import { signalingClient } from '../../services/signaling';
+import { useLocalParticipant, useParticipants } from '@livekit/components-react';
 import {
   Mic,
   MicOff,
@@ -22,25 +22,18 @@ import {
 const REACTION_EMOJIS = ['👍', '👏', '❤️', '🎉', '😂', '🔥', '🤔', '😮'];
 
 interface MeetingControlsProps {
-  toggleAudio: () => void;
-  toggleVideo: () => void;
-  toggleScreenShare: () => void;
   onLeave: () => void;
   hasUnreadMessages: boolean;
   markChatRead: () => void;
 }
 
 export const MeetingControls: React.FC<MeetingControlsProps> = ({
-  toggleAudio,
-  toggleVideo,
-  toggleScreenShare,
   onLeave,
   hasUnreadMessages,
   markChatRead
 }) => {
   const {
     myRole,
-    participants,
     isChatPanelOpen,
     isParticipantsPanelOpen,
     isTranscriptionPanelOpen,
@@ -50,13 +43,9 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
     setSettingsOpen
   } = useMeetingStore();
 
-  const {
-    isMutedAudio,
-    isMutedVideo,
-    isScreenSharing,
-    showCaptions,
-    setCaptionsEnabled
-  } = useWebRTCStore();
+  const { localParticipant, isMicrophoneEnabled, isCameraEnabled, isScreenShareEnabled } = useLocalParticipant();
+  const allParticipants = useParticipants(); // LiveKit participants
+  const [showCaptions, setCaptionsEnabled] = React.useState(false);
 
   // Local state for hand raised
   const [isHandRaised, setIsHandRaised] = React.useState(false);
@@ -77,10 +66,14 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isReactionPickerOpen]);
 
+  const toggleAudio = () => localParticipant?.setMicrophoneEnabled(!isMicrophoneEnabled);
+  const toggleVideo = () => localParticipant?.setCameraEnabled(!isCameraEnabled);
+  const toggleScreenShare = () => localParticipant?.setScreenShareEnabled(!isScreenShareEnabled);
+
   const handleRaiseHand = () => {
     const nextState = !isHandRaised;
     setIsHandRaised(nextState);
-    signalingClient.raiseHand(nextState);
+    signalingClient.raiseHand(nextState); // Fallback to custom signaling for hand raise
   };
 
   const handleToggleChat = () => {
@@ -91,7 +84,7 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
   };
 
   const handleSendReaction = (emoji: string) => {
-    signalingClient.sendReaction(emoji);
+    signalingClient.sendReaction(emoji); // Fallback to custom signaling for reactions
     setIsReactionPickerOpen(false);
   };
 
@@ -100,9 +93,9 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
       
       {/* Left section: Info */}
       <div className="hidden sm:block text-xs text-on-dark-soft font-bold">
-        <span>Mesh P2P Connection</span>
+        <span>LiveKit SFU</span>
         <span className="mx-2">•</span>
-        <span className="text-emerald-500 font-extrabold">Active</span>
+        <span className="text-emerald-500 font-extrabold">Connected</span>
       </div>
 
       {/* Middle section: Action Controls */}
@@ -112,39 +105,39 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
         <button
           onClick={toggleAudio}
           className={`p-3 rounded-xl transition-all duration-200 focus:outline-none ${
-            isMutedAudio 
+            !isMicrophoneEnabled 
               ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20' 
               : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
           }`}
-          title={isMutedAudio ? 'Unmute Mic' : 'Mute Mic'}
+          title={!isMicrophoneEnabled ? 'Unmute Mic' : 'Mute Mic'}
         >
-          {isMutedAudio ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+          {!isMicrophoneEnabled ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
         </button>
 
         {/* Toggle Video */}
         <button
           onClick={toggleVideo}
           className={`p-3 rounded-xl transition-all duration-200 focus:outline-none ${
-            isMutedVideo 
+            !isCameraEnabled 
               ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20' 
               : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
           }`}
-          title={isMutedVideo ? 'Start Video' : 'Stop Video'}
+          title={!isCameraEnabled ? 'Start Video' : 'Stop Video'}
         >
-          {isMutedVideo ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+          {!isCameraEnabled ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
         </button>
 
         {/* Toggle Screen Share */}
         <button
           onClick={toggleScreenShare}
           className={`p-3 rounded-xl transition-all duration-200 focus:outline-none ${
-            isScreenSharing 
+            isScreenShareEnabled 
               ? 'bg-primary hover:bg-primary-active text-white shadow-lg shadow-primary/20' 
               : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
           }`}
-          title={isScreenSharing ? 'Stop Screen Sharing' : 'Share Screen'}
+          title={isScreenShareEnabled ? 'Stop Screen Sharing' : 'Share Screen'}
         >
-          {isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
+          {isScreenShareEnabled ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
         </button>
 
         {/* Toggle Raise Hand */}
@@ -247,7 +240,7 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
         >
           <Users className="w-5 h-5" />
           <span className="text-[10px] font-bold bg-surface-dark-soft text-on-dark px-1.5 py-0.5 rounded border border-white/10">
-            {participants.length + 1}
+            {allParticipants.length}
           </span>
         </button>
 
@@ -277,4 +270,3 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
   );
 };
 export default MeetingControls;
-

@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../../stores/authStore';
+import { useUser, useAuth } from '@clerk/clerk-react';
 import { useMeetingStore } from '../../stores/meetingStore';
 import type { Meeting } from '../../stores/meetingStore';
 import { useWebRTCStore } from '../../stores/webrtcStore';
-import { useWebRTC } from '../../hooks/useWebRTC';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 import supabase from '../../services/supabase';
 import { signalingClient } from '../../services/signaling';
+import { LiveKitRoom } from '@livekit/components-react';
+import '@livekit/components-styles';
 import { PasswordPrompt } from './PasswordPrompt';
 import { WaitingRoom } from './WaitingRoom';
 import { VideoGrid } from './VideoGrid';
@@ -25,7 +26,8 @@ export const MeetingRoom: React.FC = () => {
   const code = rawCode?.trim().toLowerCase() || '';
   const navigate = useNavigate();
   
-  const { user, profile } = useAuthStore();
+  const { user } = useUser();
+  const { getToken } = useAuth();
   const {
     currentMeeting,
     myRole,
@@ -51,14 +53,8 @@ export const MeetingRoom: React.FC = () => {
   } = useMeetingStore();
 
   const {
-    localStream,
-    screenShareStream,
-    isScreenSharing,
     isMutedAudio,
     isMutedVideo,
-    remoteStreams,
-    activeSpeaker,
-    connectionQuality,
     resetWebRTCState,
     selectedAudioInput,
     selectedVideoInput,
@@ -270,23 +266,78 @@ export const MeetingRoom: React.FC = () => {
     }
   };
 
-  // Invoke WebRTC Hook (only once security criteria are met: passcode verified AND lobby passed)
+  // LiveKit Integration
+  const [liveKitToken, setLiveKitToken] = useState<string | null>(null);
+
   const shouldConnectWebRTC = 
     currentMeeting && 
     isPasscodeGatePassed && 
     isLobbyPassed;
 
-  const webrtc = useWebRTC(
-    shouldConnectWebRTC ? code || '' : '',
-    user?.id || 'guest-' + Math.random().toString(36).substring(2, 8),
-    profile?.full_name || 'Guest User'
-  );
+  useEffect(() => {
+    if (shouldConnectWebRTC && !liveKitToken) {
+      const fetchToken = async () => {
+        try {
+          const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+          const token = await getToken();
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const {
-    toggleAudio,
-    toggleVideo,
-    toggleScreenShare
-  } = webrtc;
+          const res = await fetch(`${backendUrl}/api/livekit/token`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              roomName: code,
+              participantIdentity: user?.id || 'guest-' + Math.random().toString(36).substring(2, 8),
+              participantName: user?.fullName || 'Guest User'
+            })
+          });
+          const data = await res.json();
+          if (data.token) {
+            setLiveKitToken(data.token);
+          }
+        } catch (err) {
+          console.error("Failed to fetch LiveKit token", err);
+        }
+      };
+      fetchToken();
+    }
+  }, [shouldConnectWebRTC, liveKitToken, code, user]);
+
+  // Handle waiting room signaling via custom socket BEFORE joining LiveKit
+  useEffect(() => {
+    if (waitingStatus === 'waiting' && code) {
+      const handleWaitingStatus = ({ status }: any) => {
+        setWaitingStatus(status);
+        if (status === 'approved') {
+          sessionStorage.setItem(`waiting_status_approved_${code}`, 'true');
+        }
+      };
+
+      const handleKickedCommand = () => {
+        sessionStorage.removeItem(`lobby_passed_${code}`);
+        sessionStorage.removeItem(`passcode_passed_${code}`);
+        sessionStorage.removeItem(`waiting_status_approved_${code}`);
+        navigate(`/kicked?room=${code}`);
+      };
+
+      signalingClient.on('waiting-status', handleWaitingStatus);
+      signalingClient.on('kicked-command', handleKickedCommand);
+
+      signalingClient.connect(code, {
+        userId: user?.id || 'guest',
+        username: user?.fullName || 'Guest',
+        role: myRole,
+        isWaiting: true
+      });
+
+      return () => {
+        signalingClient.off('waiting-status', handleWaitingStatus);
+        signalingClient.off('kicked-command', handleKickedCommand);
+        signalingClient.disconnect();
+      };
+    }
+  }, [waitingStatus, code, user, myRole, navigate, setWaitingStatus]);
 
   // Speech Recognition hook for transcribing local mic inputs
   useSpeechRecognition(isMutedAudio, showCaptions);
@@ -357,50 +408,7 @@ export const MeetingRoom: React.FC = () => {
     };
   }, [shouldConnectWebRTC]);
 
-  // Keyboard shortcuts listener
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore shortcuts if user is typing in a form input or chat input
-      if (
-        document.activeElement?.tagName === 'INPUT' || 
-        document.activeElement?.tagName === 'TEXTAREA' ||
-        document.activeElement?.getAttribute('contenteditable') === 'true'
-      ) {
-        return;
-      }
-
-      const key = e.key.toLowerCase();
-      
-      if (key === 'm') {
-        e.preventDefault();
-        toggleAudio();
-      } else if (key === 'v') {
-        e.preventDefault();
-        toggleVideo();
-      } else if (key === 's') {
-        e.preventDefault();
-        toggleScreenShare();
-      } else if (key === 'c') {
-        e.preventDefault();
-        const chatBtn = document.querySelector('[title="Meeting Chat"]') as HTMLButtonElement;
-        chatBtn?.click();
-      } else if (key === 'p') {
-        e.preventDefault();
-        const partBtn = document.querySelector('[title="Participants List"]') as HTMLButtonElement;
-        partBtn?.click();
-      } else if (key === 'h') {
-        e.preventDefault();
-        const handBtn = document.querySelector('[title="Lower Hand"], [title="Raise Hand"]') as HTMLButtonElement;
-        handBtn?.click();
-      } else if (key === 'escape') {
-        setSettingsOpen(false);
-        setShortcutsOpen(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toggleAudio, toggleVideo, toggleScreenShare, setSettingsOpen, setShortcutsOpen]);
+  // Keyboard shortcuts listener moved to MeetingControls
 
   // Load meeting metadata
   useEffect(() => {
@@ -425,15 +433,15 @@ export const MeetingRoom: React.FC = () => {
         if (!activeMeeting) {
           const isPersonalRoom = code.startsWith('personal-');
           const ownerUsername = isPersonalRoom ? code.replace('personal-', '') : null;
-          const isOwner = isPersonalRoom && user && profile && profile.username?.toLowerCase() === ownerUsername?.toLowerCase();
-
+          const isOwner = isPersonalRoom && user && user.id === ownerUsername;
+          
           if (isOwner) {
-            // Auto-create personal meeting session in DB
+            // Auto-create personal room if host joins for the first time
             const { data: newMeeting, error: createError } = await supabase
               .from('meetings')
               .insert({
-                code,
-                title: `${profile.full_name}'s Personal Meeting Room`,
+                code: code,
+                title: `${user.fullName}'s Personal Meeting Room`,
                 host_id: user.id,
                 is_waiting_room_enabled: false,
                 is_active: true
@@ -706,9 +714,9 @@ export const MeetingRoom: React.FC = () => {
                   <span className="text-[10px] uppercase font-bold text-muted tracking-wider block mb-1">Joining As</span>
                   <div className="flex items-center space-x-2.5">
                     <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center text-xs font-bold">
-                      {profile?.full_name?.charAt(0).toUpperCase() || 'G'}
+                      {user?.fullName?.charAt(0).toUpperCase() || 'G'}
                     </div>
-                    <span className="text-sm font-bold text-ink">{profile?.full_name || 'Guest User'}</span>
+                    <span className="text-sm font-bold text-ink">{user?.fullName || 'Guest User'}</span>
                   </div>
                 </div>
 
@@ -757,8 +765,30 @@ export const MeetingRoom: React.FC = () => {
   }
 
   // 5. Active Call Room Layout
+  // If we should connect but don't have the token yet, show a loader
+  if (shouldConnectWebRTC && !liveKitToken) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-surface-dark text-on-dark-soft">
+        <div className="flex flex-col items-center space-y-4">
+          <svg className="animate-spin h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <span className="text-sm font-bold tracking-wide">Initializing secure connection...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="h-screen flex flex-col bg-surface-dark text-on-dark overflow-hidden font-sans transition-colors duration-200">
+    <LiveKitRoom
+      video={!isMutedVideo}
+      audio={!isMutedAudio}
+      token={liveKitToken || undefined}
+      serverUrl={import.meta.env.VITE_LIVEKIT_URL}
+      data-lk-theme="default"
+      className="h-screen flex flex-col bg-surface-dark text-on-dark overflow-hidden font-sans transition-colors duration-200"
+    >
       
       {/* Floating Emoji Reaction Overlay */}
       <ReactionOverlay reactions={reactionList} />
@@ -803,19 +833,7 @@ export const MeetingRoom: React.FC = () => {
         
         {/* Central area: Video grid */}
         <div className="flex-grow flex flex-col min-h-0 overflow-y-auto no-scrollbar relative">
-          <VideoGrid
-            localStream={localStream}
-            screenShareStream={screenShareStream}
-            isScreenSharing={isScreenSharing}
-            remoteStreams={remoteStreams}
-            participants={participants}
-            myUsername={profile?.full_name || 'Guest User'}
-            isMutedAudio={isMutedAudio}
-            isMutedVideo={isMutedVideo}
-            isHandRaised={false} // Hand status managed via button and state hook
-            activeSpeaker={activeSpeaker}
-            connectionQuality={connectionQuality}
-          />
+          <VideoGrid />
 
           {/* Live Captions Overlay */}
           {showCaptions && Object.keys(activeCaptions).length > 0 && (
@@ -839,14 +857,14 @@ export const MeetingRoom: React.FC = () => {
             <ChatPanel 
               roomId={code || ''} 
               userId={user?.id || ''} 
-              username={profile?.full_name || 'Guest User'} 
+              username={user?.fullName || 'Guest User'} 
             />
           </div>
         )}
 
         {isParticipantsPanelOpen && (
           <div className="w-full md:w-80 flex-shrink-0 animate-in slide-in-from-right duration-250 z-20">
-            <ParticipantPanel roomId={code || ''} />
+            <ParticipantPanel />
           </div>
         )}
 
@@ -859,9 +877,6 @@ export const MeetingRoom: React.FC = () => {
 
       {/* Bottom meeting control bar */}
       <MeetingControls
-        toggleAudio={toggleAudio}
-        toggleVideo={toggleVideo}
-        toggleScreenShare={toggleScreenShare}
         onLeave={handleLeaveMeeting}
         hasUnreadMessages={hasUnreadChat}
         markChatRead={() => setHasUnreadChat(false)}
@@ -915,7 +930,7 @@ export const MeetingRoom: React.FC = () => {
           <Button onClick={() => setShortcutsOpen(false)}>Close</Button>
         </div>
       </Modal>
-    </div>
+    </LiveKitRoom>
   );
 };
 export default MeetingRoom;

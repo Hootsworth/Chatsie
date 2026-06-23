@@ -1,57 +1,32 @@
 import React from 'react';
 import { useMeetingStore } from '../../stores/meetingStore';
-import { useWebRTCStore } from '../../stores/webrtcStore';
 import { signalingClient } from '../../services/signaling';
+import { useParticipants, useLocalParticipant } from '@livekit/components-react';
 import { Badge } from '../ui';
-import { MicOff, VideoOff, Hand, Trash2, Check, X, ShieldAlert, VolumeX, Shield } from 'lucide-react';
+import { MicOff, VideoOff, Trash2, Check, X, ShieldAlert, VolumeX } from 'lucide-react';
 
-interface ParticipantPanelProps {
-  roomId: string;
-}
-
-export const ParticipantPanel: React.FC<ParticipantPanelProps> = ({ roomId }) => {
+export const ParticipantPanel: React.FC = () => {
   const {
     myRole,
-    participants,
     waitingRoomList
   } = useMeetingStore();
 
-  const {
-    isMutedAudio,
-    isMutedVideo
-  } = useWebRTCStore();
+  const allParticipants = useParticipants();
+  const { localParticipant } = useLocalParticipant();
 
   const handleMutePeer = (socketId: string, type: 'audio' | 'video') => {
-    const provider = import.meta.env.VITE_SIGNALING_PROVIDER || 'supabase';
-    if (provider === 'socketio') {
-      // @ts-ignore
-      signalingClient.mutePeerInRoom(roomId, socketId, type);
-    } else {
-      signalingClient.mutePeer(socketId, type);
-    }
+    // Custom signaling for remote muting
+    signalingClient.mutePeer(socketId, type);
   };
 
   const handleKickPeer = (socketId: string) => {
     const confirmation = window.confirm('Are you sure you want to remove this participant from the meeting?');
     if (!confirmation) return;
-
-    const provider = import.meta.env.VITE_SIGNALING_PROVIDER || 'supabase';
-    if (provider === 'socketio') {
-      // @ts-ignore
-      signalingClient.kickPeerInRoom(roomId, socketId);
-    } else {
-      signalingClient.kickPeer(socketId);
-    }
+    signalingClient.kickPeer(socketId);
   };
 
   const handleWaitingAction = (socketId: string, action: 'approve' | 'deny') => {
-    const provider = import.meta.env.VITE_SIGNALING_PROVIDER || 'supabase';
-    if (provider === 'socketio') {
-      // @ts-ignore
-      signalingClient.waitingRoomActionInRoom(roomId, socketId, action);
-    } else {
-      signalingClient.waitingRoomAction(socketId, action);
-    }
+    signalingClient.waitingRoomAction(socketId, action);
   };
 
   const isHost = myRole === 'host';
@@ -103,93 +78,76 @@ export const ParticipantPanel: React.FC<ParticipantPanelProps> = ({ roomId }) =>
         <h3 className="font-bold text-sm text-on-dark uppercase tracking-wider">
           Participants
         </h3>
-        <Badge>{participants.length + 1}</Badge>
+        <Badge>{allParticipants.length}</Badge>
       </div>
 
       {/* 3. ACTIVE PARTICIPANTS LIST */}
       <div className="flex-grow p-4 space-y-3.5">
         
-        {/* Local Participant Card */}
-        <div className="flex items-center justify-between text-xs py-1">
-          <div className="flex items-center space-x-2.5 min-w-0">
-            <div className="w-7 h-7 bg-primary/20 text-primary rounded-full flex items-center justify-center font-bold">
-              Y
-            </div>
-            <div className="truncate">
-              <span className="font-bold text-on-dark truncate">Me</span>
-              <span className="text-[10px] text-on-dark-soft font-semibold block">@{isHost ? 'host' : 'participant'}</span>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2 flex-shrink-0">
-            {isHost && <Shield className="w-3.5 h-3.5 text-primary" />}
-            {isMutedAudio && <MicOff className="w-3.5 h-3.5 text-red-500" />}
-            {isMutedVideo && <VideoOff className="w-3.5 h-3.5 text-red-500" />}
-          </div>
-        </div>
-
-        {/* Remote Participants */}
-        {participants.map((p) => (
-          <div 
-            key={p.socketId}
-            className="flex items-center justify-between text-xs py-1 group"
-          >
-            {/* Meta */}
-            <div className="flex items-center space-x-2.5 min-w-0">
-              <div className="w-7 h-7 bg-surface-dark-soft text-on-dark rounded-full flex items-center justify-center font-bold">
-                {p.username.charAt(0).toUpperCase()}
-              </div>
-              <div className="truncate">
-                <span className="font-bold text-on-dark truncate">{p.username}</span>
-                <span className="text-[10px] text-on-dark-soft font-semibold block">@{p.role}</span>
-              </div>
-            </div>
-
-            {/* Actions / Status */}
-            <div className="flex items-center space-x-2 flex-shrink-0">
-              {/* Hand raised status */}
-              {p.isHandRaised && <Hand className="w-3.5 h-3.5 text-amber-500 fill-current animate-bounce" />}
-              
-              {/* Static status icons */}
-              {p.isMutedAudio && <MicOff className="w-3.5 h-3.5 text-red-500" />}
-              {p.isMutedVideo && <VideoOff className="w-3.5 h-3.5 text-red-500" />}
-              {p.role === 'host' && <Shield className="w-3.5 h-3.5 text-primary" />}
-
-              {/* Host Control Actions (visible on hover/mobile for host only) */}
-              {isHost && p.role !== 'host' && (
-                <div className="hidden group-hover:flex items-center space-x-1 pl-1 bg-surface-dark">
-                  {/* Remote Mute Audio */}
-                  {!p.isMutedAudio && (
-                    <button
-                      onClick={() => handleMutePeer(p.socketId, 'audio')}
-                      className="p-1 text-on-dark-soft hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"
-                      title="Mute Audio"
-                    >
-                      <VolumeX className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                  {/* Remote Mute Video */}
-                  {!p.isMutedVideo && (
-                    <button
-                      onClick={() => handleMutePeer(p.socketId, 'video')}
-                      className="p-1 text-on-dark-soft hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"
-                      title="Mute Video"
-                    >
-                      <VideoOff className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                  {/* Kick Peer */}
-                  <button
-                    onClick={() => handleKickPeer(p.socketId)}
-                    className="p-1 text-on-dark-soft hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"
-                    title="Remove from meeting"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+        {/* Participants (Local & Remote) */}
+        {allParticipants.map((p) => {
+          const isMe = p.identity === localParticipant?.identity;
+          
+          return (
+            <div 
+              key={p.identity}
+              className="flex items-center justify-between text-xs py-1 group"
+            >
+              {/* Meta */}
+              <div className="flex items-center space-x-2.5 min-w-0">
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold ${isMe ? 'bg-primary/20 text-primary' : 'bg-surface-dark-soft text-on-dark'}`}>
+                  {p.name?.charAt(0).toUpperCase() || 'U'}
                 </div>
-              )}
+                <div className="truncate">
+                  <span className="font-bold text-on-dark truncate">{isMe ? 'Me' : p.name}</span>
+                  <span className="text-[10px] text-on-dark-soft font-semibold block">{isMe && isHost ? '@host' : ''}</span>
+                </div>
+              </div>
+
+              {/* Actions / Status */}
+              <div className="flex items-center space-x-2 flex-shrink-0">
+                
+                {/* Static status icons */}
+                {!p.isMicrophoneEnabled && <MicOff className="w-3.5 h-3.5 text-red-500" />}
+                {!p.isCameraEnabled && <VideoOff className="w-3.5 h-3.5 text-red-500" />}
+
+                {/* Host Control Actions (visible on hover/mobile for host only) */}
+                {isHost && !isMe && (
+                  <div className="hidden group-hover:flex items-center space-x-1 pl-1 bg-surface-dark">
+                    {/* Remote Mute Audio */}
+                    {p.isMicrophoneEnabled && (
+                      <button
+                        onClick={() => handleMutePeer(p.identity, 'audio')}
+                        className="p-1 text-on-dark-soft hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"
+                        title="Mute Audio"
+                      >
+                        <VolumeX className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {/* Remote Mute Video */}
+                    {p.isCameraEnabled && (
+                      <button
+                        onClick={() => handleMutePeer(p.identity, 'video')}
+                        className="p-1 text-on-dark-soft hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"
+                        title="Mute Video"
+                      >
+                        <VideoOff className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {/* Kick Peer */}
+                    <button
+                      onClick={() => handleKickPeer(p.identity)}
+                      className="p-1 text-on-dark-soft hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"
+                      title="Remove from meeting"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../../stores/authStore';
-import supabase from '../../services/supabase';
+import { useUser, UserButton, useAuth } from '@clerk/clerk-react';
 import { Button, Input, Card, Modal, Badge } from '../ui';
 import {
   Video,
   Keyboard,
   History,
   Calendar,
-  LogOut,
   Copy,
   Check,
   Clock,
@@ -29,7 +27,8 @@ interface ScheduledMeeting {
 }
 
 export const Dashboard: React.FC = () => {
-  const { profile, signOut, updateProfile } = useAuthStore();
+  const { user } = useUser();
+  const { getToken } = useAuth();
   const navigate = useNavigate();
 
   // Loading and list states
@@ -40,7 +39,6 @@ export const Dashboard: React.FC = () => {
   // Form states
   const [joinCode, setJoinCode] = useState('');
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
 
   // Create meeting form state
@@ -52,12 +50,6 @@ export const Dashboard: React.FC = () => {
   const [isWaitingRoomEnabled, setIsWaitingRoomEnabled] = useState(false);
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
   const [createMeetingError, setCreateMeetingError] = useState<string | null>(null);
-
-  // Profile update form state
-  const [profileFullName, setProfileFullName] = useState(profile?.full_name || '');
-  const [profileAvatarUrl, setProfileAvatarUrl] = useState(profile?.avatar_url || '');
-  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
-  const [profileError, setProfileError] = useState<string | null>(null);
 
   // Dark mode state
   const [darkMode, setDarkMode] = useState(() => {
@@ -80,8 +72,8 @@ export const Dashboard: React.FC = () => {
 
   // Helper to fetch authorization header
   const getAuthHeader = async (): Promise<Record<string, string>> => {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session ? { 'Authorization': `Bearer ${session.access_token}` } : {};
+    const token = await getToken();
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
   };
 
   // Generates meeting room codes
@@ -98,39 +90,13 @@ export const Dashboard: React.FC = () => {
     setIsLoadingMeetings(true);
     try {
       const apiUrl = import.meta.env.VITE_API_URL;
-      console.log('DEBUG: VITE_API_URL value =', JSON.stringify(apiUrl), 'type =', typeof apiUrl);
-
-      // Pure Serverless Database Fallback
+      
       if (!apiUrl || apiUrl === 'undefined' || apiUrl === 'null') {
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
-        if (!currentUser) return;
-
-        // Fetch upcoming meetings
-        const { data: upcoming, error: err1 } = await supabase
-          .from('meetings')
-          .select('*')
-          .eq('host_id', currentUser.id)
-          .or(`scheduled_start.gte.${new Date().toISOString()},scheduled_start.is.null`)
-          .order('scheduled_start', { ascending: true });
-
-        if (err1) throw err1;
-        setUpcomingMeetings(upcoming || []);
-
-        // Fetch historical past meetings
-        const { data: past, error: err2 } = await supabase
-          .from('meetings')
-          .select('*')
-          .eq('host_id', currentUser.id)
-          .lt('scheduled_start', new Date().toISOString())
-          .order('scheduled_start', { ascending: true });
-
-        if (err2) throw err2;
-        setPastMeetings(past || []);
+        // Without an API URL configured, we just don't load history
         setIsLoadingMeetings(false);
         return;
       }
 
-      // Vercel Serverless Function Call
       const headers = await getAuthHeader();
       const resUpcoming = await fetch(`${apiUrl}/api/meetings`, { headers });
       if (resUpcoming.ok) {
@@ -152,44 +118,20 @@ export const Dashboard: React.FC = () => {
 
   useEffect(() => {
     fetchMeetings();
-    if (profile) {
-      setProfileFullName(profile.full_name);
-      setProfileAvatarUrl(profile.avatar_url || '');
-    }
-  }, [profile]);
+  }, [user]);
 
   // Handler to start an Instant Meeting
   const handleStartInstantMeeting = async () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL;
-      console.log('DEBUG: handleStartInstantMeeting, VITE_API_URL =', JSON.stringify(apiUrl), 'type =', typeof apiUrl);
       
-      // Serverless client fallback
       if (!apiUrl || apiUrl === 'undefined' || apiUrl === 'null') {
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
-        if (!currentUser) throw new Error('Not authenticated');
-
+        // Without an API, just navigate to a random room code directly
         const code = generateRoomCode();
-        const { data: newMeeting, error } = await supabase
-          .from('meetings')
-          .insert({
-            code,
-            title: `${profile?.full_name || 'User'}'s Instant Meeting`,
-            host_id: currentUser.id,
-            is_waiting_room_enabled: false
-          })
-          .select()
-          .single();
-
-        if (error) {
-          console.error("DEBUG: supabase insert error =", error);
-          throw error;
-        }
-        navigate(`/room/${newMeeting.code}`);
+        navigate(`/room/${code}`);
         return;
       }
 
-      // Express server request
       const headers = await getAuthHeader();
       const response = await fetch(`${apiUrl}/api/meetings`, {
         method: 'POST',
@@ -198,7 +140,7 @@ export const Dashboard: React.FC = () => {
           ...headers
         },
         body: JSON.stringify({
-          title: `${profile?.full_name || 'User'}'s Instant Meeting`,
+          title: `${user?.firstName || 'User'}'s Instant Meeting`,
           isWaitingRoomEnabled: false
         })
       });
@@ -209,7 +151,9 @@ export const Dashboard: React.FC = () => {
       navigate(`/room/${data.meeting.code}`);
     } catch (err: any) {
       console.error('Error starting instant meeting:', err);
-      alert(`Could not start meeting: ${err?.message || err}`);
+      // Fallback to random room if server error
+      const code = generateRoomCode();
+      navigate(`/room/${code}`);
     }
   };
 
@@ -232,38 +176,12 @@ export const Dashboard: React.FC = () => {
         scheduledStartISO = new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
       }
 
-      // Serverless client fallback
       if (!apiUrl) {
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
-        if (!currentUser) throw new Error('Not authenticated');
-
-        const code = generateRoomCode();
-        const { error } = await supabase
-          .from('meetings')
-          .insert({
-            code,
-            title: meetingTitle,
-            host_id: currentUser.id,
-            passcode: meetingPasscode || null,
-            is_waiting_room_enabled: isWaitingRoomEnabled,
-            scheduled_start: scheduledStartISO,
-            duration: meetingDuration ? parseInt(meetingDuration, 10) : null
-          });
-
-        if (error) throw error;
-        
-        setMeetingTitle('');
-        setScheduledDate('');
-        setScheduledTime('');
-        setMeetingDuration('30');
-        setMeetingPasscode('');
-        setIsWaitingRoomEnabled(false);
-        setIsScheduleModalOpen(false);
-        fetchMeetings();
-        return;
+         setCreateMeetingError("Cannot schedule meetings without API URL configured.");
+         setIsCreatingMeeting(false);
+         return;
       }
 
-      // API request
       const headers = await getAuthHeader();
       const response = await fetch(`${apiUrl}/api/meetings`, {
         method: 'POST',
@@ -310,39 +228,17 @@ export const Dashboard: React.FC = () => {
     navigate(`/room/${code}`);
   };
 
-  // Update profile handler
-  const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setProfileError(null);
-    setIsUpdatingProfile(true);
-
-    if (!profileFullName) {
-      setProfileError('Full name is required.');
-      setIsUpdatingProfile(false);
-      return;
-    }
-
-    try {
-      await updateProfile(profileFullName, profileAvatarUrl || null);
-      setIsProfileModalOpen(false);
-    } catch (err: any) {
-      setProfileError(err.message || 'An error occurred.');
-    } finally {
-      setIsUpdatingProfile(false);
-    }
-  };
-
   const handleCopyPersonalLink = () => {
-    if (!profile) return;
-    const personalLink = `${window.location.origin}/room/personal-${profile.username}`;
+    if (!user) return;
+    const personalLink = `${window.location.origin}/room/personal-${user.id}`;
     navigator.clipboard.writeText(personalLink);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
   };
 
   const handleStartPersonalRoom = () => {
-    if (!profile) return;
-    navigate(`/room/personal-${profile.username}`);
+    if (!user) return;
+    navigate(`/room/personal-${user.id}`);
   };
 
   const formattedDate = new Date().toLocaleDateString('en-US', {
@@ -375,36 +271,13 @@ export const Dashboard: React.FC = () => {
           </button>
 
           <div className="flex items-center space-x-3 border-l border-hairline dark:border-dark-800 pl-4">
-            <button
-              onClick={() => setIsProfileModalOpen(true)}
-              className="flex items-center space-x-2 text-left group"
-            >
-              {profile?.avatar_url ? (
-                <img
-                  src={profile.avatar_url}
-                  alt="avatar"
-                  className="w-8 h-8 rounded-full border border-primary/50 shadow-sm"
-                />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-surface-card text-ink flex items-center justify-center font-bold text-xs border border-hairline">
-                  {profile?.full_name?.charAt(0).toUpperCase() || 'U'}
-                </div>
-              )}
-              <div className="hidden md:block">
-                <p className="text-xs font-bold text-ink leading-tight group-hover:text-primary transition-colors">
-                  {profile?.full_name || 'Loading...'}
-                </p>
-                <p className="text-[10px] text-muted font-semibold leading-none mt-0.5">@{profile?.username}</p>
-              </div>
-            </button>
-
-            <button
-              onClick={() => signOut()}
-              className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-              title="Sign Out"
-            >
-              <LogOut className="w-4.5 h-4.5" />
-            </button>
+            <div className="hidden md:block text-right mr-2">
+              <p className="text-xs font-bold text-ink leading-tight transition-colors">
+                {user?.fullName || 'Loading...'}
+              </p>
+              <p className="text-[10px] text-muted font-semibold leading-none mt-0.5">{user?.primaryEmailAddress?.emailAddress}</p>
+            </div>
+            <UserButton afterSignOutUrl="/signin" />
           </div>
         </div>
       </header>
@@ -418,7 +291,7 @@ export const Dashboard: React.FC = () => {
           {/* Coral Callout Card */}
           <div className="bg-primary rounded-xl p-8 text-white shadow-sm border border-primary-active/20">
             <h1 className="text-4xl font-serif tracking-tight leading-tight font-normal">
-              Hello, {profile?.full_name?.split(' ')[0] || 'there'}!
+              Hello, {user?.firstName || 'there'}!
             </h1>
             <p className="text-primary-disabled text-sm font-sans font-medium mt-2">{formattedDate}</p>
             <div className="mt-8 border-t border-white/10 pt-4 flex flex-wrap gap-4 text-xs font-sans font-semibold text-primary-disabled">
@@ -490,7 +363,7 @@ export const Dashboard: React.FC = () => {
             
             <div className="mt-4 flex items-center bg-canvas rounded-lg p-2 border border-hairline">
               <span className="text-xs font-mono text-muted truncate mr-2 select-all flex-grow pl-1.5">
-                {window.location.origin}/room/personal-{profile?.username}
+                {window.location.origin}/room/personal-{user?.id}
               </span>
               <div className="flex space-x-2 flex-shrink-0">
                 <button
@@ -683,51 +556,6 @@ export const Dashboard: React.FC = () => {
             </Button>
             <Button type="submit" isLoading={isCreatingMeeting}>
               Schedule
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* EDIT PROFILE MODAL */}
-      <Modal
-        isOpen={isProfileModalOpen}
-        onClose={() => setIsProfileModalOpen(false)}
-        title="Edit User Profile"
-      >
-        <form onSubmit={handleUpdateProfile} className="space-y-4">
-          {profileError && (
-            <div className="p-3 bg-red-50 text-red-750 text-xs font-semibold rounded-lg">
-              {profileError}
-            </div>
-          )}
-
-          <Input
-            label="Full Name"
-            placeholder="John Doe"
-            value={profileFullName}
-            onChange={(e) => setProfileFullName(e.target.value)}
-            disabled={isUpdatingProfile}
-          />
-
-          <Input
-            label="Avatar URL (Optional)"
-            placeholder="https://images.unsplash.com/..."
-            value={profileAvatarUrl}
-            onChange={(e) => setProfileAvatarUrl(e.target.value)}
-            disabled={isUpdatingProfile}
-          />
-
-          <div className="flex items-center justify-end space-x-2.5 pt-2">
-            <Button
-              variant="secondary"
-              type="button"
-              onClick={() => setIsProfileModalOpen(false)}
-              disabled={isUpdatingProfile}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" isLoading={isUpdatingProfile}>
-              Save Changes
             </Button>
           </div>
         </form>
