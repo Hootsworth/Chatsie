@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { ClerkProvider, SignedIn, SignedOut, SignIn, SignUp } from '@clerk/clerk-react';
 import { Dashboard } from './components/dashboard/Dashboard';
 import { MeetingRoom } from './components/meeting/MeetingRoom';
@@ -55,6 +55,71 @@ function useNavigateHelper() {
   return navigate;
 }
 
+const ClerkWithRoutes = () => {
+  const navigate = useNavigate();
+  return (
+    <ClerkProvider 
+      publishableKey={PUBLISHABLE_KEY}
+      routerPush={(to) => navigate(to)}
+      routerReplace={(to) => navigate(to, { replace: true })}
+    >
+      <Routes>
+        {/* Auth routes using Clerk Components */}
+        <Route 
+          path="/signin/*" 
+          element={
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-950">
+              <SignIn routing="path" path="/signin" signUpUrl="/signup" fallbackRedirectUrl="/" />
+            </div>
+          } 
+        />
+        <Route 
+          path="/signup/*" 
+          element={
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-950">
+              <SignUp routing="path" path="/signup" signInUrl="/signin" fallbackRedirectUrl="/" />
+            </div>
+          } 
+        />
+        <Route path="/kicked" element={<KickedPage />} />
+
+        {/* Protected Dashboard */}
+        <Route
+          path="/"
+          element={
+            <>
+              <SignedIn>
+                <Dashboard />
+              </SignedIn>
+              <SignedOut>
+                <Navigate to="/signin" replace />
+              </SignedOut>
+            </>
+          }
+        />
+
+        {/* Protected Video Meeting Room */}
+        <Route
+          path="/room/:code"
+          element={
+            <>
+              <SignedIn>
+                <MeetingRoom />
+              </SignedIn>
+              <SignedOut>
+                <Navigate to="/signin" replace />
+              </SignedOut>
+            </>
+          }
+        />
+
+        {/* Fallback redirect */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </ClerkProvider>
+  );
+};
+
 // ----------------------------------------------------
 // MAIN APP ROUTING COMPONENT
 // ----------------------------------------------------
@@ -71,63 +136,9 @@ export const App: React.FC = () => {
   }, []);
 
   return (
-    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
-      <Router>
-        <Routes>
-          {/* Auth routes using Clerk Components */}
-          <Route 
-            path="/signin/*" 
-            element={
-              <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-950">
-                <SignIn routing="virtual" signUpUrl="#/signup" fallbackRedirectUrl="#/" />
-              </div>
-            } 
-          />
-          <Route 
-            path="/signup/*" 
-            element={
-              <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-950">
-                <SignUp routing="virtual" signInUrl="#/signin" fallbackRedirectUrl="#/" />
-              </div>
-            } 
-          />
-          <Route path="/kicked" element={<KickedPage />} />
-
-          {/* Protected Dashboard */}
-          <Route
-            path="/"
-            element={
-              <>
-                <SignedIn>
-                  <Dashboard />
-                </SignedIn>
-                <SignedOut>
-                  <Navigate to="/signin" replace />
-                </SignedOut>
-              </>
-            }
-          />
-
-          {/* Protected Video Meeting Room */}
-          <Route
-            path="/room/:code"
-            element={
-              <>
-                <SignedIn>
-                  <MeetingRoom />
-                </SignedIn>
-                <SignedOut>
-                  <Navigate to="/signin" replace />
-                </SignedOut>
-              </>
-            }
-          />
-
-          {/* Fallback redirect */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Router>
-    </ClerkProvider>
+    <Router>
+      <ClerkWithRoutes />
+    </Router>
   );
 };
 
