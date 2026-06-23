@@ -56,6 +56,12 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
   // Keep track of peers whose signaling connection has left/reconnected
   const departedSignalingPeers = useRef<Set<string>>(new Set());
 
+  // Cache for ICE servers config to avoid duplicate fetches
+  const iceConfigCache = useRef<RTCConfiguration | null>(null);
+
+  // Queue to hold incoming ICE candidates until remote description is set
+  const iceCandidateQueues = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
+
   // Sync refs with state changes
   useEffect(() => { isMutedAudioRef.current = isMutedAudio; }, [isMutedAudio]);
   useEffect(() => { isMutedVideoRef.current = isMutedVideo; }, [isMutedVideo]);
@@ -81,8 +87,10 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
     }
   ];
 
-  // Fetch ICE configuration from serverless backend
+  // Fetch ICE configuration from serverless backend (cached)
   const fetchIceServers = async (): Promise<RTCConfiguration> => {
+    if (iceConfigCache.current) return iceConfigCache.current;
+
     try {
       const apiUrl = import.meta.env.VITE_API_URL;
       if (apiUrl && apiUrl !== 'undefined' && apiUrl !== 'null') {
@@ -99,14 +107,18 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
             });
 
             if (hasTurn) {
-              return { iceServers: data.iceServers };
+              const config = { iceServers: data.iceServers };
+              iceConfigCache.current = config;
+              return config;
             } else {
               console.warn('useWebRTC: Fetched ICE servers do not contain any TURN servers. Merging default TURN servers.');
               // Filter to get TURN servers from defaultIceServers
               const turnFallbacks = defaultIceServers.filter(server => {
                 return server.urls.some((url: string) => url.startsWith('turn:'));
               });
-              return { iceServers: [...data.iceServers, ...turnFallbacks] };
+              const config = { iceServers: [...data.iceServers, ...turnFallbacks] };
+              iceConfigCache.current = config;
+              return config;
             }
           }
         }
@@ -114,7 +126,9 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
     } catch (e) {
       console.warn('Failed to fetch TURN credentials from serverless endpoint, falling back to defaults:', e);
     }
-    return { iceServers: defaultIceServers };
+    const defaultConfig = { iceServers: defaultIceServers };
+    iceConfigCache.current = defaultConfig;
+    return defaultConfig;
   };
 
   // Get available user audio/video devices
@@ -247,6 +261,7 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
           // already closed
         }
         peerConnections.current.delete(targetSocketId);
+        iceCandidateQueues.current.delete(targetSocketId);
         removeRemoteStream(targetSocketId);
         removeParticipant(targetSocketId);
       }
@@ -270,6 +285,7 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
       pc.close();
       peerConnections.current.delete(socketId);
     }
+    iceCandidateQueues.current.delete(socketId);
     removeRemoteStream(socketId);
     removeParticipant(socketId);
   }, [removeRemoteStream, removeParticipant]);
@@ -634,6 +650,18 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
       if (signal.type === 'offer') {
         try {
           await pc.setRemoteDescription(new RTCSessionDescription(signal));
+          console.log(`Successfully set remote offer description for peer ${senderId}`);
+          
+          // Drain queued ICE candidates
+          const queue = iceCandidateQueues.current.get(senderId) || [];
+          console.log(`Draining ${queue.length} queued ICE candidates for peer ${senderId}`);
+          for (const candidate of queue) {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => {
+              console.warn(`Failed to add queued ICE candidate for peer ${senderId}:`, e);
+            });
+          }
+          iceCandidateQueues.current.delete(senderId);
+
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
           signalingClient.sendSignal(senderId, answer);
@@ -643,12 +671,32 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
       } else if (signal.type === 'answer') {
         try {
           await pc.setRemoteDescription(new RTCSessionDescription(signal));
+          console.log(`Successfully set remote answer description for peer ${senderId}`);
+
+          // Drain queued ICE candidates
+          const queue = iceCandidateQueues.current.get(senderId) || [];
+          console.log(`Draining ${queue.length} queued ICE candidates for peer ${senderId}`);
+          for (const candidate of queue) {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => {
+              console.warn(`Failed to add queued ICE candidate for peer ${senderId}:`, e);
+            });
+          }
+          iceCandidateQueues.current.delete(senderId);
         } catch (err) {
           console.error('Error setting remote answer:', err);
         }
       } else if (signal.candidate) {
         try {
-          await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+          // If remote description is already set, add candidate directly
+          if (pc.remoteDescription) {
+            await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+          } else {
+            // Queue the candidate until remote description is applied
+            const queue = iceCandidateQueues.current.get(senderId) || [];
+            queue.push(signal.candidate);
+            iceCandidateQueues.current.set(senderId, queue);
+            console.log(`Queued ICE candidate for peer ${senderId} (remoteDescription is not yet set)`);
+          }
         } catch (err) {
           console.error('Error adding ICE candidate:', err);
         }
