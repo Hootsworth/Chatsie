@@ -6,7 +6,6 @@ backend/node_modules/
 # Build outputs
 frontend/dist/
 backend/dist/
-docs/
 
 # Local Environment Variables
 .env
