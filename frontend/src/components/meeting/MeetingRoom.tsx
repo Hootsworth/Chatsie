@@ -14,6 +14,8 @@ import { VideoGrid } from './VideoGrid';
 import { MeetingControls } from './MeetingControls';
 import { ChatPanel } from './ChatPanel';
 import { ParticipantPanel } from './ParticipantPanel';
+import { TranscriptionPanel } from './TranscriptionPanel';
+import { ReactionOverlay } from './ReactionOverlay';
 import { Modal, Button } from '../ui';
 import { DeviceSelector } from './DeviceSelector';
 import { Copy, Check, Info, Users, Keyboard, Mic, MicOff, Video, VideoOff, Camera, User } from 'lucide-react';
@@ -32,6 +34,7 @@ export const MeetingRoom: React.FC = () => {
     isPasscodeGatePassed,
     isChatPanelOpen,
     isParticipantsPanelOpen,
+    isTranscriptionPanelOpen,
     isSettingsOpen,
     isShortcutsOpen,
     setCurrentMeeting,
@@ -41,7 +44,9 @@ export const MeetingRoom: React.FC = () => {
     setPasscodeGatePassed,
     setSettingsOpen,
     setShortcutsOpen,
-    resetMeetingState
+    resetMeetingState,
+    setChatMessages,
+    addOrUpdateTranscript
   } = useMeetingStore();
 
   const {
@@ -79,7 +84,28 @@ export const MeetingRoom: React.FC = () => {
   // Helper to fetch devices inside the lobby
   const getDevicesForLobby = async () => {
     try {
-      await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      if (!navigator.mediaDevices) {
+        console.warn('navigator.mediaDevices is not supported in this context.');
+        return;
+      }
+
+      // Try requesting both permissions, fallback if device is missing
+      try {
+        await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      } catch (err) {
+        console.warn('Lobby: Failed to get both audio and video, trying audio-only...', err);
+        try {
+          await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (err2) {
+          console.warn('Lobby: Failed audio-only, trying video-only...', err2);
+          try {
+            await navigator.mediaDevices.getUserMedia({ video: true });
+          } catch (err3) {
+            console.warn('Lobby: Failed all media permission attempts. Listing default labels.', err3);
+          }
+        }
+      }
+
       const devices = await navigator.mediaDevices.enumerateDevices();
       const audio: any[] = [];
       const video: any[] = [];
@@ -233,11 +259,15 @@ export const MeetingRoom: React.FC = () => {
   // State to track active captions for all speakers
   const [activeCaptions, setActiveCaptions] = useState<Record<string, { username: string; text: string; timestamp: number }>>({});
 
+  // State for floating emoji reactions
+  const [reactionList, setReactionList] = useState<Array<{ id: string; emoji: string }>>([]);
+
   // Caption listener for remote speaker captions
   useEffect(() => {
     if (!shouldConnectWebRTC) return;
 
-    const handleCaption = ({ senderId, username, text }: { senderId: string; username: string; text: string }) => {
+    const handleCaption = ({ senderId, username, text, isFinal }: { senderId: string; username: string; text: string; isFinal: boolean }) => {
+      // 1. Update transient overlay captions
       setActiveCaptions(prev => ({
         ...prev,
         [senderId]: {
@@ -246,6 +276,9 @@ export const MeetingRoom: React.FC = () => {
           timestamp: Date.now()
         }
       }));
+
+      // 2. Update persistent transcript log
+      addOrUpdateTranscript(senderId, username, text, isFinal);
     };
 
     signalingClient.on('caption', handleCaption);
@@ -269,6 +302,23 @@ export const MeetingRoom: React.FC = () => {
     return () => {
       signalingClient.off('caption', handleCaption);
       clearInterval(interval);
+    };
+  }, [shouldConnectWebRTC]);
+
+  // Reaction listener — listens for emoji reactions from all peers
+  useEffect(() => {
+    if (!shouldConnectWebRTC) return;
+
+    const handleReaction = ({ senderId, type }: { senderId: string; type: string }) => {
+      setReactionList(prev => [
+        ...prev,
+        { id: `${senderId}-${Date.now()}-${Math.random()}`, emoji: type }
+      ]);
+    };
+
+    signalingClient.on('reaction', handleReaction);
+    return () => {
+      signalingClient.off('reaction', handleReaction);
     };
   }, [shouldConnectWebRTC]);
 
@@ -362,6 +412,27 @@ export const MeetingRoom: React.FC = () => {
           setWaitingStatus('waiting');
         } else {
           setWaitingStatus('none');
+        }
+
+        // Load persistent chat history from Supabase
+        const { data: messages, error: msgError } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('meeting_id', meeting.id)
+          .order('created_at', { ascending: true });
+
+        if (msgError) {
+          console.warn('Could not fetch chat history:', msgError);
+        } else if (messages) {
+          const chatMsgs = messages.map(m => ({
+            id: m.id,
+            senderId: m.user_id || 'guest',
+            userId: m.user_id || 'guest',
+            username: m.sender_name,
+            text: m.message,
+            timestamp: new Date(m.created_at).getTime()
+          }));
+          setChatMessages(chatMsgs);
         }
 
       } catch (err: any) {
@@ -618,6 +689,9 @@ export const MeetingRoom: React.FC = () => {
   return (
     <div className="h-screen flex flex-col bg-surface-dark text-on-dark overflow-hidden font-sans transition-colors duration-200">
       
+      {/* Floating Emoji Reaction Overlay */}
+      <ReactionOverlay reactions={reactionList} />
+      
       {/* Room Header bar */}
       <header className="bg-surface-dark-elevated border-b border-white/5 px-6 py-3 flex items-center justify-between z-35">
         <div className="flex items-center space-x-3 truncate">
@@ -702,6 +776,12 @@ export const MeetingRoom: React.FC = () => {
         {isParticipantsPanelOpen && (
           <div className="w-full md:w-80 flex-shrink-0 animate-in slide-in-from-right duration-250 z-20">
             <ParticipantPanel roomId={code || ''} />
+          </div>
+        )}
+
+        {isTranscriptionPanelOpen && (
+          <div className="w-full md:w-80 flex-shrink-0 animate-in slide-in-from-right duration-250 z-20">
+            <TranscriptionPanel />
           </div>
         )}
       </div>

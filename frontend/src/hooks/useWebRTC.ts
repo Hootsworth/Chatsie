@@ -85,8 +85,27 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
   // Get available user audio/video devices
   const getDevices = useCallback(async () => {
     try {
-      // Prompt permissions first if not already granted
-      await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      if (!navigator.mediaDevices) {
+        console.warn('navigator.mediaDevices is not supported in this context.');
+        return;
+      }
+
+      // Try requesting both permissions, fallback if device is missing
+      try {
+        await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      } catch (err) {
+        console.warn('useWebRTC: Failed to get both audio and video, trying audio-only...', err);
+        try {
+          await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (err2) {
+          console.warn('useWebRTC: Failed audio-only, trying video-only...', err2);
+          try {
+            await navigator.mediaDevices.getUserMedia({ video: true });
+          } catch (err3) {
+            console.warn('useWebRTC: Failed all media permission attempts. Listing default labels.', err3);
+          }
+        }
+      }
       
       const devices = await navigator.mediaDevices.enumerateDevices();
       
@@ -246,10 +265,18 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
     } else {
       try {
         // Request Screen Capture stream
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({
-          video: { frameRate: { max: 30 } },
-          audio: true
-        });
+        let screenStream: MediaStream;
+        try {
+          screenStream = await navigator.mediaDevices.getDisplayMedia({
+            video: { frameRate: { max: 30 } },
+            audio: true
+          });
+        } catch (e) {
+          console.warn('Failed to start screen share with audio, falling back to video-only screen share...', e);
+          screenStream = await navigator.mediaDevices.getDisplayMedia({
+            video: { frameRate: { max: 30 } }
+          });
+        }
         
         screenShareStreamRef.current = screenStream;
         setScreenShareStream(screenStream);

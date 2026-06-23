@@ -113,3 +113,31 @@ h1, h2, h3, .font-serif-display {
     box-shadow: 0 0 0 3px #cc785c, 0 0 18px rgba(204, 120, 92, 0.7);
   }
 }
+
+/* Floating emoji reaction animation */
+@keyframes reaction-float {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-80px) scale(1.2) rotate(-8deg);
+  }
+  50% {
+    opacity: 0.85;
+    transform: translateY(-200px) scale(1.1) rotate(6deg);
+  }
+  80% {
+    opacity: 0.4;
+    transform: translateY(-320px) scale(0.9) rotate(-4deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-420px) scale(0.6) rotate(0deg);
+  }
+}
+
+.animate-reaction-float {
+  animation: reaction-float 3s ease-out forwards;
+}

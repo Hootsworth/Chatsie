@@ -14,8 +14,12 @@ import {
   Users,
   Settings,
   PhoneOff,
-  Captions
+  Captions,
+  FileText,
+  Smile
 } from 'lucide-react';
+
+const REACTION_EMOJIS = ['👍', '👏', '❤️', '🎉', '😂', '🔥', '🤔', '😮'];
 
 interface MeetingControlsProps {
   toggleAudio: () => void;
@@ -39,8 +43,10 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
     participants,
     isChatPanelOpen,
     isParticipantsPanelOpen,
+    isTranscriptionPanelOpen,
     toggleChatPanel,
     toggleParticipantsPanel,
+    toggleTranscriptionPanel,
     setSettingsOpen
   } = useMeetingStore();
 
@@ -54,6 +60,22 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
 
   // Local state for hand raised
   const [isHandRaised, setIsHandRaised] = React.useState(false);
+  // Reaction picker popover state
+  const [isReactionPickerOpen, setIsReactionPickerOpen] = React.useState(false);
+  const reactionPickerRef = React.useRef<HTMLDivElement>(null);
+
+  // Close reaction picker on click outside
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (reactionPickerRef.current && !reactionPickerRef.current.contains(e.target as Node)) {
+        setIsReactionPickerOpen(false);
+      }
+    };
+    if (isReactionPickerOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isReactionPickerOpen]);
 
   const handleRaiseHand = () => {
     const nextState = !isHandRaised;
@@ -66,6 +88,11 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
     if (!isChatPanelOpen) {
       markChatRead();
     }
+  };
+
+  const handleSendReaction = (emoji: string) => {
+    signalingClient.sendReaction(emoji);
+    setIsReactionPickerOpen(false);
   };
 
   return (
@@ -133,6 +160,39 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
           <Hand className="w-5 h-5" />
         </button>
 
+        {/* Reactions Picker */}
+        <div className="relative" ref={reactionPickerRef}>
+          <button
+            onClick={() => setIsReactionPickerOpen(!isReactionPickerOpen)}
+            className={`p-3 rounded-xl transition-all duration-200 focus:outline-none ${
+              isReactionPickerOpen 
+                ? 'bg-primary hover:bg-primary-active text-white shadow-lg shadow-primary/20' 
+                : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
+            }`}
+            title="Send Reaction"
+          >
+            <Smile className="w-5 h-5" />
+          </button>
+
+          {/* Popover emoji picker */}
+          {isReactionPickerOpen && (
+            <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 bg-surface-dark-elevated border border-white/10 rounded-2xl p-2.5 shadow-2xl shadow-black/40 backdrop-blur-md animate-in fade-in slide-in-from-bottom-2 duration-200 z-50">
+              <div className="flex items-center space-x-1.5">
+                {REACTION_EMOJIS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => handleSendReaction(emoji)}
+                    className="text-2xl p-2 rounded-xl hover:bg-white/10 hover:scale-125 transition-all duration-150 active:scale-95 cursor-pointer"
+                    title={`Send ${emoji}`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Toggle Captions */}
         <button
           onClick={() => setCaptionsEnabled(!showCaptions)}
@@ -191,6 +251,19 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
           </span>
         </button>
 
+        {/* Transcription Toggle Button */}
+        <button
+          onClick={toggleTranscriptionPanel}
+          className={`p-2.5 rounded-lg transition-all relative ${
+            isTranscriptionPanelOpen 
+              ? 'bg-primary/20 text-primary border border-primary/30' 
+              : 'hover:bg-surface-dark-soft text-on-dark-soft'
+          }`}
+          title="Live Transcription"
+        >
+          <FileText className="w-5 h-5" />
+        </button>
+
         {/* Device Settings Toggle Button */}
         <button
           onClick={() => setSettingsOpen(true)}
@@ -204,3 +277,4 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
   );
 };
 export default MeetingControls;
+

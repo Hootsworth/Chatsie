@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useMeetingStore } from '../../stores/meetingStore';
 import { signalingClient } from '../../services/signaling';
+import supabase from '../../services/supabase';
 import { Send, Smile } from 'lucide-react';
 import { Input, Button } from '../ui';
 
@@ -25,28 +26,72 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, userId, username }
     scrollToBottom();
   }, [chatMessages]);
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!text.trim()) return;
+    const messageText = text.trim();
+    if (!messageText) return;
+
+    // Save message to Supabase database for persistence
+    try {
+      const { data: meeting } = await supabase
+        .from('meetings')
+        .select('id')
+        .eq('code', roomId)
+        .maybeSingle();
+
+      if (meeting) {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        const cleanUserId = uuidRegex.test(userId) ? userId : null;
+
+        await supabase.from('chat_messages').insert({
+          meeting_id: meeting.id,
+          user_id: cleanUserId,
+          sender_name: username,
+          message: messageText
+        });
+      }
+    } catch (err) {
+      console.error('Failed to persist chat message in database:', err);
+    }
 
     // Send chat via signaling client
-    // Dual SignalingClient handles broadcasting:
-    // If Socket.IO, it triggers 'send-chat'
-    // If Supabase Realtime, it broadcasts 'chat' event
     const provider = import.meta.env.VITE_SIGNALING_PROVIDER || 'supabase';
 
     if (provider === 'socketio') {
       // Socket.IO requires explicit room parameters
       // @ts-ignore
-      signalingClient.sendChatWithDetails(roomId, username, text.trim(), userId);
+      signalingClient.sendChatWithDetails(roomId, username, messageText, userId);
     } else {
-      signalingClient.sendChat(text.trim());
+      signalingClient.sendChat(messageText);
     }
 
     setText('');
   };
 
-  const sendEmoji = (emoji: string) => {
+  const sendEmoji = async (emoji: string) => {
+    // Save emoji message to Supabase database for persistence
+    try {
+      const { data: meeting } = await supabase
+        .from('meetings')
+        .select('id')
+        .eq('code', roomId)
+        .maybeSingle();
+
+      if (meeting) {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        const cleanUserId = uuidRegex.test(userId) ? userId : null;
+
+        await supabase.from('chat_messages').insert({
+          meeting_id: meeting.id,
+          user_id: cleanUserId,
+          sender_name: username,
+          message: emoji
+        });
+      }
+    } catch (err) {
+      console.error('Failed to persist emoji message in database:', err);
+    }
+
     const provider = import.meta.env.VITE_SIGNALING_PROVIDER || 'supabase';
     if (provider === 'socketio') {
       // @ts-ignore

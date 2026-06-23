@@ -33,6 +33,15 @@ export interface ChatMessage {
   timestamp: number;
 }
 
+export interface Transcript {
+  id: string;
+  senderId: string;
+  username: string;
+  text: string;
+  timestamp: number;
+  isFinal: boolean;
+}
+
 interface MeetingState {
   // Current Active Meeting details
   currentMeeting: Meeting | null;
@@ -49,10 +58,13 @@ interface MeetingState {
   isPasscodeGatePassed: boolean;
   // Persistent chat history
   chatMessages: ChatMessage[];
+  // Transcription history
+  transcripts: Transcript[];
   
   // UI states
   isChatPanelOpen: boolean;
   isParticipantsPanelOpen: boolean;
+  isTranscriptionPanelOpen: boolean;
   isSettingsOpen: boolean;
   isShortcutsOpen: boolean;
   
@@ -70,10 +82,12 @@ interface MeetingState {
   setPasscodeGatePassed: (passed: boolean) => void;
   addChatMessage: (message: ChatMessage) => void;
   setChatMessages: (messages: ChatMessage[]) => void;
+  addOrUpdateTranscript: (senderId: string, username: string, text: string, isFinal: boolean) => void;
   
   // UI Actions
   toggleChatPanel: () => void;
   toggleParticipantsPanel: () => void;
+  toggleTranscriptionPanel: () => void;
   setSettingsOpen: (isOpen: boolean) => void;
   setShortcutsOpen: (isOpen: boolean) => void;
   resetMeetingState: () => void;
@@ -88,9 +102,11 @@ export const useMeetingStore = create<MeetingState>((set) => ({
   isPasscodeGateRequired: false,
   isPasscodeGatePassed: false,
   chatMessages: [],
+  transcripts: [],
   
   isChatPanelOpen: false,
   isParticipantsPanelOpen: false,
+  isTranscriptionPanelOpen: false,
   isSettingsOpen: false,
   isShortcutsOpen: false,
 
@@ -138,14 +154,47 @@ export const useMeetingStore = create<MeetingState>((set) => ({
   
   setChatMessages: (messages) => set({ chatMessages: messages }),
 
+  addOrUpdateTranscript: (senderId, username, text, isFinal) => set((state) => {
+    const list = [...state.transcripts];
+    const lastIdx = list.length - 1;
+    
+    if (lastIdx >= 0 && list[lastIdx].senderId === senderId && !list[lastIdx].isFinal) {
+      list[lastIdx] = {
+        ...list[lastIdx],
+        text: text,
+        isFinal: isFinal,
+        timestamp: Date.now()
+      };
+      return { transcripts: list };
+    } else {
+      const newEntry = {
+        id: `${senderId}-${Date.now()}`,
+        senderId,
+        username,
+        text,
+        timestamp: Date.now(),
+        isFinal
+      };
+      return { transcripts: [...state.transcripts, newEntry] };
+    }
+  }),
+  
   toggleChatPanel: () => set((state) => ({ 
     isChatPanelOpen: !state.isChatPanelOpen,
-    isParticipantsPanelOpen: false // Close other panel to preserve UI space
+    isParticipantsPanelOpen: false,
+    isTranscriptionPanelOpen: false
   })),
 
   toggleParticipantsPanel: () => set((state) => ({ 
     isParticipantsPanelOpen: !state.isParticipantsPanelOpen,
-    isChatPanelOpen: false // Close other panel to preserve UI space
+    isChatPanelOpen: false,
+    isTranscriptionPanelOpen: false
+  })),
+
+  toggleTranscriptionPanel: () => set((state) => ({
+    isTranscriptionPanelOpen: !state.isTranscriptionPanelOpen,
+    isChatPanelOpen: false,
+    isParticipantsPanelOpen: false
   })),
 
   setSettingsOpen: (isOpen) => set({ isSettingsOpen: isOpen }),
@@ -160,8 +209,10 @@ export const useMeetingStore = create<MeetingState>((set) => ({
     isPasscodeGateRequired: false,
     isPasscodeGatePassed: false,
     chatMessages: [],
+    transcripts: [],
     isChatPanelOpen: false,
     isParticipantsPanelOpen: false,
+    isTranscriptionPanelOpen: false,
     isSettingsOpen: false,
     isShortcutsOpen: false
   })

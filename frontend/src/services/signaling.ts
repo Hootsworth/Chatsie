@@ -29,7 +29,8 @@ export interface SignalingEventMap {
   'waiting-status': (data: { status: 'waiting' | 'approved' | 'denied' }) => void;
   'waiting-room-list-update': (data: { participants: Array<{ socketId: string; userId: string; username: string }> }) => void;
   'room-participants': (data: { participants: Array<any> }) => void;
-  'caption': (data: { senderId: string; username: string; text: string }) => void;
+  'caption': (data: { senderId: string; username: string; text: string; isFinal: boolean }) => void;
+  'reaction': (data: { senderId: string; type: string }) => void;
 }
 
 export interface ISignalingClient {
@@ -45,7 +46,8 @@ export interface ISignalingClient {
   on<K extends keyof SignalingEventMap>(event: K, listener: SignalingEventMap[K]): void;
   off<K extends keyof SignalingEventMap>(event: K, listener: SignalingEventMap[K]): void;
   getSocketId(): string;
-  sendCaption(text: string): void;
+  sendCaption(text: string, isFinal?: boolean): void;
+  sendReaction(type: string): void;
 }
 
 // ----------------------------------------------------
@@ -96,6 +98,7 @@ class SocketIOSignalingClient implements ISignalingClient {
     this.socket.on('waiting-status', (data) => this.emit('waiting-status', data));
     this.socket.on('waiting-room-list-update', (data) => this.emit('waiting-room-list-update', data));
     this.socket.on('caption', (data) => this.emit('caption', data));
+    this.socket.on('reaction', (data) => this.emit('reaction', data));
   }
 
   disconnect(): void {
@@ -150,9 +153,15 @@ class SocketIOSignalingClient implements ISignalingClient {
     }
   }
 
-  sendCaption(text: string): void {
+  sendCaption(text: string, isFinal: boolean = true): void {
     if (this.socket) {
-      this.socket.emit('caption', { roomId: this.roomId, text });
+      this.socket.emit('caption', { roomId: this.roomId, text, isFinal });
+    }
+  }
+
+  sendReaction(type: string): void {
+    if (this.socket) {
+      this.socket.emit('reaction', { roomId: this.roomId, type });
     }
   }
 
@@ -244,6 +253,9 @@ class SupabaseSignalingClient implements ISignalingClient {
       })
       .on('broadcast', { event: 'caption' }, (payload) => {
         this.emit('caption', payload.payload);
+      })
+      .on('broadcast', { event: 'reaction' }, (payload) => {
+        this.emit('reaction', payload.payload);
       });
 
     // 2. Presence synchronization (Tracks active list of users and waiting room)
@@ -371,7 +383,7 @@ class SupabaseSignalingClient implements ISignalingClient {
     this.emit('chat-received', msg);
   }
 
-  sendCaption(text: string): void {
+  sendCaption(text: string, isFinal: boolean = true): void {
     if (!this.user) return;
     this.channel?.send({
       type: 'broadcast',
@@ -379,10 +391,26 @@ class SupabaseSignalingClient implements ISignalingClient {
       payload: {
         senderId: this.clientSocketId,
         username: this.user.username,
-        text
+        text,
+        isFinal
       }
     });
-    this.emit('caption', { senderId: this.clientSocketId, username: this.user.username, text });
+    this.emit('caption', { senderId: this.clientSocketId, username: this.user.username, text, isFinal });
+  }
+
+  sendReaction(type: string): void {
+    if (!this.user) return;
+    const payload = {
+      senderId: this.clientSocketId,
+      type
+    };
+    this.channel?.send({
+      type: 'broadcast',
+      event: 'reaction',
+      payload
+    });
+    // Also emit locally so the sender sees their own reaction
+    this.emit('reaction', payload);
   }
 
   raiseHand(isRaised: boolean): void {

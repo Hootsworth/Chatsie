@@ -31,9 +31,10 @@ export const useSpeechRecognition = (isMutedAudio: boolean, showCaptions: boolea
         }
       }
 
-      const text = finalTranscript || interimTranscript;
-      if (text.trim()) {
-        signalingClient.sendCaption(text);
+      if (finalTranscript.trim()) {
+        signalingClient.sendCaption(finalTranscript.trim(), true);
+      } else if (interimTranscript.trim()) {
+        signalingClient.sendCaption(interimTranscript.trim(), false);
       }
     };
 
