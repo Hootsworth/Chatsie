@@ -130,6 +130,10 @@ export const useWebRTCStore = create<WebRTCState>((set) => ({
     if (state.screenShareStream) {
       state.screenShareStream.getTracks().forEach(track => track.stop());
     }
+    // Stop all remote tracks
+    state.remoteStreams.forEach((stream) => {
+      stream.getTracks().forEach(track => track.stop());
+    });
     return {
       localStream: null,
       screenShareStream: null,

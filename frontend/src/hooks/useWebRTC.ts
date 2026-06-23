@@ -58,22 +58,19 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
 
   // Default ICE servers if API fails (includes free TURN servers for public NAT traversal)
   const defaultIceServers = [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:openrelay.metered.ca:80' },
     {
-      urls: 'turn:openrelay.metered.ca:80',
-      username: 'openrelayproject',
-      credential: 'openrelayproject'
+      urls: [
+        'stun:stun.l.google.com:19302',
+        'stun:stun1.l.google.com:19302',
+        'stun:openrelay.metered.ca:80'
+      ]
     },
     {
-      urls: 'turn:openrelay.metered.ca:443',
-      username: 'openrelayproject',
-      credential: 'openrelayproject'
-    },
-    {
-      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+      urls: [
+        'turn:openrelay.metered.ca:80',
+        'turn:openrelay.metered.ca:443',
+        'turn:openrelay.metered.ca:443?transport=tcp'
+      ],
       username: 'openrelayproject',
       credential: 'openrelayproject'
     }
@@ -108,15 +105,18 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
 
       // Try requesting both permissions, fallback if device is missing
       try {
-        await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        stream.getTracks().forEach(track => track.stop());
       } catch (err) {
         console.warn('useWebRTC: Failed to get both audio and video, trying audio-only...', err);
         try {
-          await navigator.mediaDevices.getUserMedia({ audio: true });
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach(track => track.stop());
         } catch (err2) {
           console.warn('useWebRTC: Failed audio-only, trying video-only...', err2);
           try {
-            await navigator.mediaDevices.getUserMedia({ video: true });
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            stream.getTracks().forEach(track => track.stop());
           } catch (err3) {
             console.warn('useWebRTC: Failed all media permission attempts. Listing default labels.', err3);
           }

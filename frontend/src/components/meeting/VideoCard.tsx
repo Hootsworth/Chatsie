@@ -64,7 +64,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({
       )}
 
       {/* Video Feed */}
-      {stream && (
+      {stream && (!isMutedVideo || isScreenShare) && (
         isLocal && isScreenShare ? (
           /* Prevent infinite mirror preview for local user */
           <div className="flex flex-col items-center justify-center space-y-4 z-0 select-none p-6 text-center text-on-dark-soft animate-in fade-in duration-300">

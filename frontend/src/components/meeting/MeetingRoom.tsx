@@ -82,6 +82,23 @@ export const MeetingRoom: React.FC = () => {
     return sessionStorage.getItem(`lobby_passed_${code}`) === 'true';
   });
   const [lobbyStream, setLobbyStream] = useState<MediaStream | null>(null);
+  const lobbyStreamRef = React.useRef<MediaStream | null>(null);
+
+  // Sync ref with state
+  React.useEffect(() => {
+    lobbyStreamRef.current = lobbyStream;
+  }, [lobbyStream]);
+
+  // Guaranteed unmount cleanup
+  React.useEffect(() => {
+    return () => {
+      if (lobbyStreamRef.current) {
+        lobbyStreamRef.current.getTracks().forEach(track => track.stop());
+        lobbyStreamRef.current = null;
+      }
+    };
+  }, []);
+
   const lobbyVideoRef = React.useCallback((node: HTMLVideoElement | null) => {
     if (node && lobbyStream) {
       node.srcObject = lobbyStream;
@@ -98,15 +115,18 @@ export const MeetingRoom: React.FC = () => {
 
       // Try requesting both permissions, fallback if device is missing
       try {
-        await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        stream.getTracks().forEach(track => track.stop());
       } catch (err) {
         console.warn('Lobby: Failed to get both audio and video, trying audio-only...', err);
         try {
-          await navigator.mediaDevices.getUserMedia({ audio: true });
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach(track => track.stop());
         } catch (err2) {
           console.warn('Lobby: Failed audio-only, trying video-only...', err2);
           try {
-            await navigator.mediaDevices.getUserMedia({ video: true });
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            stream.getTracks().forEach(track => track.stop());
           } catch (err3) {
             console.warn('Lobby: Failed all media permission attempts. Listing default labels.', err3);
           }
@@ -144,7 +164,13 @@ export const MeetingRoom: React.FC = () => {
 
   // Lobby stream setup
   useEffect(() => {
-    if (isLobbyPassed || isLoadingMeeting || meetingError || (isPasscodeGateRequired && !isPasscodeGatePassed)) return;
+    if (isLobbyPassed || isLoadingMeeting || meetingError || (isPasscodeGateRequired && !isPasscodeGatePassed)) {
+      if (lobbyStream) {
+        lobbyStream.getTracks().forEach(track => track.stop());
+        setLobbyStream(null);
+      }
+      return;
+    }
 
     let active = true;
     let streamInstance: MediaStream | null = null;
@@ -155,38 +181,45 @@ export const MeetingRoom: React.FC = () => {
         lobbyStream.getTracks().forEach(track => track.stop());
       }
 
+      // If both are muted, we don't request any stream
+      if (isMutedVideo && isMutedAudio) {
+        setLobbyStream(null);
+        return;
+      }
+
       try {
-        const videoConstraints: MediaTrackConstraints = {
-          width: { ideal: 640 },
-          height: { ideal: 360 },
-          frameRate: { ideal: 24 }
-        };
-        if (selectedVideoInput) {
-          videoConstraints.deviceId = { exact: selectedVideoInput };
+        const constraints: MediaStreamConstraints = {};
+
+        if (!isMutedVideo) {
+          const videoConstraints: MediaTrackConstraints = {
+            width: { ideal: 640 },
+            height: { ideal: 360 },
+            frameRate: { ideal: 24 }
+          };
+          if (selectedVideoInput) {
+            videoConstraints.deviceId = { exact: selectedVideoInput };
+          }
+          constraints.video = videoConstraints;
+        } else {
+          constraints.video = false;
         }
 
-        const audioConstraints: MediaTrackConstraints = {};
-        if (selectedAudioInput) {
-          audioConstraints.deviceId = { exact: selectedAudioInput };
+        if (!isMutedAudio) {
+          const audioConstraints: MediaTrackConstraints = {};
+          if (selectedAudioInput) {
+            audioConstraints.deviceId = { exact: selectedAudioInput };
+          }
+          constraints.audio = audioConstraints;
+        } else {
+          constraints.audio = false;
         }
 
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: videoConstraints,
-          audio: audioConstraints
-        });
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
         if (!active) {
           stream.getTracks().forEach(track => track.stop());
           return;
         }
-
-        // Apply initial mute states on tracks
-        stream.getAudioTracks().forEach(track => {
-          track.enabled = !isMutedAudio;
-        });
-        stream.getVideoTracks().forEach(track => {
-          track.enabled = !isMutedVideo;
-        });
 
         streamInstance = stream;
         setLobbyStream(stream);
@@ -205,28 +238,24 @@ export const MeetingRoom: React.FC = () => {
         streamInstance.getTracks().forEach(track => track.stop());
       }
     };
-  }, [selectedVideoInput, selectedAudioInput, isLobbyPassed, isLoadingMeeting, meetingError, isPasscodeGateRequired, isPasscodeGatePassed]);
-
-
+  }, [
+    selectedVideoInput,
+    selectedAudioInput,
+    isLobbyPassed,
+    isLoadingMeeting,
+    meetingError,
+    isPasscodeGateRequired,
+    isPasscodeGatePassed,
+    isMutedVideo,
+    isMutedAudio
+  ]);
 
   const handleToggleLobbyAudio = () => {
-    const nextState = !isMutedAudio;
-    setAudioMute(nextState);
-    if (lobbyStream) {
-      lobbyStream.getAudioTracks().forEach(track => {
-        track.enabled = !nextState;
-      });
-    }
+    setAudioMute(!isMutedAudio);
   };
 
   const handleToggleLobbyVideo = () => {
-    const nextState = !isMutedVideo;
-    setVideoMute(nextState);
-    if (lobbyStream) {
-      lobbyStream.getVideoTracks().forEach(track => {
-        track.enabled = !nextState;
-      });
-    }
+    setVideoMute(!isMutedVideo);
   };
 
   const handleJoinCall = () => {
