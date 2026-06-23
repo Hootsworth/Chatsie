@@ -79,7 +79,7 @@ export const App: React.FC = () => {
             path="/signin/*" 
             element={
               <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-950">
-                <SignIn routing="path" path="/signin" signUpUrl="/signup" fallbackRedirectUrl="/" />
+                <SignIn routing="virtual" signUpUrl="#/signup" fallbackRedirectUrl="#/" />
               </div>
             } 
           />
@@ -87,7 +87,7 @@ export const App: React.FC = () => {
             path="/signup/*" 
             element={
               <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-950">
-                <SignUp routing="path" path="/signup" signInUrl="/signin" fallbackRedirectUrl="/" />
+                <SignUp routing="virtual" signInUrl="#/signin" fallbackRedirectUrl="#/" />
               </div>
             } 
           />
