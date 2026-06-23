@@ -576,15 +576,24 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
           }
         }
 
-        // Create WebRTC connection. Since we joined last, we initiate connection to existing peers
-        const pc = await createPeerConnection(p.socketId, iceConfig);
-        
-        try {
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          signalingClient.sendSignal(p.socketId, offer);
-        } catch (err) {
-          console.error('Error creating WebRTC offer:', err);
+        // Deterministic role: Only the peer with the lexicographically smaller socket ID initiates the offer
+        const mySocketId = signalingClient.getSocketId();
+        const isOfferer = mySocketId < p.socketId;
+
+        if (isOfferer) {
+          console.log(`We are the offerer for peer ${p.socketId} (${mySocketId} < ${p.socketId}). Initiating connection.`);
+          const pc = await createPeerConnection(p.socketId, iceConfig);
+          try {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            signalingClient.sendSignal(p.socketId, offer);
+          } catch (err) {
+            console.error('Error creating WebRTC offer:', err);
+          }
+        } else {
+          console.log(`We are the answerer for peer ${p.socketId} (${mySocketId} > ${p.socketId}). Waiting for offer.`);
+          // Just prepare the peer connection so it's ready, but don't send offer
+          await createPeerConnection(p.socketId, iceConfig);
         }
       }
     };
