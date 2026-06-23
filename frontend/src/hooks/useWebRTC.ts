@@ -564,10 +564,16 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
           isHandRaised: p.isHandRaised
         });
 
-        // Skip connection recreation if connection to peer already exists
+        // Skip connection recreation if connection to peer already exists and is connected
         if (peerConnections.current.has(p.socketId)) {
-          console.log(`Connection to peer ${p.socketId} already exists. Skipping connection creation.`);
-          continue;
+          const existingPc = peerConnections.current.get(p.socketId);
+          if (existingPc && existingPc.connectionState === 'connected') {
+            console.log(`Connection to peer ${p.socketId} already exists and is connected. Skipping connection creation.`);
+            continue;
+          } else {
+            console.log(`Connection to peer ${p.socketId} exists but state is ${existingPc?.connectionState}. Re-creating connection.`);
+            closePeerConnection(p.socketId);
+          }
         }
 
         // Create WebRTC connection. Since we joined last, we initiate connection to existing peers
@@ -603,6 +609,13 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
       if (!active) return;
       
       let pc = peerConnections.current.get(senderId);
+      
+      // If we receive a new offer but already have a connection, close the old one to avoid state conflicts
+      if (signal.type === 'offer' && pc) {
+        console.log(`Received fresh WebRTC offer from ${senderId} but connection already exists. Closing stale connection.`);
+        closePeerConnection(senderId);
+        pc = undefined;
+      }
       
       // If peer connection doesn't exist, create it (answering peer)
       if (!pc) {
