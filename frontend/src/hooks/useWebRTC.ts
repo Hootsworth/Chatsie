@@ -51,6 +51,9 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
   // Ref for voice activity cleanup
   const voiceCleanup = useRef<(() => void) | null>(null);
 
+  // Keep track of peers whose signaling connection has left/reconnected
+  const departedSignalingPeers = useRef<Set<string>>(new Set());
+
   // Sync refs with state changes
   useEffect(() => { isMutedAudioRef.current = isMutedAudio; }, [isMutedAudio]);
   useEffect(() => { isMutedVideoRef.current = isMutedVideo; }, [isMutedVideo]);
@@ -228,8 +231,14 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
       let state: 'good' | 'fair' | 'poor' | 'disconnected' = 'good';
       if (pc.connectionState === 'connecting') state = 'fair';
       if (pc.connectionState === 'failed') state = 'poor';
-      if (pc.connectionState === 'disconnected' || pc.connectionState === 'closed' || pc.connectionState === 'failed') {
+      
+      const isDead = pc.connectionState === 'failed' || pc.connectionState === 'closed';
+      const isDisconnected = pc.connectionState === 'disconnected';
+      const isSignalingDeparted = departedSignalingPeers.current.has(targetSocketId);
+      
+      if (isDead || (isDisconnected && isSignalingDeparted)) {
         state = 'disconnected';
+        departedSignalingPeers.current.delete(targetSocketId);
         try {
           pc.close();
         } catch (e) {
@@ -519,6 +528,8 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
       if (!active) return;
       
       for (const p of participants) {
+        departedSignalingPeers.current.delete(p.socketId);
+        
         addParticipant({
           socketId: p.socketId,
           userId: p.userId,
@@ -550,6 +561,8 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
 
     const handlePeerJoined = (p: any) => {
       console.log(`Peer joined notification: ${p.username} (${p.socketId})`);
+      departedSignalingPeers.current.delete(p.socketId);
+      
       addParticipant({
         socketId: p.socketId,
         userId: p.userId,
@@ -597,8 +610,16 @@ export const useWebRTC = (roomId: string, userId: string, username: string) => {
     };
 
     const handlePeerLeft = ({ socketId }: any) => {
-      console.log(`Peer left: ${socketId}`);
-      closePeerConnection(socketId);
+      console.log(`Peer left signaling channel: ${socketId}`);
+      departedSignalingPeers.current.add(socketId);
+      
+      const pc = peerConnections.current.get(socketId);
+      // Only close WebRTC if connection is not active
+      if (!pc || pc.connectionState !== 'connected') {
+        closePeerConnection(socketId);
+      } else {
+        console.log(`WebRTC connection to ${socketId} is still connected. Keeping streaming active.`);
+      }
     };
 
     const handleChatReceived = (msg: any) => {
