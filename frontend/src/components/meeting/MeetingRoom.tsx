@@ -5,7 +5,7 @@ import { useMeetingStore } from '../../stores/meetingStore';
 import type { Meeting } from '../../stores/meetingStore';
 import { useWebRTCStore } from '../../stores/webrtcStore';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
-import supabase from '../../services/supabase';
+
 import { signalingClient } from '../../services/signaling';
 import { LiveKitRoom } from '@livekit/components-react';
 import '@livekit/components-styles';

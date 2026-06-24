@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useMeetingStore } from '../../stores/meetingStore';
 import { signalingClient } from '../../services/signaling';
-import supabase from '../../services/supabase';
+
 import { Send, Smile } from 'lucide-react';
 import { useAuth } from '@clerk/clerk-react';
 import { Input, Button } from '../ui';
