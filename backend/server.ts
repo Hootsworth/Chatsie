@@ -27,10 +27,18 @@ app.get('/health', (req, res) => {
 app.use(clerkMiddleware());
 
 import { createClient } from '@supabase/supabase-js';
+import WebSocket from 'ws';
 
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    persistSession: false
+  },
+  global: {
+    WebSocket: WebSocket as any
+  }
+});
 
 function generateRoomCode(): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz';
