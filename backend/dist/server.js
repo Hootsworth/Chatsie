@@ -505,7 +505,7 @@ app.post('/api/meetings/:code/invite', (0, express_2.requireAuth)(), async (req,
             body: JSON.stringify({
                 sender: {
                     name: 'Chatsie Meetings',
-                    email: 'invites@adityapdixit.me'
+                    email: 'info@singulr.tech'
                 },
                 to: [
                     {

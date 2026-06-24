@@ -563,7 +563,7 @@ app.post('/api/meetings/:code/invite', requireAuth(), async (req, res) => {
       body: JSON.stringify({
         sender: {
           name: 'Chatsie Meetings',
-          email: 'invites@adityapdixit.me'
+          email: 'info@singulr.tech'
         },
         to: [
           {
