@@ -17,7 +17,8 @@ import {
   PhoneOff,
   Captions,
   FileText,
-  Smile
+  Smile,
+  PictureInPicture
 } from 'lucide-react';
 
 const REACTION_EMOJIS = ['👍', '👏', '❤️', '🎉', '😂', '🔥', '🤔', '😮'];
@@ -26,12 +27,14 @@ interface MeetingControlsProps {
   onLeave: () => void;
   hasUnreadMessages: boolean;
   markChatRead: () => void;
+  onTogglePip?: () => void;
 }
 
 export const MeetingControls: React.FC<MeetingControlsProps> = ({
   onLeave,
   hasUnreadMessages,
-  markChatRead
+  markChatRead,
+  onTogglePip
 }) => {
   const {
     myRole,
@@ -278,10 +281,21 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
           <FileText className="w-5 h-5" />
         </button>
 
+        {/* Picture-in-Picture Toggle Button */}
+        {onTogglePip && 'documentPictureInPicture' in window && (
+          <button
+            onClick={onTogglePip}
+            className="p-2.5 hover:bg-surface-dark-soft text-on-dark-soft rounded-lg transition-colors cursor-pointer"
+            title="Picture-in-Picture Mode"
+          >
+            <PictureInPicture className="w-5 h-5" />
+          </button>
+        )}
+
         {/* Device Settings Toggle Button */}
         <button
           onClick={() => setSettingsOpen(true)}
-          className="p-2.5 hover:bg-surface-dark-soft text-on-dark-soft rounded-lg transition-colors"
+          className="p-2.5 hover:bg-surface-dark-soft text-on-dark-soft rounded-lg transition-colors cursor-pointer"
           title="Device Settings"
         >
           <Settings className="w-5 h-5" />

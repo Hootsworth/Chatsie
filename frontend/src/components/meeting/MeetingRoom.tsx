@@ -480,19 +480,15 @@ export const MeetingRoom: React.FC = () => {
         });
       }
 
-      try {
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || 'http://localhost:5001';
-        let token = null;
-        try {
-          token = await getToken();
-        } catch(e){}
-        await fetch(`${backendUrl}/api/meetings/${code}/close`, {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || 'http://localhost:5001';
+      getToken().then((token) => {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        fetch(`${backendUrl}/api/meetings/${code}/close`, {
           method: 'PATCH',
-          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-        });
-      } catch (e) {
-        console.error(e);
-      }
+          headers
+        }).catch(err => console.error("Failed to close meeting in background:", err));
+      }).catch(err => console.error("Failed to get token for background close:", err));
     }
 
     if (code) {
@@ -974,68 +970,79 @@ const ActiveRoomContent: React.FC<{
   const [pipWindow, setPipWindow] = useState<any>(null);
   const [pipContainer, setPipContainer] = useState<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    const handleVisibilityChange = async () => {
-      if (!('documentPictureInPicture' in window)) return;
-      const pipApi = (window as any).documentPictureInPicture;
+  const togglePip = async () => {
+    if (!('documentPictureInPicture' in window)) {
+      alert("Document Picture-in-Picture is not supported in this browser.");
+      return;
+    }
+    const pipApi = (window as any).documentPictureInPicture;
 
-      if (document.visibilityState === 'hidden') {
-        if (pipApi.window) return;
+    if (pipApi.window) {
+      pipApi.window.close();
+      setPipWindow(null);
+      setPipContainer(null);
+      return;
+    }
 
+    try {
+      const w = await pipApi.requestWindow({
+        width: 380,
+        height: 340,
+      });
+
+      // Copy styles
+      const allStyleSheets = Array.from(document.styleSheets);
+      allStyleSheets.forEach((styleSheet) => {
         try {
-          const w = await pipApi.requestWindow({
-            width: 340,
-            height: 300,
-          });
-
-          // Copy styles
-          const allStyleSheets = Array.from(document.styleSheets);
-          allStyleSheets.forEach((styleSheet) => {
-            try {
-              if (styleSheet.cssRules) {
-                const newStyleEl = w.document.createElement('style');
-                const cssTexts = Array.from(styleSheet.cssRules)
-                  .map((rule) => rule.cssText)
-                  .join('\n');
-                newStyleEl.appendChild(w.document.createTextNode(cssTexts));
-                w.document.head.appendChild(newStyleEl);
-              }
-            } catch (e) {
-              if (styleSheet.href) {
-                const newLinkEl = w.document.createElement('link');
-                newLinkEl.rel = 'stylesheet';
-                newLinkEl.href = styleSheet.href;
-                w.document.head.appendChild(newLinkEl);
-              }
-            }
-          });
-
-          // Theme setting
-          if (document.documentElement.classList.contains('dark')) {
-            w.document.documentElement.classList.add('dark');
-            w.document.body.classList.add('dark', 'bg-surface-dark');
-          } else {
-            w.document.body.classList.add('bg-canvas');
+          if (styleSheet.cssRules) {
+            const newStyleEl = w.document.createElement('style');
+            const cssTexts = Array.from(styleSheet.cssRules)
+              .map((rule) => rule.cssText)
+              .join('\n');
+            newStyleEl.appendChild(w.document.createTextNode(cssTexts));
+            w.document.head.appendChild(newStyleEl);
           }
-
-          const container = w.document.createElement('div');
-          container.id = 'pip-root';
-          container.style.height = '100%';
-          container.style.width = '100%';
-          w.document.body.appendChild(container);
-
-          setPipWindow(w);
-          setPipContainer(container);
-
-          w.addEventListener('pagehide', () => {
-            setPipWindow(null);
-            setPipContainer(null);
-          });
-        } catch (err) {
-          console.error('Failed to open Document Picture-in-Picture:', err);
+        } catch (e) {
+          if (styleSheet.href) {
+            const newLinkEl = w.document.createElement('link');
+            newLinkEl.rel = 'stylesheet';
+            newLinkEl.href = styleSheet.href;
+            w.document.head.appendChild(newLinkEl);
+          }
         }
+      });
+
+      // Theme setting
+      if (document.documentElement.classList.contains('dark')) {
+        w.document.documentElement.classList.add('dark');
+        w.document.body.classList.add('dark', 'bg-surface-dark');
       } else {
-        if (pipApi.window) {
+        w.document.body.classList.add('bg-canvas');
+      }
+
+      const container = w.document.createElement('div');
+      container.id = 'pip-root';
+      container.style.height = '100%';
+      container.style.width = '100%';
+      w.document.body.appendChild(container);
+
+      setPipWindow(w);
+      setPipContainer(container);
+
+      w.addEventListener('pagehide', () => {
+        setPipWindow(null);
+        setPipContainer(null);
+      });
+    } catch (err) {
+      console.error('Failed to open Document Picture-in-Picture:', err);
+    }
+  };
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const pipApi = (window as any).documentPictureInPicture;
+        if (pipApi?.window) {
           pipApi.window.close();
           setPipWindow(null);
           setPipContainer(null);
@@ -1146,6 +1153,7 @@ const ActiveRoomContent: React.FC<{
         onLeave={handleLeaveMeeting}
         hasUnreadMessages={hasUnreadChat}
         markChatRead={() => setHasUnreadChat(false)}
+        onTogglePip={togglePip}
       />
 
       {/* Muted typing suggestion banner */}
