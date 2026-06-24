@@ -812,6 +812,7 @@ export const MeetingRoom: React.FC = () => {
       serverUrl={import.meta.env.VITE_LIVEKIT_URL}
       data-lk-theme="default"
       className="h-screen w-screen overflow-hidden bg-surface-dark text-on-dark"
+      style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column' }}
     >
       <div className="h-full w-full flex flex-col overflow-hidden font-sans transition-colors duration-200">
         

@@ -34,9 +34,27 @@ interface WebRTCState {
   resetWebRTCState: () => void;
 }
 
+const getInitialMuteStates = () => {
+  try {
+    const pathParts = window.location.pathname.split('/');
+    const roomIndex = pathParts.indexOf('room');
+    if (roomIndex !== -1 && pathParts[roomIndex + 1]) {
+      const code = pathParts[roomIndex + 1].trim().toLowerCase();
+      const cachedAudioMute = sessionStorage.getItem(`meeting_audio_muted_${code}`) === 'true';
+      const cachedVideoMute = sessionStorage.getItem(`meeting_video_muted_${code}`) === 'true';
+      return { cachedAudioMute, cachedVideoMute };
+    }
+  } catch (e) {
+    // Ignore errors for SSR/environments where window is undefined
+  }
+  return { cachedAudioMute: false, cachedVideoMute: false };
+};
+
+const { cachedAudioMute, cachedVideoMute } = getInitialMuteStates();
+
 export const useWebRTCStore = create<WebRTCState>((set) => ({
-  isMutedAudio: false,
-  isMutedVideo: false,
+  isMutedAudio: cachedAudioMute,
+  isMutedVideo: cachedVideoMute,
   showCaptions: false,
   
   audioDevices: [],

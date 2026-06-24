@@ -12,9 +12,14 @@ export const VideoGrid: React.FC = () => {
     { onlySubscribed: false }
   );
 
+  // Filter out the local participant's screenshare to prevent the infinite mirror effect
+  const filteredTracks = tracks.filter(
+    (t) => !(t.source === Track.Source.ScreenShare && t.participant.isLocal)
+  );
+
   return (
     <div className="w-full h-full p-4 relative">
-      <GridLayout tracks={tracks} style={{ height: '100%', width: '100%' }}>
+      <GridLayout tracks={filteredTracks} style={{ height: '100%', width: '100%' }}>
         <ParticipantTile />
       </GridLayout>
     </div>
