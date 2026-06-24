@@ -34,14 +34,24 @@ import fetch from 'cross-fetch';
 
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    persistSession: false
-  },
-  global: {
-    fetch: fetch
-  }
-});
+let supabase: any;
+try {
+  supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { persistSession: false },
+    global: { fetch: fetch }
+  });
+} catch (err: any) {
+  console.error('FATAL ERROR: Failed to initialize Supabase Client. Check SUPABASE_URL formatting:', err.message);
+  // Create a dummy proxy that always rejects so the server doesn't crash on startup
+  supabase = {
+    from: () => ({
+      select: () => Promise.reject(new Error(`Supabase failed to initialize: ${err.message}`)),
+      insert: () => Promise.reject(new Error(`Supabase failed to initialize: ${err.message}`)),
+      update: () => Promise.reject(new Error(`Supabase failed to initialize: ${err.message}`)),
+      delete: () => Promise.reject(new Error(`Supabase failed to initialize: ${err.message}`))
+    })
+  };
+}
 
 function generateRoomCode(): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz';
