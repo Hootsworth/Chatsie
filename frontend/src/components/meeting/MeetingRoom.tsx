@@ -720,20 +720,26 @@ export const MeetingRoom: React.FC = () => {
 // ----------------------------------------------------
 // PIP MINI PORTAL COMPONENT
 // ----------------------------------------------------
-const PipCallView: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const { setAudioMute, setVideoMute } = useWebRTCStore();
-  const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
+const PipCallView: React.FC<{ code: string; onClose: () => void }> = ({ code, onClose }) => {
+  const { isMutedAudio, isMutedVideo, setAudioMute, setVideoMute } = useWebRTCStore();
+  const { localParticipant } = useLocalParticipant();
 
   const toggleAudio = () => {
-    const nextState = !isMicrophoneEnabled;
+    const nextState = isMutedAudio; // if currently muted, next state is unmuted (true)
     localParticipant?.setMicrophoneEnabled(nextState);
     setAudioMute(!nextState);
+    if (code) {
+      sessionStorage.setItem(`meeting_audio_muted_${code}`, String(!nextState));
+    }
   };
 
   const toggleVideo = () => {
-    const nextState = !isCameraEnabled;
+    const nextState = isMutedVideo; // if currently muted, next state is unmuted (true)
     localParticipant?.setCameraEnabled(nextState);
     setVideoMute(!nextState);
+    if (code) {
+      sessionStorage.setItem(`meeting_video_muted_${code}`, String(!nextState));
+    }
   };
 
   return (
@@ -746,25 +752,25 @@ const PipCallView: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         <button
           onClick={toggleAudio}
           className={`p-2.5 rounded-xl transition-all duration-200 focus:outline-none cursor-pointer ${
-            !isMicrophoneEnabled 
+            isMutedAudio 
               ? 'bg-red-600 hover:bg-red-700 text-white border border-transparent' 
               : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
           }`}
-          title={!isMicrophoneEnabled ? 'Unmute Mic' : 'Mute Mic'}
+          title={isMutedAudio ? 'Unmute Mic' : 'Mute Mic'}
         >
-          {!isMicrophoneEnabled ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+          {isMutedAudio ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
         </button>
 
         <button
           onClick={toggleVideo}
           className={`p-2.5 rounded-xl transition-all duration-200 focus:outline-none cursor-pointer ${
-            !isCameraEnabled 
+            isMutedVideo 
               ? 'bg-red-600 hover:bg-red-700 text-white border border-transparent' 
               : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
           }`}
-          title={!isCameraEnabled ? 'Start Video' : 'Stop Video'}
+          title={isMutedVideo ? 'Start Video' : 'Stop Video'}
         >
-          {!isCameraEnabled ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+          {isMutedVideo ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
         </button>
         
         <button
@@ -1231,9 +1237,12 @@ const ActiveRoomContent: React.FC<{
 
       {/* RENDER PICTURE IN PICTURE PORTAL */}
       {pipContainer && createPortal(
-        <PipCallView onClose={() => {
-          if (pipWindow) pipWindow.close();
-        }} />,
+        <PipCallView 
+          code={code}
+          onClose={() => {
+            if (pipWindow) pipWindow.close();
+          }} 
+        />,
         pipContainer
       )}
     </div>
