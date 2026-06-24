@@ -5,6 +5,7 @@ import { useMeetingStore } from '../../stores/meetingStore';
 import type { Meeting } from '../../stores/meetingStore';
 import { useWebRTCStore } from '../../stores/webrtcStore';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
+import { applyVirtualBackgroundToStream } from '../../utils/mediaProcessors';
 
 import { signalingClient } from '../../services/signaling';
 import { LiveKitRoom, useLocalParticipant } from '@livekit/components-react';
@@ -18,6 +19,8 @@ import { ChatPanel } from './ChatPanel';
 import { ParticipantPanel } from './ParticipantPanel';
 import { TranscriptionPanel } from './TranscriptionPanel';
 import { ReactionOverlay } from './ReactionOverlay';
+import { WhiteboardPanel } from './WhiteboardPanel';
+import { BreakoutModal } from './BreakoutModal';
 import { Modal, Button } from '../ui';
 import { DeviceSelector } from './DeviceSelector';
 import { Copy, Check, Info, Users, Keyboard, Mic, MicOff, Video, VideoOff, Camera, User, ExternalLink } from 'lucide-react';
@@ -58,7 +61,9 @@ export const MeetingRoom: React.FC = () => {
     setSelectedAudioInput,
     setSelectedVideoInput,
     setSelectedAudioOutput,
-    showCaptions
+    showCaptions,
+    isNoiseSuppressionEnabled,
+    virtualBackgroundMode
   } = useWebRTCStore();
 
   const [isLoadingMeeting, setIsLoadingMeeting] = useState(true);
@@ -197,16 +202,25 @@ export const MeetingRoom: React.FC = () => {
           if (selectedAudioInput) {
             audioConstraints.deviceId = { exact: selectedAudioInput };
           }
+          if (isNoiseSuppressionEnabled) {
+            audioConstraints.noiseSuppression = true;
+            audioConstraints.echoCancellation = true;
+            audioConstraints.autoGainControl = true;
+          }
           constraints.audio = audioConstraints;
         } else {
           constraints.audio = false;
         }
 
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        let stream = await navigator.mediaDevices.getUserMedia(constraints);
 
         if (!active) {
           stream.getTracks().forEach(track => track.stop());
           return;
+        }
+
+        if (constraints.video && virtualBackgroundMode !== 'none') {
+          stream = await applyVirtualBackgroundToStream(stream, virtualBackgroundMode);
         }
 
         streamInstance = stream;
@@ -235,7 +249,9 @@ export const MeetingRoom: React.FC = () => {
     isPasscodeGateRequired,
     isPasscodeGatePassed,
     isMutedVideo,
-    isMutedAudio
+    isMutedAudio,
+    isNoiseSuppressionEnabled,
+    virtualBackgroundMode
   ]);
 
   const handleToggleLobbyAudio = () => {
@@ -266,7 +282,12 @@ export const MeetingRoom: React.FC = () => {
   };
 
   // LiveKit Integration
+  const [activeRoomName, setActiveRoomName] = useState(code);
   const [liveKitToken, setLiveKitToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    setActiveRoomName(code);
+  }, [code]);
 
   const shouldConnectWebRTC = 
     currentMeeting && 
@@ -286,7 +307,7 @@ export const MeetingRoom: React.FC = () => {
             method: 'POST',
             headers,
             body: JSON.stringify({
-              roomName: code,
+              roomName: activeRoomName,
               participantIdentity: user?.id || 'guest-' + Math.random().toString(36).substring(2, 8),
               participantName: user?.fullName || 'Guest User'
             })
@@ -301,42 +322,89 @@ export const MeetingRoom: React.FC = () => {
       };
       fetchToken();
     }
-  }, [shouldConnectWebRTC, liveKitToken, code, user]);
+  }, [shouldConnectWebRTC, liveKitToken, activeRoomName, user]);
 
-  // Handle waiting room signaling via custom socket BEFORE joining LiveKit
+  // Connect to custom signaling socket (Socket.IO / Supabase Realtime)
   useEffect(() => {
-    if (waitingStatus === 'waiting' && code) {
-      const handleWaitingStatus = ({ status }: any) => {
-        setWaitingStatus(status);
-        if (status === 'approved') {
-          sessionStorage.setItem(`waiting_status_approved_${code}`, 'true');
-        }
-      };
-
-      const handleKickedCommand = () => {
-        sessionStorage.removeItem(`lobby_passed_${code}`);
-        sessionStorage.removeItem(`passcode_passed_${code}`);
-        sessionStorage.removeItem(`waiting_status_approved_${code}`);
-        navigate(`/kicked?room=${code}`);
-      };
-
-      signalingClient.on('waiting-status', handleWaitingStatus);
-      signalingClient.on('kicked-command', handleKickedCommand);
-
-      signalingClient.connect(code, {
-        userId: user?.id || 'guest',
-        username: user?.fullName || 'Guest',
-        role: myRole,
-        isWaiting: true
-      });
-
-      return () => {
-        signalingClient.off('waiting-status', handleWaitingStatus);
-        signalingClient.off('kicked-command', handleKickedCommand);
-        signalingClient.disconnect();
-      };
+    if (!code || isLoadingMeeting || meetingError || (isPasscodeGateRequired && !isPasscodeGatePassed)) {
+      return;
     }
-  }, [waitingStatus, code, user, myRole, navigate, setWaitingStatus]);
+
+    const handleWaitingStatus = ({ status }: any) => {
+      setWaitingStatus(status);
+      if (status === 'approved') {
+        sessionStorage.setItem(`waiting_status_approved_${code}`, 'true');
+      }
+    };
+
+    const handleKickedCommand = () => {
+      sessionStorage.removeItem(`lobby_passed_${code}`);
+      sessionStorage.removeItem(`passcode_passed_${code}`);
+      sessionStorage.removeItem(`waiting_status_approved_${code}`);
+      navigate(`/kicked?room=${code}`);
+    };
+
+    signalingClient.on('waiting-status', handleWaitingStatus);
+    signalingClient.on('kicked-command', handleKickedCommand);
+
+    const isUserWaiting = waitingStatus === 'waiting';
+
+    signalingClient.connect(code, {
+      userId: user?.id || 'guest-' + Math.random().toString(36).substring(2, 8),
+      username: user?.fullName || 'Guest User',
+      role: myRole,
+      isWaiting: isUserWaiting
+    });
+
+    return () => {
+      signalingClient.off('waiting-status', handleWaitingStatus);
+      signalingClient.off('kicked-command', handleKickedCommand);
+      signalingClient.disconnect();
+    };
+  }, [
+    code,
+    isLoadingMeeting,
+    meetingError,
+    isPasscodeGateRequired,
+    isPasscodeGatePassed,
+    waitingStatus,
+    user,
+    myRole,
+    navigate,
+    setWaitingStatus
+  ]);
+
+  // Patch getUserMedia globally to apply noise suppression and virtual backgrounds automatically
+  useEffect(() => {
+    const originalGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+
+    navigator.mediaDevices.getUserMedia = async (constraints) => {
+      // 1. Apply Noise Suppression constraints if audio is requested and enabled
+      if (constraints && constraints.audio && typeof constraints.audio === 'object') {
+        const audioConstraints = constraints.audio as MediaTrackConstraints;
+        if (useWebRTCStore.getState().isNoiseSuppressionEnabled) {
+          audioConstraints.noiseSuppression = true;
+          audioConstraints.echoCancellation = true;
+          audioConstraints.autoGainControl = true;
+        }
+      }
+
+      // Get raw stream from original getUserMedia
+      let stream = await originalGetUserMedia(constraints);
+
+      // 2. Apply Virtual Background if video is requested and enabled
+      const bgMode = useWebRTCStore.getState().virtualBackgroundMode;
+      if (constraints && constraints.video && bgMode !== 'none') {
+        stream = await applyVirtualBackgroundToStream(stream, bgMode);
+      }
+
+      return stream;
+    };
+
+    return () => {
+      navigator.mediaDevices.getUserMedia = originalGetUserMedia;
+    };
+  }, []);
 
   // Speech Recognition hook for transcribing local mic inputs
   useSpeechRecognition(isMutedAudio, showCaptions);
@@ -712,6 +780,9 @@ export const MeetingRoom: React.FC = () => {
         user={user}
         currentMeeting={currentMeeting}
         handleLeaveMeeting={handleLeaveMeeting}
+        activeRoomName={activeRoomName}
+        setActiveRoomName={setActiveRoomName}
+        setLiveKitToken={setLiveKitToken}
       />
     </LiveKitRoom>
   );
@@ -816,29 +887,138 @@ const ActiveRoomContent: React.FC<{
   user: any;
   currentMeeting: any;
   handleLeaveMeeting: () => void;
-}> = ({ code, user, currentMeeting, handleLeaveMeeting }) => {
+  activeRoomName: string;
+  setActiveRoomName: React.Dispatch<React.SetStateAction<string>>;
+  setLiveKitToken: React.Dispatch<React.SetStateAction<string | null>>;
+}> = ({
+  code,
+  user,
+  currentMeeting,
+  handleLeaveMeeting,
+  activeRoomName,
+  setActiveRoomName,
+  setLiveKitToken
+}) => {
   const {
     participants,
     isChatPanelOpen,
     isParticipantsPanelOpen,
     isTranscriptionPanelOpen,
+    isWhiteboardOpen,
     isSettingsOpen,
     isShortcutsOpen,
     setSettingsOpen,
     setShortcutsOpen,
-    addOrUpdateTranscript
+    addOrUpdateTranscript,
+    myRole
   } = useMeetingStore();
 
   const {
     isMutedAudio,
     setAudioMute,
     isPushToTalkEnabled,
-    showCaptions
+    showCaptions,
+    isNoiseSuppressionEnabled,
+    virtualBackgroundMode
   } = useWebRTCStore();
 
-  const { localParticipant, isMicrophoneEnabled } = useLocalParticipant();
+  const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
   const [hasCopiedCode, setHasCopiedCode] = useState(false);
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
+
+  // Breakout Rooms states
+  const [isBreakoutActive, setIsBreakoutActive] = useState(false);
+  const [breakoutTimeLeft, setBreakoutTimeLeft] = useState<number | null>(null);
+  const [isBreakoutModalOpen, setIsBreakoutModalOpen] = useState(false);
+
+  // Listen for breakout room events
+  useEffect(() => {
+    const handleBreakoutStarted = ({ assignments, durationSeconds }: { assignments: Record<string, string>; durationSeconds: number }) => {
+      setIsBreakoutActive(true);
+      setBreakoutTimeLeft(durationSeconds);
+
+      const myUserId = user?.id;
+      const assignedRoom = myUserId ? assignments[myUserId] : null;
+
+      if (assignedRoom && assignedRoom !== activeRoomName) {
+        setLiveKitToken(null);
+        setActiveRoomName(assignedRoom);
+      }
+    };
+
+    const handleBreakoutEnded = () => {
+      setIsBreakoutActive(false);
+      setBreakoutTimeLeft(null);
+
+      if (activeRoomName !== code) {
+        setLiveKitToken(null);
+        setActiveRoomName(code);
+      }
+    };
+
+    signalingClient.on('breakout-started', handleBreakoutStarted);
+    signalingClient.on('breakout-ended', handleBreakoutEnded);
+
+    return () => {
+      signalingClient.off('breakout-started', handleBreakoutStarted);
+      signalingClient.off('breakout-ended', handleBreakoutEnded);
+    };
+  }, [code, user, activeRoomName, setActiveRoomName, setLiveKitToken]);
+
+  // Handle breakout timer countdown
+  useEffect(() => {
+    if (breakoutTimeLeft === null) return;
+    if (breakoutTimeLeft <= 0) {
+      if (myRole === 'host') {
+        signalingClient.sendEndBreakout();
+      } else {
+        // Participant fallback auto-return
+        setIsBreakoutActive(false);
+        setBreakoutTimeLeft(null);
+        if (activeRoomName !== code) {
+          setLiveKitToken(null);
+          setActiveRoomName(code);
+        }
+      }
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setBreakoutTimeLeft(prev => (prev !== null ? prev - 1 : null));
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [breakoutTimeLeft, myRole, code, activeRoomName, setActiveRoomName, setLiveKitToken]);
+
+  // Restart video track dynamically when virtual background configuration changes
+  useEffect(() => {
+    if (localParticipant && isCameraEnabled) {
+      const restartVideo = async () => {
+        try {
+          await localParticipant.setCameraEnabled(false);
+          await localParticipant.setCameraEnabled(true);
+        } catch (err) {
+          console.error('Failed to restart video track for background effect:', err);
+        }
+      };
+      restartVideo();
+    }
+  }, [virtualBackgroundMode]);
+
+  // Restart audio track dynamically when noise suppression configuration changes
+  useEffect(() => {
+    if (localParticipant && isMicrophoneEnabled) {
+      const restartAudio = async () => {
+        try {
+          await localParticipant.setMicrophoneEnabled(false);
+          await localParticipant.setMicrophoneEnabled(true);
+        } catch (err) {
+          console.error('Failed to restart audio track for noise suppression:', err);
+        }
+      };
+      restartAudio();
+    }
+  }, [isNoiseSuppressionEnabled]);
 
   // State to track active captions for all speakers
   const [activeCaptions, setActiveCaptions] = useState<Record<string, { username: string; text: string; timestamp: number }>>({});
@@ -1094,6 +1274,33 @@ const ActiveRoomContent: React.FC<{
       
       {/* Floating Emoji Reaction Overlay */}
       <ReactionOverlay reactions={reactionList} />
+
+      {/* Breakout rooms notification banner */}
+      {isBreakoutActive && breakoutTimeLeft !== null && (
+        <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white text-center py-2.5 px-6 text-xs font-bold flex items-center justify-between z-40 animate-in slide-in-from-top duration-300">
+          <div className="flex items-center space-x-2">
+            <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+            <span>
+              {activeRoomName === code 
+                ? "Breakout Rooms are in progress. You are remaining in the Main Room." 
+                : `You are currently in Breakout Room: ${activeRoomName.replace(code + '-breakout-', 'Room ')}`}
+            </span>
+          </div>
+          <div className="flex items-center space-x-4">
+            <span className="bg-black/25 px-2.5 py-1 rounded-md font-mono tracking-wider">
+              Time remaining: {Math.floor(breakoutTimeLeft / 60)}:{(breakoutTimeLeft % 60).toString().padStart(2, '0')}
+            </span>
+            {myRole === 'host' && (
+              <button
+                onClick={() => signalingClient.sendEndBreakout()}
+                className="bg-white text-orange-700 px-3.5 py-1 rounded-lg text-[10px] font-black hover:bg-orange-50 active:scale-95 transition-all shadow-md cursor-pointer border border-transparent"
+              >
+                End Breakout Rooms
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       
       {/* Room Header bar */}
       <header className="bg-surface-dark-elevated border-b border-white/5 px-6 py-3 flex items-center justify-between z-35">
@@ -1115,6 +1322,17 @@ const ActiveRoomContent: React.FC<{
         </div>
 
         <div className="flex items-center space-x-3.5 text-xs font-bold text-on-dark-soft">
+          {myRole === 'host' && (
+            <button
+              onClick={() => setIsBreakoutModalOpen(true)}
+              className="flex items-center space-x-1 hover:text-on-dark p-1 rounded-md hover:bg-surface-dark-soft transition-all cursor-pointer text-primary"
+              title="Breakout Rooms Control"
+            >
+              <Users className="w-4 h-4" />
+              <span className="hidden sm:inline">Breakouts</span>
+            </button>
+          )}
+
           <button
             onClick={() => setShortcutsOpen(true)}
             className="flex items-center space-x-1 hover:text-on-dark p-1 rounded-md hover:bg-surface-dark-soft transition-all cursor-pointer"
@@ -1133,9 +1351,15 @@ const ActiveRoomContent: React.FC<{
       {/* Main conference body (grid + sidebars) */}
       <div className="flex-grow flex relative min-h-0 bg-surface-dark">
         
-        {/* Central area: Video grid */}
+        {/* Central area: Video grid or Whiteboard */}
         <div className="flex-grow flex flex-col min-h-0 overflow-y-auto no-scrollbar relative">
-          <VideoGrid />
+          {isWhiteboardOpen ? (
+            <div className="flex-grow p-4 min-h-0">
+              <WhiteboardPanel />
+            </div>
+          ) : (
+            <VideoGrid />
+          )}
 
           {/* Live Captions Overlay */}
           {showCaptions && Object.keys(activeCaptions).length > 0 && (
@@ -1219,6 +1443,22 @@ const ActiveRoomContent: React.FC<{
         <div className="mt-6 flex justify-end">
           <Button onClick={() => setSettingsOpen(false)}>Done</Button>
         </div>
+      </Modal>
+
+      {/* BREAKOUT ROOMS MODAL */}
+      <Modal
+        isOpen={isBreakoutModalOpen}
+        onClose={() => setIsBreakoutModalOpen(false)}
+        title="Breakout Rooms Configuration"
+      >
+        <BreakoutModal
+          onClose={() => setIsBreakoutModalOpen(false)}
+          isBreakoutActive={isBreakoutActive}
+          onEndBreakout={() => {
+            signalingClient.sendEndBreakout();
+            setIsBreakoutModalOpen(false);
+          }}
+        />
       </Modal>
 
       {/* KEYBOARD SHORTCUTS MODAL */}

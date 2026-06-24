@@ -25,6 +25,14 @@ interface WebRTCState {
   isPushToTalkEnabled: boolean;
   setPushToTalkEnabled: (enabled: boolean) => void;
 
+  // Noise Suppression settings
+  isNoiseSuppressionEnabled: boolean;
+  setNoiseSuppressionEnabled: (enabled: boolean) => void;
+
+  // Virtual Background settings
+  virtualBackgroundMode: 'none' | 'blur' | 'office' | 'gradient';
+  setVirtualBackgroundMode: (mode: 'none' | 'blur' | 'office' | 'gradient') => void;
+
   // Actions
   setAudioMute: (isMuted: boolean) => void;
   setVideoMute: (isMuted: boolean) => void;
@@ -61,6 +69,8 @@ export const useWebRTCStore = create<WebRTCState>((set) => ({
   isMutedVideo: cachedVideoMute,
   showCaptions: false,
   isPushToTalkEnabled: localStorage.getItem('push_to_talk_enabled') === 'true',
+  isNoiseSuppressionEnabled: localStorage.getItem('noise_suppression_enabled') === 'true',
+  virtualBackgroundMode: (localStorage.getItem('virtual_background_mode') as any) || 'none',
   
   audioDevices: [],
   videoDevices: [],
@@ -73,6 +83,16 @@ export const useWebRTCStore = create<WebRTCState>((set) => ({
   setPushToTalkEnabled: (enabled) => {
     localStorage.setItem('push_to_talk_enabled', String(enabled));
     set({ isPushToTalkEnabled: enabled });
+  },
+
+  setNoiseSuppressionEnabled: (enabled) => {
+    localStorage.setItem('noise_suppression_enabled', String(enabled));
+    set({ isNoiseSuppressionEnabled: enabled });
+  },
+
+  setVirtualBackgroundMode: (mode) => {
+    localStorage.setItem('virtual_background_mode', mode);
+    set({ virtualBackgroundMode: mode });
   },
 
   setAudioMute: (isMuted) => set({ isMutedAudio: isMuted }),
@@ -95,7 +115,9 @@ export const useWebRTCStore = create<WebRTCState>((set) => ({
     showCaptions: false,
     selectedAudioInput: '',
     selectedVideoInput: '',
-    selectedAudioOutput: ''
+    selectedAudioOutput: '',
+    isNoiseSuppressionEnabled: false,
+    virtualBackgroundMode: 'none'
   })
 }));
 export default useWebRTCStore;

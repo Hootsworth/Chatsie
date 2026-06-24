@@ -14,7 +14,27 @@ export const VideoGrid: React.FC = () => {
     { onlySubscribed: false }
   );
 
-  const trackCount = tracks.length;
+  // Sort tracks to prioritize:
+  // 1. Screensharing tracks (always show screenshares first)
+  // 2. Active speakers (speaking === true)
+  // 3. Other participants
+  const sortedTracks = [...tracks].sort((a, b) => {
+    // Screenshares take highest precedence
+    const aIsScreen = a.source === Track.Source.ScreenShare;
+    const bIsScreen = b.source === Track.Source.ScreenShare;
+    if (aIsScreen && !bIsScreen) return -1;
+    if (!aIsScreen && bIsScreen) return 1;
+
+    // Active speakers take next precedence
+    const aIsSpeaking = a.participant.isSpeaking;
+    const bIsSpeaking = b.participant.isSpeaking;
+    if (aIsSpeaking && !bIsSpeaking) return -1;
+    if (!aIsSpeaking && bIsSpeaking) return 1;
+
+    return 0;
+  });
+
+  const trackCount = sortedTracks.length;
   let gridClass = "grid gap-4 w-full h-full";
   if (trackCount === 1) {
     gridClass += " grid-cols-1 auto-rows-fr";
@@ -29,7 +49,7 @@ export const VideoGrid: React.FC = () => {
   return (
     <div className="w-full h-full p-4 relative">
       <div className={gridClass}>
-        {tracks.map((track) => {
+        {sortedTracks.map((track) => {
           const isLocalScreenShare = track.source === Track.Source.ScreenShare && track.participant.isLocal;
           
           if (isLocalScreenShare) {
@@ -62,11 +82,18 @@ export const VideoGrid: React.FC = () => {
             );
           }
           
+          const isSpeaking = track.participant.isSpeaking;
           return (
-            <ParticipantTile 
-              key={`${track.participant.identity}-${track.source}`} 
-              trackRef={track} 
-            />
+            <div 
+              key={`${track.participant.identity}-${track.source}`}
+              className={`relative rounded-2xl overflow-hidden transition-all duration-300 ${
+                isSpeaking 
+                  ? 'ring-4 ring-emerald-500 shadow-lg shadow-emerald-500/20' 
+                  : 'border border-white/5'
+              }`}
+            >
+              <ParticipantTile trackRef={track} />
+            </div>
           );
         })}
       </div>

@@ -685,6 +685,28 @@ io.on('connection', (socket: Socket) => {
     });
   });
 
+  // Whiteboard drawing socket handlers
+  socket.on('whiteboard-draw', (data: { roomId: string; x1: number; y1: number; x2: number; y2: number; color: string; thickness: number }) => {
+    const { roomId, x1, y1, x2, y2, color, thickness } = data;
+    socket.to(roomId).emit('whiteboard-draw', { x1, y1, x2, y2, color, thickness });
+  });
+
+  socket.on('whiteboard-clear', (data: { roomId: string }) => {
+    const { roomId } = data;
+    io.to(roomId).emit('whiteboard-clear');
+  });
+
+  // Breakout rooms socket handlers
+  socket.on('start-breakout', (data: { roomId: string; assignments: Record<string, string>; durationSeconds: number }) => {
+    const { roomId, assignments, durationSeconds } = data;
+    io.to(roomId).emit('breakout-started', { assignments, durationSeconds });
+  });
+
+  socket.on('end-breakout', (data: { roomId: string }) => {
+    const { roomId } = data;
+    io.to(roomId).emit('breakout-ended');
+  });
+
   // 11. Disconnect (with 5-second grace period)
   socket.on('disconnect', () => {
     const userId = (socket as any).userId;

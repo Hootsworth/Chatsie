@@ -65,6 +65,7 @@ interface MeetingState {
   isChatPanelOpen: boolean;
   isParticipantsPanelOpen: boolean;
   isTranscriptionPanelOpen: boolean;
+  isWhiteboardOpen: boolean;
   isSettingsOpen: boolean;
   isShortcutsOpen: boolean;
   
@@ -88,6 +89,7 @@ interface MeetingState {
   toggleChatPanel: () => void;
   toggleParticipantsPanel: () => void;
   toggleTranscriptionPanel: () => void;
+  toggleWhiteboard: () => void;
   setSettingsOpen: (isOpen: boolean) => void;
   setShortcutsOpen: (isOpen: boolean) => void;
   resetMeetingState: () => void;
@@ -107,6 +109,7 @@ export const useMeetingStore = create<MeetingState>((set) => ({
   isChatPanelOpen: false,
   isParticipantsPanelOpen: false,
   isTranscriptionPanelOpen: false,
+  isWhiteboardOpen: false,
   isSettingsOpen: false,
   isShortcutsOpen: false,
 
@@ -186,19 +189,29 @@ export const useMeetingStore = create<MeetingState>((set) => ({
   toggleChatPanel: () => set((state) => ({ 
     isChatPanelOpen: !state.isChatPanelOpen,
     isParticipantsPanelOpen: false,
-    isTranscriptionPanelOpen: false
+    isTranscriptionPanelOpen: false,
+    isWhiteboardOpen: false
   })),
 
   toggleParticipantsPanel: () => set((state) => ({ 
     isParticipantsPanelOpen: !state.isParticipantsPanelOpen,
     isChatPanelOpen: false,
-    isTranscriptionPanelOpen: false
+    isTranscriptionPanelOpen: false,
+    isWhiteboardOpen: false
   })),
 
   toggleTranscriptionPanel: () => set((state) => ({
     isTranscriptionPanelOpen: !state.isTranscriptionPanelOpen,
     isChatPanelOpen: false,
-    isParticipantsPanelOpen: false
+    isParticipantsPanelOpen: false,
+    isWhiteboardOpen: false
+  })),
+
+  toggleWhiteboard: () => set((state) => ({
+    isWhiteboardOpen: !state.isWhiteboardOpen,
+    isChatPanelOpen: false,
+    isParticipantsPanelOpen: false,
+    isTranscriptionPanelOpen: false
   })),
 
   setSettingsOpen: (isOpen) => set({ isSettingsOpen: isOpen }),
@@ -217,6 +230,7 @@ export const useMeetingStore = create<MeetingState>((set) => ({
     isChatPanelOpen: false,
     isParticipantsPanelOpen: false,
     isTranscriptionPanelOpen: false,
+    isWhiteboardOpen: false,
     isSettingsOpen: false,
     isShortcutsOpen: false
   })

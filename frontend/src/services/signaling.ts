@@ -32,6 +32,10 @@ export interface SignalingEventMap {
   'room-participants': (data: { participants: Array<any> }) => void;
   'caption': (data: { senderUserId: string; username: string; text: string; isFinal: boolean }) => void;
   'reaction': (data: { senderUserId: string; type: string }) => void;
+  'whiteboard-draw': (data: { x1: number; y1: number; x2: number; y2: number; color: string; thickness: number }) => void;
+  'whiteboard-clear': () => void;
+  'breakout-started': (data: { assignments: Record<string, string>; durationSeconds: number }) => void;
+  'breakout-ended': () => void;
 }
 
 export interface ISignalingClient {
@@ -49,6 +53,10 @@ export interface ISignalingClient {
   getSocketId(): string;
   sendCaption(text: string, isFinal?: boolean): void;
   sendReaction(type: string): void;
+  sendDraw(x1: number, y1: number, x2: number, y2: number, color: string, thickness: number): void;
+  sendClearWhiteboard(): void;
+  sendStartBreakout(assignments: Record<string, string>, durationSeconds: number): void;
+  sendEndBreakout(): void;
 }
 
 // ----------------------------------------------------
@@ -105,6 +113,10 @@ class SocketIOSignalingClient implements ISignalingClient {
     this.socket.on('waiting-room-list-update', (data) => this.emit('waiting-room-list-update', data));
     this.socket.on('caption', (data) => this.emit('caption', data));
     this.socket.on('reaction', (data) => this.emit('reaction', data));
+    this.socket.on('whiteboard-draw', (data) => this.emit('whiteboard-draw', data));
+    this.socket.on('whiteboard-clear', () => this.emit('whiteboard-clear'));
+    this.socket.on('breakout-started', (data) => this.emit('breakout-started', data));
+    this.socket.on('breakout-ended', () => this.emit('breakout-ended'));
   }
 
   disconnect(): void {
@@ -168,6 +180,30 @@ class SocketIOSignalingClient implements ISignalingClient {
   sendReaction(type: string): void {
     if (this.socket) {
       this.socket.emit('reaction', { roomId: this.roomId, type });
+    }
+  }
+
+  sendDraw(x1: number, y1: number, x2: number, y2: number, color: string, thickness: number): void {
+    if (this.socket) {
+      this.socket.emit('whiteboard-draw', { roomId: this.roomId, x1, y1, x2, y2, color, thickness });
+    }
+  }
+
+  sendClearWhiteboard(): void {
+    if (this.socket) {
+      this.socket.emit('whiteboard-clear', { roomId: this.roomId });
+    }
+  }
+
+  sendStartBreakout(assignments: Record<string, string>, durationSeconds: number): void {
+    if (this.socket) {
+      this.socket.emit('start-breakout', { roomId: this.roomId, assignments, durationSeconds });
+    }
+  }
+
+  sendEndBreakout(): void {
+    if (this.socket) {
+      this.socket.emit('end-breakout', { roomId: this.roomId });
     }
   }
 
@@ -270,6 +306,18 @@ class SupabaseSignalingClient implements ISignalingClient {
       })
       .on('broadcast', { event: 'reaction' }, (payload) => {
         this.emit('reaction', payload.payload);
+      })
+      .on('broadcast', { event: 'whiteboard-draw' }, (payload) => {
+        this.emit('whiteboard-draw', payload.payload);
+      })
+      .on('broadcast', { event: 'whiteboard-clear' }, () => {
+        this.emit('whiteboard-clear');
+      })
+      .on('broadcast', { event: 'breakout-started' }, (payload) => {
+        this.emit('breakout-started', payload.payload);
+      })
+      .on('broadcast', { event: 'breakout-ended' }, () => {
+        this.emit('breakout-ended');
       });
 
     // 2. Presence synchronization (Tracks active list of users and waiting room)
@@ -494,6 +542,38 @@ class SupabaseSignalingClient implements ISignalingClient {
         targetUserId,
         action
       }
+    });
+  }
+
+  sendDraw(x1: number, y1: number, x2: number, y2: number, color: string, thickness: number): void {
+    this.channel?.send({
+      type: 'broadcast',
+      event: 'whiteboard-draw',
+      payload: { x1, y1, x2, y2, color, thickness }
+    });
+  }
+
+  sendClearWhiteboard(): void {
+    this.channel?.send({
+      type: 'broadcast',
+      event: 'whiteboard-clear',
+      payload: {}
+    });
+  }
+
+  sendStartBreakout(assignments: Record<string, string>, durationSeconds: number): void {
+    this.channel?.send({
+      type: 'broadcast',
+      event: 'breakout-started',
+      payload: { assignments, durationSeconds }
+    });
+  }
+
+  sendEndBreakout(): void {
+    this.channel?.send({
+      type: 'broadcast',
+      event: 'breakout-ended',
+      payload: {}
     });
   }
 
