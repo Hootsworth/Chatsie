@@ -1,5 +1,6 @@
 import React from 'react';
 import { useMeetingStore } from '../../stores/meetingStore';
+import { useWebRTCStore } from '../../stores/webrtcStore';
 import { signalingClient } from '../../services/signaling';
 import { useLocalParticipant, useParticipants } from '@livekit/components-react';
 import {
@@ -40,8 +41,11 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
     toggleChatPanel,
     toggleParticipantsPanel,
     toggleTranscriptionPanel,
-    setSettingsOpen
+    setSettingsOpen,
+    currentMeeting
   } = useMeetingStore();
+
+  const { setAudioMute, setVideoMute } = useWebRTCStore();
 
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled, isScreenShareEnabled } = useLocalParticipant();
   const allParticipants = useParticipants(); // LiveKit participants
@@ -66,8 +70,25 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isReactionPickerOpen]);
 
-  const toggleAudio = () => localParticipant?.setMicrophoneEnabled(!isMicrophoneEnabled);
-  const toggleVideo = () => localParticipant?.setCameraEnabled(!isCameraEnabled);
+  const toggleAudio = () => {
+    const nextState = !isMicrophoneEnabled;
+    localParticipant?.setMicrophoneEnabled(nextState);
+    setAudioMute(!nextState);
+    const code = currentMeeting?.code;
+    if (code) {
+      sessionStorage.setItem(`meeting_audio_muted_${code}`, String(!nextState));
+    }
+  };
+
+  const toggleVideo = () => {
+    const nextState = !isCameraEnabled;
+    localParticipant?.setCameraEnabled(nextState);
+    setVideoMute(!nextState);
+    const code = currentMeeting?.code;
+    if (code) {
+      sessionStorage.setItem(`meeting_video_muted_${code}`, String(!nextState));
+    }
+  };
   const toggleScreenShare = () => localParticipant?.setScreenShareEnabled(!isScreenShareEnabled);
 
   const handleRaiseHand = () => {

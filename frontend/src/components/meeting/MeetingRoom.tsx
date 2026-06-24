@@ -248,11 +248,19 @@ export const MeetingRoom: React.FC = () => {
   ]);
 
   const handleToggleLobbyAudio = () => {
-    setAudioMute(!isMutedAudio);
+    const nextState = !isMutedAudio;
+    setAudioMute(nextState);
+    if (code) {
+      sessionStorage.setItem(`meeting_audio_muted_${code}`, String(nextState));
+    }
   };
 
   const handleToggleLobbyVideo = () => {
-    setVideoMute(!isMutedVideo);
+    const nextState = !isMutedVideo;
+    setVideoMute(nextState);
+    if (code) {
+      sessionStorage.setItem(`meeting_video_muted_${code}`, String(nextState));
+    }
   };
 
   const handleJoinCall = () => {
@@ -409,6 +417,15 @@ export const MeetingRoom: React.FC = () => {
   }, [shouldConnectWebRTC]);
 
   // Keyboard shortcuts listener moved to MeetingControls
+
+  // Load cached device mute state preferences on mount/code change
+  useEffect(() => {
+    if (!code) return;
+    const cachedAudioMute = sessionStorage.getItem(`meeting_audio_muted_${code}`) === 'true';
+    const cachedVideoMute = sessionStorage.getItem(`meeting_video_muted_${code}`) === 'true';
+    setAudioMute(cachedAudioMute);
+    setVideoMute(cachedVideoMute);
+  }, [code]);
 
   // Load meeting metadata
   useEffect(() => {
@@ -794,9 +811,10 @@ export const MeetingRoom: React.FC = () => {
       token={liveKitToken || undefined}
       serverUrl={import.meta.env.VITE_LIVEKIT_URL}
       data-lk-theme="default"
-      className="h-screen flex flex-col bg-surface-dark text-on-dark overflow-hidden font-sans transition-colors duration-200"
+      className="h-screen w-screen overflow-hidden bg-surface-dark text-on-dark"
     >
-      
+      <div className="h-full w-full flex flex-col overflow-hidden font-sans transition-colors duration-200">
+        
       {/* Floating Emoji Reaction Overlay */}
       <ReactionOverlay reactions={reactionList} />
       
@@ -937,6 +955,7 @@ export const MeetingRoom: React.FC = () => {
           <Button onClick={() => setShortcutsOpen(false)}>Close</Button>
         </div>
       </Modal>
+      </div>
     </LiveKitRoom>
   );
 };

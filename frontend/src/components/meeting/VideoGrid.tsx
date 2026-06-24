@@ -13,7 +13,7 @@ export const VideoGrid: React.FC = () => {
   );
 
   return (
-    <div className="w-full h-[70vh] sm:h-full p-4 relative">
+    <div className="w-full h-full p-4 relative">
       <GridLayout tracks={tracks} style={{ height: '100%', width: '100%' }}>
         <ParticipantTile />
       </GridLayout>
