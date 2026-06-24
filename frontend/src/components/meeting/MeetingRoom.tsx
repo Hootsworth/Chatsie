@@ -23,7 +23,7 @@ import { WhiteboardPanel } from './WhiteboardPanel';
 import { BreakoutModal } from './BreakoutModal';
 import { Modal, Button } from '../ui';
 import { DeviceSelector } from './DeviceSelector';
-import { Copy, Check, Info, Users, Keyboard, Mic, MicOff, Video, VideoOff, Camera, User, ExternalLink } from 'lucide-react';
+import { Copy, Check, Info, Users, Keyboard, Mic, MicOff, Video, VideoOff, Camera, User, ExternalLink, Lock, Unlock, Mail, Loader2 } from 'lucide-react';
 
 export const MeetingRoom: React.FC = () => {
   const { code: rawCode } = useParams<{ code: string }>();
@@ -45,7 +45,8 @@ export const MeetingRoom: React.FC = () => {
     setPasscodeGateRequired,
     setPasscodeGatePassed,
     resetMeetingState,
-    setChatMessages
+    setChatMessages,
+    setWaitingRoomList
   } = useMeetingStore();
 
   const {
@@ -68,6 +69,18 @@ export const MeetingRoom: React.FC = () => {
 
   const [isLoadingMeeting, setIsLoadingMeeting] = useState(true);
   const [meetingError, setMeetingError] = useState<string | null>(null);
+
+  const [guestUsername, setGuestUsername] = useState(() => {
+    return sessionStorage.getItem(`guest_username_${code}`) || '';
+  });
+  const [guestId] = useState(() => {
+    let id = sessionStorage.getItem(`guest_id_${code}`);
+    if (!id) {
+      id = 'guest-' + Math.random().toString(36).substring(2, 8);
+      sessionStorage.setItem(`guest_id_${code}`, id);
+    }
+    return id;
+  });
 
   // Pre-join Lobby states and refs
   const [isLobbyPassed, setIsLobbyPassed] = useState(() => {
@@ -299,7 +312,10 @@ export const MeetingRoom: React.FC = () => {
       const fetchToken = async () => {
         try {
           const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
-          const token = await getToken();
+          let token = null;
+          try {
+            token = await getToken();
+          } catch (e) {}
           const headers: Record<string, string> = { 'Content-Type': 'application/json' };
           if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -308,8 +324,8 @@ export const MeetingRoom: React.FC = () => {
             headers,
             body: JSON.stringify({
               roomName: activeRoomName,
-              participantIdentity: user?.id || 'guest-' + Math.random().toString(36).substring(2, 8),
-              participantName: user?.fullName || 'Guest User'
+              participantIdentity: user?.id || guestId,
+              participantName: user?.fullName || guestUsername || 'Guest User'
             })
           });
           const data = await res.json();
@@ -322,7 +338,7 @@ export const MeetingRoom: React.FC = () => {
       };
       fetchToken();
     }
-  }, [shouldConnectWebRTC, liveKitToken, activeRoomName, user]);
+  }, [shouldConnectWebRTC, liveKitToken, activeRoomName, user, guestId, guestUsername]);
 
   // Connect to custom signaling socket (Socket.IO / Supabase Realtime)
   useEffect(() => {
@@ -344,14 +360,28 @@ export const MeetingRoom: React.FC = () => {
       navigate(`/kicked?room=${code}`);
     };
 
+    const handleWaitingRoomListUpdate = ({ participants }: any) => {
+      setWaitingRoomList(participants);
+    };
+
+    const handleRoomLockToggled = ({ isLocked }: { isLocked: boolean }) => {
+      setCurrentMeeting(
+        useMeetingStore.getState().currentMeeting
+          ? { ...useMeetingStore.getState().currentMeeting!, is_locked: isLocked }
+          : null
+      );
+    };
+
     signalingClient.on('waiting-status', handleWaitingStatus);
     signalingClient.on('kicked-command', handleKickedCommand);
+    signalingClient.on('waiting-room-list-update', handleWaitingRoomListUpdate);
+    signalingClient.on('room-lock-toggled', handleRoomLockToggled);
 
     const isUserWaiting = waitingStatus === 'waiting';
 
     signalingClient.connect(code, {
-      userId: user?.id || 'guest-' + Math.random().toString(36).substring(2, 8),
-      username: user?.fullName || 'Guest User',
+      userId: user?.id || guestId,
+      username: user?.fullName || guestUsername || 'Guest User',
       role: myRole,
       isWaiting: isUserWaiting
     });
@@ -359,6 +389,8 @@ export const MeetingRoom: React.FC = () => {
     return () => {
       signalingClient.off('waiting-status', handleWaitingStatus);
       signalingClient.off('kicked-command', handleKickedCommand);
+      signalingClient.off('waiting-room-list-update', handleWaitingRoomListUpdate);
+      signalingClient.off('room-lock-toggled', handleRoomLockToggled);
       signalingClient.disconnect();
     };
   }, [
@@ -369,9 +401,13 @@ export const MeetingRoom: React.FC = () => {
     isPasscodeGatePassed,
     waitingStatus,
     user,
+    guestId,
+    guestUsername,
     myRole,
     navigate,
-    setWaitingStatus
+    setWaitingStatus,
+    setWaitingRoomList,
+    setCurrentMeeting
   ]);
 
   // Patch getUserMedia globally to apply noise suppression and virtual backgrounds automatically
@@ -505,7 +541,7 @@ export const MeetingRoom: React.FC = () => {
         }
 
         // Check if waiting room is needed
-        if (activeMeeting.is_waiting_room_enabled && !isUserHost) {
+        if ((activeMeeting.is_waiting_room_enabled || activeMeeting.is_locked) && !isUserHost) {
           const wasWaitingStatusApproved = sessionStorage.getItem(`waiting_status_approved_${code}`) === 'true';
           setWaitingStatus(wasWaitingStatusApproved ? 'approved' : 'waiting');
         } else {
@@ -706,14 +742,34 @@ export const MeetingRoom: React.FC = () => {
 
             <div className="space-y-6 flex flex-col justify-between h-full min-h-[220px]">
               <div className="space-y-4">
-                <div className="bg-surface-soft border border-hairline/60 rounded-xl p-4">
-                  <span className="text-[10px] uppercase font-bold text-muted tracking-wider block mb-1">Joining As</span>
-                  <div className="flex items-center space-x-2.5">
-                    <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center text-xs font-bold">
-                      {user?.fullName?.charAt(0).toUpperCase() || 'G'}
+                <div className="bg-surface-soft border border-hairline/60 rounded-xl p-4 space-y-3">
+                  <span className="text-[10px] uppercase font-bold text-muted tracking-wider block">Joining As</span>
+                  {user ? (
+                    <div className="flex items-center space-x-2.5">
+                      <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center text-xs font-bold">
+                        {user.fullName?.charAt(0).toUpperCase() || 'U'}
+                      </div>
+                      <span className="text-sm font-bold text-ink">{user.fullName}</span>
                     </div>
-                    <span className="text-sm font-bold text-ink">{user?.fullName || 'Guest User'}</span>
-                  </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0">
+                          {guestUsername.charAt(0).toUpperCase() || 'G'}
+                        </div>
+                        <input
+                          type="text"
+                          value={guestUsername}
+                          onChange={(e) => {
+                            setGuestUsername(e.target.value);
+                            sessionStorage.setItem(`guest_username_${code}`, e.target.value);
+                          }}
+                          placeholder="Type your guest username..."
+                          className="w-full bg-canvas border border-hairline rounded-lg px-3 py-1.5 text-sm text-ink focus:outline-none focus:border-primary font-bold placeholder-muted/60"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="border border-hairline/60 rounded-xl p-4 bg-canvas space-y-4">
@@ -726,7 +782,12 @@ export const MeetingRoom: React.FC = () => {
 
               <button
                 onClick={handleJoinCall}
-                className="w-full mt-4 bg-primary hover:bg-primary-active text-white text-sm font-bold py-3.5 px-6 rounded-xl transition-all duration-200 shadow-md shadow-primary/10 active:scale-[0.98] focus:outline-none flex items-center justify-center space-x-2 cursor-pointer"
+                disabled={!user && !guestUsername.trim()}
+                className={`w-full mt-4 text-sm font-bold py-3.5 px-6 rounded-xl transition-all duration-200 shadow-md active:scale-[0.98] focus:outline-none flex items-center justify-center space-x-2 cursor-pointer ${
+                  (!user && !guestUsername.trim())
+                    ? 'bg-muted/40 text-muted/80 border border-hairline/60 cursor-not-allowed shadow-none'
+                    : 'bg-primary hover:bg-primary-active text-white shadow-primary/10'
+                }`}
               >
                 <span>Join Meeting</span>
               </button>
@@ -940,6 +1001,7 @@ const ActiveRoomContent: React.FC<{
   } = useWebRTCStore();
 
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
+  const { getToken } = useAuth();
   const [hasCopiedCode, setHasCopiedCode] = useState(false);
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
 
@@ -947,6 +1009,7 @@ const ActiveRoomContent: React.FC<{
   const [isBreakoutActive, setIsBreakoutActive] = useState(false);
   const [breakoutTimeLeft, setBreakoutTimeLeft] = useState<number | null>(null);
   const [isBreakoutModalOpen, setIsBreakoutModalOpen] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isTabVisible, setIsTabVisible] = useState(true);
 
   // Monitor tab visibility to suspend rendering/streaming when backgrounded
@@ -959,6 +1022,34 @@ const ActiveRoomContent: React.FC<{
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
+
+  const handleToggleRoomLock = async () => {
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+      const token = await getToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const nextLockedState = !currentMeeting?.is_locked;
+      const res = await fetch(`${backendUrl}/api/meetings/${code}/lock`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ isLocked: nextLockedState })
+      });
+
+      if (res.ok) {
+        signalingClient.sendRoomLockToggle(nextLockedState);
+        useMeetingStore.getState().setCurrentMeeting(
+          currentMeeting ? { ...currentMeeting, is_locked: nextLockedState } : null
+        );
+      } else {
+        const data = await res.json();
+        console.error("Failed to toggle meeting lock:", data.error);
+      }
+    } catch (err) {
+      console.error("Error toggling meeting lock:", err);
+    }
+  };
 
   // Listen for breakout room events
   useEffect(() => {
@@ -1347,19 +1438,48 @@ const ActiveRoomContent: React.FC<{
             >
               {hasCopiedCode ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
             </button>
+            {myRole === 'host' && (
+              <button
+                onClick={() => setIsInviteModalOpen(true)}
+                className="p-0.5 hover:text-primary rounded transition-colors cursor-pointer ml-1.5 border-l border-white/10 pl-1.5"
+                title="Invite via Email"
+              >
+                <Mail className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
         <div className="flex items-center space-x-3.5 text-xs font-bold text-on-dark-soft">
           {myRole === 'host' && (
-            <button
-              onClick={() => setIsBreakoutModalOpen(true)}
-              className="flex items-center space-x-1 hover:text-on-dark p-1 rounded-md hover:bg-surface-dark-soft transition-all cursor-pointer text-primary"
-              title="Breakout Rooms Control"
-            >
-              <Users className="w-4 h-4" />
-              <span className="hidden sm:inline">Breakouts</span>
-            </button>
+            <>
+              <button
+                onClick={handleToggleRoomLock}
+                className={`flex items-center space-x-1.5 p-1 hover:bg-surface-dark-soft rounded-md transition-all cursor-pointer ${
+                  currentMeeting?.is_locked
+                    ? 'text-red-500 hover:text-red-400'
+                    : 'text-emerald-500 hover:text-emerald-400'
+                }`}
+                title={currentMeeting?.is_locked ? "Unlock Meeting" : "Lock Meeting"}
+              >
+                {currentMeeting?.is_locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                <span className="hidden sm:inline">{currentMeeting?.is_locked ? 'Locked' : 'Unlocked'}</span>
+              </button>
+              <button
+                onClick={() => setIsBreakoutModalOpen(true)}
+                className="flex items-center space-x-1 hover:text-on-dark p-1 rounded-md hover:bg-surface-dark-soft transition-all cursor-pointer text-primary"
+                title="Breakout Rooms Control"
+              >
+                <Users className="w-4 h-4" />
+                <span className="hidden sm:inline">Breakouts</span>
+              </button>
+            </>
+          )}
+          {myRole !== 'host' && (
+            <div className="flex items-center space-x-1 text-on-dark-soft p-1">
+              {currentMeeting?.is_locked ? <Lock className="w-3.5 h-3.5 text-red-500" /> : <Unlock className="w-3.5 h-3.5 text-emerald-500" />}
+              <span className="hidden sm:inline">{currentMeeting?.is_locked ? 'Locked' : 'Unlocked'}</span>
+            </div>
           )}
 
           <button
@@ -1549,6 +1669,192 @@ const ActiveRoomContent: React.FC<{
         />,
         pipContainer
       )}
+
+      {/* EMAIL INVITATION MODAL */}
+      <Modal
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        title="Invite via Email"
+      >
+        <InviteModalContent code={code || ''} onClose={() => setIsInviteModalOpen(false)} />
+      </Modal>
+    </div>
+  );
+};
+
+// ----------------------------------------------------
+// EMAIL INVITATION MODAL CONTENT COMPONENT
+// ----------------------------------------------------
+const InviteModalContent: React.FC<{ code: string; onClose: () => void }> = ({ code, onClose }) => {
+  const { getToken } = useAuth();
+  const [email, setEmail] = useState('');
+  const [lookupResult, setLookupResult] = useState<any>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [inviteStatus, setInviteStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const timeoutRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    const trimmed = email.trim();
+    if (!trimmed || !trimmed.includes('@')) {
+      setLookupResult(null);
+      return;
+    }
+
+    setIsSearching(true);
+    timeoutRef.current = setTimeout(async () => {
+      try {
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+        const token = await getToken();
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const res = await fetch(`${backendUrl}/api/users/lookup?email=${encodeURIComponent(trimmed)}`, { headers });
+        if (res.ok) {
+          const data = await res.json();
+          setLookupResult(data);
+        }
+      } catch (err) {
+        console.error('Error looking up user:', err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 400);
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [email, getToken]);
+
+  const handleSendInvite = async () => {
+    const trimmed = email.trim();
+    if (!trimmed) return;
+
+    setInviteStatus('sending');
+    setErrorMessage(null);
+
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+      const token = await getToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`${backendUrl}/api/meetings/${code}/invite`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ email: trimmed })
+      });
+
+      if (res.ok) {
+        setInviteStatus('success');
+      } else {
+        const data = await res.json();
+        setInviteStatus('error');
+        setErrorMessage(data.error || 'Failed to send invitation');
+      }
+    } catch (err: any) {
+      setInviteStatus('error');
+      setErrorMessage(err.message || 'Failed to send invitation');
+    }
+  };
+
+  if (inviteStatus === 'success') {
+    return (
+      <div className="space-y-4 py-4 text-center">
+        <div className="w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto border border-emerald-500/20">
+          <Check className="w-6 h-6" />
+        </div>
+        <div className="space-y-1">
+          <h3 className="text-sm font-bold text-ink">Invitation Sent Successfully</h3>
+          <p className="text-xs text-muted">A styled email invitation was sent to <span className="font-bold text-body-strong">{email}</span> with details to join this meeting room.</p>
+        </div>
+        <div className="pt-2">
+          <Button onClick={onClose} className="w-full">Done</Button>
+        </div>
+      </div>
+    );
+  }
+
+  const isValidEmail = email.trim().includes('@') && email.trim().length > 3;
+
+  return (
+    <div className="space-y-5 py-2">
+      <div className="space-y-2">
+        <label className="text-[10px] font-black uppercase text-muted tracking-wider">Email Address</label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="colleague@example.com"
+          className="w-full bg-canvas border border-hairline rounded-lg px-3.5 py-2.5 text-sm text-ink focus:outline-none focus:border-primary placeholder-muted/50"
+          disabled={inviteStatus === 'sending'}
+        />
+      </div>
+
+      {/* User Search & Resolution Preview */}
+      <div className="bg-surface-soft border border-hairline/60 rounded-xl p-4 min-h-[82px] flex items-center justify-center">
+        {isSearching ? (
+          <div className="flex items-center space-x-2 text-xs font-bold text-muted animate-pulse">
+            <Loader2 className="w-4 h-4 animate-spin text-primary" />
+            <span>Searching Chatsie database...</span>
+          </div>
+        ) : lookupResult ? (
+          <div className="w-full flex items-center justify-between">
+            <div className="flex items-center space-x-3 min-w-0">
+              <img
+                src={lookupResult.imageUrl}
+                alt={lookupResult.name}
+                className="w-10 h-10 rounded-full border border-hairline bg-surface-dark flex-shrink-0 object-cover"
+              />
+              <div className="truncate">
+                <span className="text-xs font-bold text-ink block truncate">{lookupResult.name}</span>
+                <span className="text-[9px] font-black uppercase tracking-wider block mt-0.5 text-muted">
+                  {lookupResult.exists ? 'Registered Chatsie User' : 'Non-registered Guest'}
+                </span>
+              </div>
+            </div>
+            <div className="flex-shrink-0 ml-3">
+              <span className={`text-[10px] font-black px-2 py-0.5 rounded border ${
+                lookupResult.exists 
+                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' 
+                  : 'bg-stone-500/10 border-stone-500/20 text-muted'
+              }`}>
+                {lookupResult.exists ? 'Member' : 'Guest'}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <span className="text-xs text-muted/80 text-center leading-relaxed">
+            Enter a valid email address to search user directory and preview invitation card.
+          </span>
+        )}
+      </div>
+
+      {errorMessage && (
+        <div className="bg-red-500/10 border border-red-500/20 text-red-500 rounded-lg p-3 text-xs font-bold">
+          {errorMessage}
+        </div>
+      )}
+
+      <div className="flex space-x-3 justify-end pt-2 border-t border-hairline">
+        <Button variant="secondary" onClick={onClose} disabled={inviteStatus === 'sending'}>
+          Cancel
+        </Button>
+        <Button
+          onClick={handleSendInvite}
+          disabled={!isValidEmail || inviteStatus === 'sending'}
+          className="flex items-center space-x-1"
+        >
+          {inviteStatus === 'sending' && <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />}
+          <span>Send Invitation</span>
+        </Button>
+      </div>
     </div>
   );
 };

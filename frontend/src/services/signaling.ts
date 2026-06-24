@@ -36,6 +36,9 @@ export interface SignalingEventMap {
   'whiteboard-clear': () => void;
   'breakout-started': (data: { assignments: Record<string, string>; durationSeconds: number }) => void;
   'breakout-ended': () => void;
+  'room-lock-toggled': (data: { isLocked: boolean }) => void;
+  'waiting-doodle-draw': (data: { x1: number; y1: number; x2: number; y2: number; color: string; thickness: number }) => void;
+  'waiting-doodle-clear': () => void;
 }
 
 export interface ISignalingClient {
@@ -57,6 +60,9 @@ export interface ISignalingClient {
   sendClearWhiteboard(): void;
   sendStartBreakout(assignments: Record<string, string>, durationSeconds: number): void;
   sendEndBreakout(): void;
+  sendRoomLockToggle(isLocked: boolean): void;
+  sendWaitingDoodleDraw(x1: number, y1: number, x2: number, y2: number, color: string, thickness: number): void;
+  sendWaitingDoodleClear(): void;
 }
 
 // ----------------------------------------------------
@@ -117,6 +123,9 @@ class SocketIOSignalingClient implements ISignalingClient {
     this.socket.on('whiteboard-clear', () => this.emit('whiteboard-clear'));
     this.socket.on('breakout-started', (data) => this.emit('breakout-started', data));
     this.socket.on('breakout-ended', () => this.emit('breakout-ended'));
+    this.socket.on('room-lock-toggled', (data) => this.emit('room-lock-toggled', data));
+    this.socket.on('waiting-doodle-draw', (data) => this.emit('waiting-doodle-draw', data));
+    this.socket.on('waiting-doodle-clear', () => this.emit('waiting-doodle-clear'));
   }
 
   disconnect(): void {
@@ -204,6 +213,24 @@ class SocketIOSignalingClient implements ISignalingClient {
   sendEndBreakout(): void {
     if (this.socket) {
       this.socket.emit('end-breakout', { roomId: this.roomId });
+    }
+  }
+
+  sendRoomLockToggle(isLocked: boolean): void {
+    if (this.socket) {
+      this.socket.emit('toggle-room-lock', { roomId: this.roomId, isLocked });
+    }
+  }
+
+  sendWaitingDoodleDraw(x1: number, y1: number, x2: number, y2: number, color: string, thickness: number): void {
+    if (this.socket) {
+      this.socket.emit('waiting-doodle-draw', { roomId: this.roomId, x1, y1, x2, y2, color, thickness });
+    }
+  }
+
+  sendWaitingDoodleClear(): void {
+    if (this.socket) {
+      this.socket.emit('waiting-doodle-clear', { roomId: this.roomId });
     }
   }
 
@@ -318,6 +345,15 @@ class SupabaseSignalingClient implements ISignalingClient {
       })
       .on('broadcast', { event: 'breakout-ended' }, () => {
         this.emit('breakout-ended');
+      })
+      .on('broadcast', { event: 'room-lock-toggled' }, (payload) => {
+        this.emit('room-lock-toggled', payload.payload);
+      })
+      .on('broadcast', { event: 'waiting-doodle-draw' }, (payload) => {
+        this.emit('waiting-doodle-draw', payload.payload);
+      })
+      .on('broadcast', { event: 'waiting-doodle-clear' }, () => {
+        this.emit('waiting-doodle-clear');
       });
 
     // 2. Presence synchronization (Tracks active list of users and waiting room)
@@ -573,6 +609,30 @@ class SupabaseSignalingClient implements ISignalingClient {
     this.channel?.send({
       type: 'broadcast',
       event: 'breakout-ended',
+      payload: {}
+    });
+  }
+
+  sendRoomLockToggle(isLocked: boolean): void {
+    this.channel?.send({
+      type: 'broadcast',
+      event: 'room-lock-toggled',
+      payload: { isLocked }
+    });
+  }
+
+  sendWaitingDoodleDraw(x1: number, y1: number, x2: number, y2: number, color: string, thickness: number): void {
+    this.channel?.send({
+      type: 'broadcast',
+      event: 'waiting-doodle-draw',
+      payload: { x1, y1, x2, y2, color, thickness }
+    });
+  }
+
+  sendWaitingDoodleClear(): void {
+    this.channel?.send({
+      type: 'broadcast',
+      event: 'waiting-doodle-clear',
       payload: {}
     });
   }

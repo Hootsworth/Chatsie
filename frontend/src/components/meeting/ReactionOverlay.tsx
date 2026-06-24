@@ -56,18 +56,36 @@ export const ReactionOverlay: React.FC<ReactionOverlayProps> = ({ reactions }) =
 
   return (
     <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
-      {activeReactions.map((reaction) => (
-        <span
-          key={reaction.id}
-          className="absolute text-4xl animate-reaction-float select-none"
-          style={{
-            left: `${reaction.x}%`,
-            bottom: '80px',
-          }}
-        >
-          {reaction.emoji}
-        </span>
-      ))}
+      {activeReactions.map((reaction) => {
+        const isDoodle = reaction.emoji.startsWith('doodle:');
+        if (isDoodle) {
+          const dataUrl = reaction.emoji.slice(7);
+          return (
+            <img
+              key={reaction.id}
+              src={dataUrl}
+              alt="doodle reaction"
+              className="absolute w-24 h-24 object-contain animate-reaction-float select-none pointer-events-none filter drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] border border-white/10 rounded-lg p-0.5 bg-white/5 backdrop-blur-[1px]"
+              style={{
+                left: `${reaction.x}%`,
+                bottom: '80px',
+              }}
+            />
+          );
+        }
+        return (
+          <span
+            key={reaction.id}
+            className="absolute text-4xl animate-reaction-float select-none"
+            style={{
+              left: `${reaction.x}%`,
+              bottom: '80px',
+            }}
+          >
+            {reaction.emoji}
+          </span>
+        );
+      })}
     </div>
   );
 };

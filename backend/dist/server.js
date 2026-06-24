@@ -68,12 +68,34 @@ function generateRoomCode() {
     const part3 = Array.from({ length: 3 }, () => chars[Math.floor(Math.random() * 26)]).join('');
     return `${part1}-${part2}-${part3}`;
 }
-// LiveKit Token Generation Endpoint
-app.post('/api/livekit/token', (0, express_2.requireAuth)(), async (req, res) => {
-    const { roomName, participantName } = req.body;
-    const participantIdentity = (0, express_2.getAuth)(req).userId;
-    if (!roomName || !participantIdentity) {
-        return res.status(400).json({ error: 'roomName and participantIdentity are required' });
+// LiveKit Token Generation Endpoint (Public, but guest identity verified against database)
+app.post('/api/livekit/token', async (req, res) => {
+    const { roomName, participantName, participantIdentity: clientIdentity } = req.body;
+    const clerkAuth = (0, express_2.getAuth)(req);
+    let participantIdentity = clerkAuth?.userId;
+    if (!roomName) {
+        return res.status(400).json({ error: 'roomName is required' });
+    }
+    if (!participantIdentity) {
+        // Guest flow
+        if (!clientIdentity) {
+            return res.status(400).json({ error: 'participantIdentity is required for guests' });
+        }
+        // Verify roomName exists and is active in Supabase to prevent arbitrary room spin-ups
+        try {
+            const { data: meeting, error: dbError } = await supabase
+                .from('meetings')
+                .select('id, is_active')
+                .eq('code', roomName)
+                .maybeSingle();
+            if (dbError || !meeting) {
+                return res.status(403).json({ error: 'Invalid or inactive meeting room' });
+            }
+        }
+        catch (e) {
+            return res.status(500).json({ error: 'Database verification failed', details: e.message });
+        }
+        participantIdentity = clientIdentity;
     }
     const apiKey = process.env.LIVEKIT_API_KEY;
     const apiSecret = process.env.LIVEKIT_API_SECRET;
@@ -257,6 +279,253 @@ app.patch('/api/meetings/:code/close', (0, express_2.requireAuth)(), async (req,
         res.status(200).json({ success: true });
     }
     catch (error) {
+        res.status(500).json({ error: 'Internal Server Error', details: error.message });
+    }
+});
+app.patch('/api/meetings/:code/lock', (0, express_2.requireAuth)(), async (req, res) => {
+    try {
+        const { code } = req.params;
+        const { isLocked } = req.body;
+        const userId = (0, express_2.getAuth)(req).userId;
+        const { data: meeting } = await supabase
+            .from('meetings')
+            .select('host_id')
+            .eq('code', code)
+            .maybeSingle();
+        if (!meeting || meeting.host_id !== userId) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+        const { data: updatedMeeting, error } = await supabase
+            .from('meetings')
+            .update({ is_locked: !!isLocked })
+            .eq('code', code)
+            .select()
+            .single();
+        if (error) {
+            return res.status(500).json({ error: 'Failed to update lock status', details: error.message });
+        }
+        // If socket.io has rooms active, broadcast lock toggled
+        io.to(code).emit('room-lock-toggled', { isLocked: !!isLocked });
+        res.status(200).json({ success: true, meeting: updatedMeeting });
+    }
+    catch (error) {
+        res.status(500).json({ error: 'Internal Server Error', details: error.message });
+    }
+});
+// GET: Lookup User by Email via Clerk
+app.get('/api/users/lookup', (0, express_2.requireAuth)(), async (req, res) => {
+    try {
+        const { email } = req.query;
+        if (!email || typeof email !== 'string') {
+            return res.status(400).json({ error: 'Email query parameter is required' });
+        }
+        const cleanEmail = email.trim().toLowerCase();
+        // Query users list from Clerk matching the email address
+        const response = await express_2.clerkClient.users.getUserList({
+            emailAddress: [cleanEmail],
+            limit: 1
+        });
+        const user = response.data[0];
+        if (user) {
+            const name = user.fullName || user.username || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Chatsie User';
+            return res.status(200).json({
+                exists: true,
+                name,
+                imageUrl: user.imageUrl
+            });
+        }
+        // Fallback initials avatar seed
+        const fallbackSeed = encodeURIComponent(cleanEmail);
+        const imageUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${fallbackSeed}`;
+        return res.status(200).json({
+            exists: false,
+            name: cleanEmail,
+            imageUrl
+        });
+    }
+    catch (error) {
+        console.error('Error looking up user in Clerk:', error);
+        res.status(500).json({ error: 'Failed to lookup user', details: error.message });
+    }
+});
+// POST: Invite User via Email using Brevo REST API
+app.post('/api/meetings/:code/invite', (0, express_2.requireAuth)(), async (req, res) => {
+    try {
+        const { code } = req.params;
+        const { email } = req.body;
+        const userId = (0, express_2.getAuth)(req).userId; // Host user ID
+        if (!email) {
+            return res.status(400).json({ error: 'Email is required' });
+        }
+        // Fetch the host's details from Clerk to get their name
+        const hostUser = await express_2.clerkClient.users.getUser(userId);
+        const hostName = hostUser.fullName || hostUser.username || `${hostUser.firstName || ''} ${hostUser.lastName || ''}`.trim() || 'A Chatsie Host';
+        // Fetch the meeting details
+        const { data: meeting, error: dbError } = await supabase
+            .from('meetings')
+            .select('*')
+            .eq('code', code)
+            .maybeSingle();
+        if (dbError || !meeting) {
+            return res.status(404).json({ error: 'Meeting not found' });
+        }
+        const brevoApiKey = process.env.BREVO_API_KEY;
+        if (!brevoApiKey) {
+            return res.status(500).json({ error: 'Brevo API key is not configured on the server' });
+        }
+        const joinLink = `https://adityapdixit.me/Chatsie/room/${code}`;
+        // Craft a premium responsive HTML email
+        const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Meeting Invitation</title>
+  <style>
+    body {
+      background-color: #0c0a09;
+      color: #fafaf9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    .wrapper {
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      background-color: #1c1917;
+      border: 1px solid #2e2a24;
+      border-radius: 16px;
+      padding: 32px;
+      text-align: center;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+    .header-logo {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.05em;
+      color: #6366f1;
+      margin-bottom: 24px;
+    }
+    .title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: #ffffff;
+      line-height: 1.4;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: #a8a29e;
+      margin-bottom: 28px;
+      line-height: 1.6;
+    }
+    .meeting-card {
+      background-color: #292524;
+      border: 1px solid #44403c;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 32px;
+      text-align: left;
+    }
+    .meeting-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: #a8a29e;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+    .meeting-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 8px;
+    }
+    .meeting-code {
+      font-family: monospace;
+      font-size: 13px;
+      color: #6366f1;
+      font-weight: 700;
+    }
+    .btn {
+      display: inline-block;
+      background-color: #6366f1;
+      color: #ffffff !important;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 14px;
+      padding: 12px 32px;
+      border-radius: 10px;
+      box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.3);
+      margin-bottom: 24px;
+    }
+    .footer {
+      font-size: 11px;
+      color: #78716c;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="container">
+      <div class="header-logo">Chatsie</div>
+      <div class="title">You're invited!</div>
+      <div class="subtitle"><strong>${hostName}</strong> has invited you to join a secure live video meeting.</div>
+      
+      <div class="meeting-card">
+        <div class="meeting-label">Meeting Room</div>
+        <div class="meeting-title">${meeting.title}</div>
+        <div class="meeting-label">Code</div>
+        <div class="meeting-code">${code}</div>
+      </div>
+      
+      <a href="${joinLink}" class="btn" target="_blank">Join Meeting</a>
+      
+      <div class="footer">
+        If the button above does not work, copy and paste this URL into your browser:<br>
+        <span style="color: #6366f1; word-break: break-all;">${joinLink}</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+        // Make API request to Brevo Transactional Email REST endpoint
+        const response = await (0, cross_fetch_1.default)('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+                'api-key': brevoApiKey,
+                'content-type': 'application/json',
+                'accept': 'application/json'
+            },
+            body: JSON.stringify({
+                sender: {
+                    name: 'Chatsie Meetings',
+                    email: 'invites@adityapdixit.me'
+                },
+                to: [
+                    {
+                        email: email
+                    }
+                ],
+                subject: `Join ${hostName} in a Chatsie Meeting`,
+                htmlContent: htmlContent
+            })
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Brevo API error response:', errorText);
+            return res.status(500).json({ error: 'Failed to send email via Brevo', details: errorText });
+        }
+        const responseData = await response.json();
+        return res.status(200).json({ success: true, messageId: responseData.messageId });
+    }
+    catch (error) {
+        console.error('Error sending meeting invitation:', error);
         res.status(500).json({ error: 'Internal Server Error', details: error.message });
     }
 });
@@ -597,6 +866,20 @@ io.on('connection', (socket) => {
     socket.on('whiteboard-clear', (data) => {
         const { roomId } = data;
         io.to(roomId).emit('whiteboard-clear');
+    });
+    // Waiting room doodle socket handlers
+    socket.on('waiting-doodle-draw', (data) => {
+        const { roomId, x1, y1, x2, y2, color, thickness } = data;
+        socket.to(roomId).emit('waiting-doodle-draw', { x1, y1, x2, y2, color, thickness });
+    });
+    socket.on('waiting-doodle-clear', (data) => {
+        const { roomId } = data;
+        io.to(roomId).emit('waiting-doodle-clear');
+    });
+    // Toggle Room Lock handler
+    socket.on('toggle-room-lock', (data) => {
+        const { roomId, isLocked } = data;
+        socket.to(roomId).emit('room-lock-toggled', { isLocked });
     });
     // Breakout rooms socket handlers
     socket.on('start-breakout', (data) => {
