@@ -80,7 +80,7 @@ export const VideoGrid: React.FC = () => {
           return (
             <div 
               key={`${track.participant.identity}-${track.source}`}
-              className={`relative rounded-2xl overflow-hidden transition-all duration-300 ${
+              className={`relative rounded-2xl overflow-hidden transition-all duration-300 [&_video]:object-cover [&_video]:w-full [&_video]:h-full ${
                 isSpeaking 
                   ? 'ring-4 ring-emerald-500 shadow-lg shadow-emerald-500/20' 
                   : 'border border-white/5'
