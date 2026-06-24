@@ -13,7 +13,7 @@ export default defineConfig({
       }
     }
   ],
-  base: '/Chatsie/',
+  base: '/',
   build: {
     outDir: '../docs',
     emptyOutDir: true,

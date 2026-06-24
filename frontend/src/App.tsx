@@ -69,7 +69,7 @@ const ClerkWithRoutes = () => {
           path="/signin/*" 
           element={
             <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-950">
-              <SignIn routing="virtual" signUpUrl="/Chatsie/signup" fallbackRedirectUrl="/Chatsie/" />
+              <SignIn routing="virtual" signUpUrl="/signup" fallbackRedirectUrl="/" />
             </div>
           } 
         />
@@ -77,7 +77,7 @@ const ClerkWithRoutes = () => {
           path="/signup/*" 
           element={
             <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-950">
-              <SignUp routing="virtual" signInUrl="/Chatsie/signin" fallbackRedirectUrl="/Chatsie/" />
+              <SignUp routing="virtual" signInUrl="/signin" fallbackRedirectUrl="/" />
             </div>
           } 
         />

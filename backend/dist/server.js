@@ -373,7 +373,7 @@ app.post('/api/meetings/:code/invite', (0, express_2.requireAuth)(), async (req,
         if (!brevoApiKey) {
             return res.status(500).json({ error: 'Brevo API key is not configured on the server' });
         }
-        const joinLink = `https://adityapdixit.me/Chatsie/room/${code}`;
+        const joinLink = `https://chatsie.singulr.tech/room/${code}`;
         // Craft a premium responsive HTML email
         const htmlContent = `
 <!DOCTYPE html>
