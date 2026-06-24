@@ -380,12 +380,22 @@ export const MeetingRoom: React.FC = () => {
 
     navigator.mediaDevices.getUserMedia = async (constraints) => {
       // 1. Apply Noise Suppression constraints if audio is requested and enabled
-      if (constraints && constraints.audio && typeof constraints.audio === 'object') {
-        const audioConstraints = constraints.audio as MediaTrackConstraints;
-        if (useWebRTCStore.getState().isNoiseSuppressionEnabled) {
-          audioConstraints.noiseSuppression = true;
-          audioConstraints.echoCancellation = true;
-          audioConstraints.autoGainControl = true;
+      if (constraints && constraints.audio) {
+        if (typeof constraints.audio === 'boolean' && constraints.audio) {
+          if (useWebRTCStore.getState().isNoiseSuppressionEnabled) {
+            constraints.audio = {
+              noiseSuppression: true,
+              echoCancellation: true,
+              autoGainControl: true
+            };
+          }
+        } else if (typeof constraints.audio === 'object') {
+          const audioConstraints = constraints.audio as MediaTrackConstraints;
+          if (useWebRTCStore.getState().isNoiseSuppressionEnabled) {
+            audioConstraints.noiseSuppression = true;
+            audioConstraints.echoCancellation = true;
+            audioConstraints.autoGainControl = true;
+          }
         }
       }
 

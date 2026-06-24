@@ -16,8 +16,7 @@ export const VideoGrid: React.FC = () => {
 
   // Sort tracks to prioritize:
   // 1. Screensharing tracks (always show screenshares first)
-  // 2. Active speakers (speaking === true)
-  // 3. Other participants
+  // 2. Stable participant order (keeps tiles static instead of shifting when people speak)
   const sortedTracks = [...tracks].sort((a, b) => {
     // Screenshares take highest precedence
     const aIsScreen = a.source === Track.Source.ScreenShare;
@@ -25,13 +24,8 @@ export const VideoGrid: React.FC = () => {
     if (aIsScreen && !bIsScreen) return -1;
     if (!aIsScreen && bIsScreen) return 1;
 
-    // Active speakers take next precedence
-    const aIsSpeaking = a.participant.isSpeaking;
-    const bIsSpeaking = b.participant.isSpeaking;
-    if (aIsSpeaking && !bIsSpeaking) return -1;
-    if (!aIsSpeaking && bIsSpeaking) return 1;
-
-    return 0;
+    // Stable sort by identity
+    return a.participant.identity.localeCompare(b.participant.identity);
   });
 
   const trackCount = sortedTracks.length;
@@ -47,7 +41,7 @@ export const VideoGrid: React.FC = () => {
   }
 
   return (
-    <div className="w-full h-full p-4 relative">
+    <div className="absolute inset-0 p-4">
       <div className={gridClass}>
         {sortedTracks.map((track) => {
           const isLocalScreenShare = track.source === Track.Source.ScreenShare && track.participant.isLocal;

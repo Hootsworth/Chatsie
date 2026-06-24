@@ -236,10 +236,9 @@ export const applyVirtualBackgroundToStream = async (
     });
 
     const newStream = new MediaStream([processedTrack]);
-    const audioTrack = rawStream.getAudioTracks()[0];
-    if (audioTrack) {
-      newStream.addTrack(audioTrack);
-    }
+    rawStream.getAudioTracks().forEach((track) => {
+      newStream.addTrack(track);
+    });
     return newStream;
 
   } catch (err) {
