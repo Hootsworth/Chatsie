@@ -771,6 +771,13 @@ export const MeetingRoom: React.FC = () => {
       audio={!isMutedAudio}
       token={liveKitToken || undefined}
       serverUrl={import.meta.env.VITE_LIVEKIT_URL}
+      options={{
+        adaptiveStream: true,
+        dynacast: true,
+        publishDefaults: {
+          simulcast: true,
+        },
+      }}
       data-lk-theme="default"
       className="h-screen w-screen overflow-hidden bg-surface-dark text-on-dark"
       style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column' }}
@@ -930,6 +937,18 @@ const ActiveRoomContent: React.FC<{
   const [isBreakoutActive, setIsBreakoutActive] = useState(false);
   const [breakoutTimeLeft, setBreakoutTimeLeft] = useState<number | null>(null);
   const [isBreakoutModalOpen, setIsBreakoutModalOpen] = useState(false);
+  const [isTabVisible, setIsTabVisible] = useState(true);
+
+  // Monitor tab visibility to suspend rendering/streaming when backgrounded
+  useEffect(() => {
+    const handleVisibility = () => {
+      setIsTabVisible(document.visibilityState === 'visible');
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
 
   // Listen for breakout room events
   useEffect(() => {
@@ -1357,8 +1376,20 @@ const ActiveRoomContent: React.FC<{
             <div className="flex-grow p-4 min-h-0">
               <WhiteboardPanel />
             </div>
-          ) : (
+          ) : isTabVisible ? (
             <VideoGrid />
+          ) : (
+            <div className="flex-grow flex flex-col items-center justify-center bg-surface-dark-elevated text-on-dark-soft border border-white/5 rounded-2xl m-4 p-8 select-none">
+              <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-3.5 border border-primary/20 animate-pulse">
+                <Users className="w-5 h-5" />
+              </div>
+              <h3 className="text-xs font-bold text-on-dark mb-1">
+                Background Tab Suspend
+              </h3>
+              <p className="text-[10px] text-on-dark-soft text-center max-w-[240px]">
+                Video streams are temporarily paused to conserve power and CPU while you are in another tab.
+              </p>
+            </div>
           )}
 
           {/* Live Captions Overlay */}

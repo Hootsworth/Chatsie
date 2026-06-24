@@ -130,22 +130,48 @@ export const applyVirtualBackgroundToStream = async (
     });
 
     let active = true;
+    let isTabVisible = true;
 
-    // Start segmentation loops
+    const handleVisibilityChange = () => {
+      isTabVisible = document.visibilityState === 'visible';
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Start segmentation loops (Throttled to 15 FPS to optimize CPU usage)
     const sendLoop = async () => {
+      const fps = 15;
+      const interval = 1000 / fps;
+      let lastTime = performance.now();
+
       while (active && videoTrack.readyState === 'live') {
-        try {
-          await segmenter.send({ image: video });
-        } catch (e) {
-          console.error('SelfieSegmentation send error:', e);
+        if (!isTabVisible) {
+          await new Promise((r) => setTimeout(r, 500));
+          continue;
         }
-        await new Promise((r) => requestAnimationFrame(r));
+
+        const now = performance.now();
+        const elapsed = now - lastTime;
+
+        if (elapsed >= interval) {
+          try {
+            await segmenter.send({ image: video });
+            lastTime = now - (elapsed % interval);
+          } catch (e) {
+            console.error('SelfieSegmentation send error:', e);
+          }
+        }
+        await new Promise((r) => setTimeout(r, Math.max(1, interval - elapsed)));
       }
     };
     sendLoop();
 
     const drawLoop = () => {
       if (!active || videoTrack.readyState !== 'live') return;
+
+      if (!isTabVisible) {
+        setTimeout(drawLoop, 500);
+        return;
+      }
 
       if (currentResults && ctx) {
         ctx.save();
@@ -194,6 +220,7 @@ export const applyVirtualBackgroundToStream = async (
     const originalStop = videoTrack.stop.bind(videoTrack);
     videoTrack.stop = () => {
       active = false;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       originalStop();
       try {
         segmenter.close();
@@ -202,6 +229,7 @@ export const applyVirtualBackgroundToStream = async (
 
     processedTrack.addEventListener('ended', () => {
       active = false;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       try {
         segmenter.close();
       } catch (e) {}
