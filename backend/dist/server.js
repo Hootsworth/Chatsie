@@ -71,7 +71,7 @@ function generateRoomCode() {
 // LiveKit Token Generation Endpoint
 app.post('/api/livekit/token', (0, express_2.requireAuth)(), async (req, res) => {
     const { roomName, participantName } = req.body;
-    const participantIdentity = req.auth.userId;
+    const participantIdentity = (0, express_2.getAuth)(req).userId;
     if (!roomName || !participantIdentity) {
         return res.status(400).json({ error: 'roomName and participantIdentity are required' });
     }
@@ -97,7 +97,7 @@ app.post('/api/livekit/token', (0, express_2.requireAuth)(), async (req, res) =>
 // GET: List User's Scheduled Meetings
 app.get('/api/meetings', (0, express_2.requireAuth)(), async (req, res) => {
     try {
-        const userId = req.auth.userId;
+        const userId = (0, express_2.getAuth)(req).userId;
         const listHistory = req.query.history === 'true';
         let query = supabase
             .from('meetings')
@@ -122,7 +122,7 @@ app.get('/api/meetings', (0, express_2.requireAuth)(), async (req, res) => {
 // POST: Create a New Meeting
 app.post('/api/meetings', (0, express_2.requireAuth)(), async (req, res) => {
     try {
-        const userId = req.auth.userId;
+        const userId = (0, express_2.getAuth)(req).userId;
         const { title, passcode, isWaitingRoomEnabled, scheduledStart, duration, code: customCode } = req.body;
         if (!title) {
             return res.status(400).json({ error: 'Title is required' });
@@ -204,7 +204,7 @@ app.get('/api/meetings/:code', async (req, res) => {
 app.post('/api/meetings/:code/chat', (0, express_2.requireAuth)(), async (req, res) => {
     try {
         const { code } = req.params;
-        const userId = req.auth.userId;
+        const userId = (0, express_2.getAuth)(req).userId;
         const { message, senderName } = req.body;
         if (!message || !senderName) {
             return res.status(400).json({ error: 'Message and senderName are required' });
@@ -238,7 +238,7 @@ app.post('/api/meetings/:code/chat', (0, express_2.requireAuth)(), async (req, r
 app.patch('/api/meetings/:code/close', (0, express_2.requireAuth)(), async (req, res) => {
     try {
         const { code } = req.params;
-        const userId = req.auth.userId;
+        const userId = (0, express_2.getAuth)(req).userId;
         const { data: meeting } = await supabase
             .from('meetings')
             .select('host_id')

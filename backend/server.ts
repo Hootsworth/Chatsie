@@ -4,7 +4,7 @@ import { Server, Socket } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { AccessToken } from 'livekit-server-sdk';
-import { clerkMiddleware, requireAuth } from '@clerk/express';
+import { clerkMiddleware, requireAuth, getAuth } from '@clerk/express';
 
 dotenv.config();
 
@@ -76,7 +76,7 @@ function generateRoomCode(): string {
 // LiveKit Token Generation Endpoint
 app.post('/api/livekit/token', requireAuth(), async (req, res) => {
   const { roomName, participantName } = req.body;
-  const participantIdentity = (req as any).auth.userId;
+  const participantIdentity = getAuth(req).userId;
 
   if (!roomName || !participantIdentity) {
     return res.status(400).json({ error: 'roomName and participantIdentity are required' });
@@ -108,7 +108,7 @@ app.post('/api/livekit/token', requireAuth(), async (req, res) => {
 // GET: List User's Scheduled Meetings
 app.get('/api/meetings', requireAuth(), async (req, res) => {
   try {
-    const userId = (req as any).auth.userId;
+    const userId = getAuth(req).userId;
     const listHistory = req.query.history === 'true';
 
     let query = supabase
@@ -137,7 +137,7 @@ app.get('/api/meetings', requireAuth(), async (req, res) => {
 // POST: Create a New Meeting
 app.post('/api/meetings', requireAuth(), async (req, res) => {
   try {
-    const userId = (req as any).auth.userId;
+    const userId = getAuth(req).userId;
     const { title, passcode, isWaitingRoomEnabled, scheduledStart, duration, code: customCode } = req.body;
 
     if (!title) {
@@ -232,7 +232,7 @@ app.get('/api/meetings/:code', async (req, res) => {
 app.post('/api/meetings/:code/chat', requireAuth(), async (req, res) => {
   try {
     const { code } = req.params;
-    const userId = (req as any).auth.userId;
+    const userId = getAuth(req).userId;
     const { message, senderName } = req.body;
 
     if (!message || !senderName) {
@@ -271,7 +271,7 @@ app.post('/api/meetings/:code/chat', requireAuth(), async (req, res) => {
 app.patch('/api/meetings/:code/close', requireAuth(), async (req, res) => {
   try {
     const { code } = req.params;
-    const userId = (req as any).auth.userId;
+    const userId = getAuth(req).userId;
 
     const { data: meeting } = await supabase
       .from('meetings')
