@@ -50,6 +50,7 @@ export const Dashboard: React.FC = () => {
   const [isWaitingRoomEnabled, setIsWaitingRoomEnabled] = useState(false);
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
   const [createMeetingError, setCreateMeetingError] = useState<string | null>(null);
+  const [instantMeetingError, setInstantMeetingError] = useState<string | null>(null);
 
   // Dark mode state
   const [darkMode, setDarkMode] = useState(() => {
@@ -122,6 +123,7 @@ export const Dashboard: React.FC = () => {
 
   // Handler to start an Instant Meeting
   const handleStartInstantMeeting = async () => {
+    setInstantMeetingError(null);
     try {
       const apiUrl = import.meta.env.VITE_API_URL;
       
@@ -145,15 +147,23 @@ export const Dashboard: React.FC = () => {
         })
       });
 
-      if (!response.ok) throw new Error('Failed to create instant meeting');
+      if (!response.ok) {
+        let errorMsg = 'Failed to create instant meeting';
+        try {
+          const errData = await response.json();
+          errorMsg = errData.error || errData.message || errorMsg;
+          if (errData.details) {
+            errorMsg += ` (${errData.details})`;
+          }
+        } catch (_) {}
+        throw new Error(errorMsg);
+      }
       
       const data = await response.json();
       navigate(`/room/${data.meeting.code}`);
     } catch (err: any) {
       console.error('Error starting instant meeting:', err);
-      // Fallback to random room if server error
-      const code = generateRoomCode();
-      navigate(`/room/${code}`);
+      setInstantMeetingError(err.message || 'Failed to start instant meeting. Please check server connection.');
     }
   };
 
@@ -299,6 +309,18 @@ export const Dashboard: React.FC = () => {
               <div className="flex items-center"><Shield className="w-4 h-4 mr-1.5" /> Direct P2P Encryption</div>
             </div>
           </div>
+
+          {instantMeetingError && (
+            <div className="bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/40 p-4 rounded-xl text-sm font-semibold flex items-center justify-between mb-4">
+              <span>{instantMeetingError}</span>
+              <button 
+                onClick={() => setInstantMeetingError(null)} 
+                className="text-xs underline hover:text-red-800 dark:hover:text-red-300 ml-4 font-normal"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
 
           {/* Quick Action Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

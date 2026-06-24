@@ -15,19 +15,52 @@ const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5001;
 app.use((0, cors_1.default)({
     origin: '*',
-    methods: ['GET', 'POST']
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS']
 }));
 app.use(express_1.default.json());
 // Basic health check endpoint
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', uptime: process.uptime() });
 });
+app.get('/api/test-supabase', async (req, res) => {
+    try {
+        const { data, error } = await supabase.from('meetings').select('*').limit(1);
+        if (error) {
+            return res.status(500).json({ error: 'Supabase query failed', details: error.message });
+        }
+        return res.json({ success: true, count: data?.length || 0 });
+    }
+    catch (err) {
+        return res.status(500).json({ error: 'Exception thrown', details: err.message });
+    }
+});
 // Setup Clerk globally for any authenticated routes
 app.use((0, express_2.clerkMiddleware)());
 const supabase_js_1 = require("@supabase/supabase-js");
+const ws_1 = __importDefault(require("ws"));
+const cross_fetch_1 = __importDefault(require("cross-fetch"));
+global.WebSocket = ws_1.default;
 const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = (0, supabase_js_1.createClient)(supabaseUrl, supabaseServiceKey);
+const supabaseServiceKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || '';
+let supabase;
+try {
+    supabase = (0, supabase_js_1.createClient)(supabaseUrl, supabaseServiceKey, {
+        auth: { persistSession: false },
+        global: { fetch: cross_fetch_1.default }
+    });
+}
+catch (err) {
+    console.error('FATAL ERROR: Failed to initialize Supabase Client. Check SUPABASE_URL formatting:', err.message);
+    // Create a dummy proxy that always rejects so the server doesn't crash on startup
+    supabase = {
+        from: () => ({
+            select: () => Promise.reject(new Error(`Supabase failed to initialize: ${err.message}`)),
+            insert: () => Promise.reject(new Error(`Supabase failed to initialize: ${err.message}`)),
+            update: () => Promise.reject(new Error(`Supabase failed to initialize: ${err.message}`)),
+            delete: () => Promise.reject(new Error(`Supabase failed to initialize: ${err.message}`))
+        })
+    };
+}
 function generateRoomCode() {
     const chars = 'abcdefghijklmnopqrstuvwxyz';
     const part1 = Array.from({ length: 3 }, () => chars[Math.floor(Math.random() * 26)]).join('');
@@ -90,13 +123,17 @@ app.get('/api/meetings', (0, express_2.requireAuth)(), async (req, res) => {
 app.post('/api/meetings', (0, express_2.requireAuth)(), async (req, res) => {
     try {
         const userId = req.auth.userId;
-        const { title, passcode, isWaitingRoomEnabled, scheduledStart, duration } = req.body;
+        const { title, passcode, isWaitingRoomEnabled, scheduledStart, duration, code: customCode } = req.body;
         if (!title) {
             return res.status(400).json({ error: 'Title is required' });
         }
-        let code = generateRoomCode();
+        let code = customCode || generateRoomCode();
         let isUnique = false;
         let checkAttempts = 0;
+        // Only check for uniqueness if we are generating a random code
+        if (customCode) {
+            isUnique = true;
+        }
         while (!isUnique && checkAttempts < 5) {
             const { data: existing } = await supabase
                 .from('meetings')
@@ -133,7 +170,96 @@ app.post('/api/meetings', (0, express_2.requireAuth)(), async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error', details: error.message });
     }
 });
-// POST: Verify Meeting Passcode
+// GET: Fetch Meeting by Code (and its chat history)
+app.get('/api/meetings/:code', async (req, res) => {
+    try {
+        const { code } = req.params;
+        const { data: meeting, error: dbError } = await supabase
+            .from('meetings')
+            .select('*')
+            .eq('code', code)
+            .maybeSingle();
+        if (dbError) {
+            return res.status(500).json({ error: 'Failed to query meeting', details: dbError.message });
+        }
+        if (!meeting) {
+            return res.status(404).json({ error: 'Meeting not found' });
+        }
+        // Load chat history
+        const { data: messages, error: msgError } = await supabase
+            .from('chat_messages')
+            .select('*')
+            .eq('meeting_id', meeting.id)
+            .order('created_at', { ascending: true });
+        if (msgError) {
+            console.error('Failed to fetch chat history:', msgError);
+        }
+        res.status(200).json({ meeting, messages: messages || [] });
+    }
+    catch (error) {
+        res.status(500).json({ error: 'Internal Server Error', details: error.message });
+    }
+});
+// POST: Insert Chat Message
+app.post('/api/meetings/:code/chat', (0, express_2.requireAuth)(), async (req, res) => {
+    try {
+        const { code } = req.params;
+        const userId = req.auth.userId;
+        const { message, senderName } = req.body;
+        if (!message || !senderName) {
+            return res.status(400).json({ error: 'Message and senderName are required' });
+        }
+        // First get the meeting ID
+        const { data: meeting } = await supabase
+            .from('meetings')
+            .select('id')
+            .eq('code', code)
+            .maybeSingle();
+        if (!meeting) {
+            return res.status(404).json({ error: 'Meeting not found' });
+        }
+        const { error } = await supabase
+            .from('chat_messages')
+            .insert({
+            meeting_id: meeting.id,
+            user_id: userId,
+            sender_name: senderName,
+            message
+        });
+        if (error) {
+            return res.status(500).json({ error: 'Failed to insert chat message', details: error.message });
+        }
+        res.status(201).json({ success: true });
+    }
+    catch (error) {
+        res.status(500).json({ error: 'Internal Server Error', details: error.message });
+    }
+});
+app.patch('/api/meetings/:code/close', (0, express_2.requireAuth)(), async (req, res) => {
+    try {
+        const { code } = req.params;
+        const userId = req.auth.userId;
+        const { data: meeting } = await supabase
+            .from('meetings')
+            .select('host_id')
+            .eq('code', code)
+            .maybeSingle();
+        if (!meeting || meeting.host_id !== userId) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+        const { error } = await supabase
+            .from('meetings')
+            .update({ is_active: false })
+            .eq('code', code);
+        if (error) {
+            return res.status(500).json({ error: 'Failed to close meeting', details: error.message });
+        }
+        res.status(200).json({ success: true });
+    }
+    catch (error) {
+        res.status(500).json({ error: 'Internal Server Error', details: error.message });
+    }
+});
 // We use clerkMiddleware() globally, so requireAuth is not added here so unauthenticated users can access it if needed (but currently they might need to sign in to access the room). 
 // Since requireAuth() is NOT passed here, it allows guests if we ever support them.
 app.post('/api/verify-passcode', async (req, res) => {
@@ -189,7 +315,7 @@ app.get('/api/turn-credentials', async (req, res) => {
             try {
                 const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Tokens.json`;
                 const auth = Buffer.from(`${twilioSid}:${twilioAuthToken}`).toString('base64');
-                const response = await fetch(endpoint, {
+                const response = await (0, cross_fetch_1.default)(endpoint, {
                     method: 'POST',
                     headers: { 'Authorization': `Basic ${auth}` }
                 });
