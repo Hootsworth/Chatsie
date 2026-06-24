@@ -23,6 +23,18 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', uptime: process.uptime() });
 });
 
+app.get('/api/test-supabase', async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('meetings').select('*').limit(1);
+    if (error) {
+      return res.status(500).json({ error: 'Supabase query failed', details: error.message });
+    }
+    return res.json({ success: true, count: data?.length || 0 });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Exception thrown', details: err.message });
+  }
+});
+
 // Setup Clerk globally for any authenticated routes
 app.use(clerkMiddleware());
 
