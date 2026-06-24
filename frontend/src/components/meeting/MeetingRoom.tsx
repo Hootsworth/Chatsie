@@ -722,10 +722,32 @@ export const MeetingRoom: React.FC = () => {
 // ----------------------------------------------------
 const PipCallView: React.FC<{ code: string; onClose: () => void }> = ({ code, onClose }) => {
   const { isMutedAudio, isMutedVideo, setAudioMute, setVideoMute } = useWebRTCStore();
-  const { localParticipant } = useLocalParticipant();
+  const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
+
+  // Local state to track toggling state instantly inside the PiP viewport
+  const [localMuteAudio, setLocalMuteAudio] = useState(
+    isMicrophoneEnabled !== undefined ? !isMicrophoneEnabled : isMutedAudio
+  );
+  const [localMuteVideo, setLocalMuteVideo] = useState(
+    isCameraEnabled !== undefined ? !isCameraEnabled : isMutedVideo
+  );
+
+  // Sync with actual track changes from the main window / SDK
+  useEffect(() => {
+    if (isMicrophoneEnabled !== undefined) {
+      setLocalMuteAudio(!isMicrophoneEnabled);
+    }
+  }, [isMicrophoneEnabled]);
+
+  useEffect(() => {
+    if (isCameraEnabled !== undefined) {
+      setLocalMuteVideo(!isCameraEnabled);
+    }
+  }, [isCameraEnabled]);
 
   const toggleAudio = () => {
-    const nextState = isMutedAudio; // if currently muted, next state is unmuted (true)
+    const nextState = localMuteAudio; // if currently muted (true), next state is unmuted (true)
+    setLocalMuteAudio(!nextState); // Instant visual feedback
     localParticipant?.setMicrophoneEnabled(nextState);
     setAudioMute(!nextState);
     if (code) {
@@ -734,7 +756,8 @@ const PipCallView: React.FC<{ code: string; onClose: () => void }> = ({ code, on
   };
 
   const toggleVideo = () => {
-    const nextState = isMutedVideo; // if currently muted, next state is unmuted (true)
+    const nextState = localMuteVideo; // if currently muted (true), next state is unmuted (true)
+    setLocalMuteVideo(!nextState); // Instant visual feedback
     localParticipant?.setCameraEnabled(nextState);
     setVideoMute(!nextState);
     if (code) {
@@ -752,25 +775,25 @@ const PipCallView: React.FC<{ code: string; onClose: () => void }> = ({ code, on
         <button
           onClick={toggleAudio}
           className={`p-2.5 rounded-xl transition-all duration-200 focus:outline-none cursor-pointer ${
-            isMutedAudio 
+            localMuteAudio 
               ? 'bg-red-600 hover:bg-red-700 text-white border border-transparent' 
               : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
           }`}
-          title={isMutedAudio ? 'Unmute Mic' : 'Mute Mic'}
+          title={localMuteAudio ? 'Unmute Mic' : 'Mute Mic'}
         >
-          {isMutedAudio ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+          {localMuteAudio ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
         </button>
 
         <button
           onClick={toggleVideo}
           className={`p-2.5 rounded-xl transition-all duration-200 focus:outline-none cursor-pointer ${
-            isMutedVideo 
+            localMuteVideo 
               ? 'bg-red-600 hover:bg-red-700 text-white border border-transparent' 
               : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
           }`}
-          title={isMutedVideo ? 'Start Video' : 'Stop Video'}
+          title={localMuteVideo ? 'Start Video' : 'Stop Video'}
         >
-          {isMutedVideo ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+          {localMuteVideo ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
         </button>
         
         <button
