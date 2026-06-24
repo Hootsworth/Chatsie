@@ -462,7 +462,7 @@ export const MeetingRoom: React.FC = () => {
           }
         } else if (!meetingRes.ok) {
           const errData = await meetingRes.json();
-          throw new Error(errData.error || 'Failed to connect to database.');
+          throw new Error((errData.error || 'Failed to connect to database.') + (errData.details ? ` (${errData.details})` : ''));
         } else {
           const data = await meetingRes.json();
           activeMeeting = data.meeting;
