@@ -28,6 +28,7 @@ app.use(clerkMiddleware());
 
 import { createClient } from '@supabase/supabase-js';
 import WebSocket from 'ws';
+import fetch from 'cross-fetch';
 
 (global as any).WebSocket = WebSocket;
 
@@ -36,6 +37,9 @@ const supabaseServiceKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABA
 const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     persistSession: false
+  },
+  global: {
+    fetch: fetch
   }
 });
 
