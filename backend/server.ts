@@ -29,14 +29,13 @@ app.use(clerkMiddleware());
 import { createClient } from '@supabase/supabase-js';
 import WebSocket from 'ws';
 
+(global as any).WebSocket = WebSocket;
+
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     persistSession: false
-  },
-  global: {
-    WebSocket: WebSocket as any
   }
 });
 
