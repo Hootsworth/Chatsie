@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useWebRTCStore } from '../../stores/webrtcStore';
-import { Camera, Mic, Volume2, Key } from 'lucide-react';
+import { Camera, Mic, Volume2, Key, Keyboard } from 'lucide-react';
 
 export const DeviceSelector: React.FC = () => {
   const {
@@ -12,7 +12,9 @@ export const DeviceSelector: React.FC = () => {
     selectedAudioOutput,
     setSelectedAudioInput,
     setSelectedVideoInput,
-    setSelectedAudioOutput
+    setSelectedAudioOutput,
+    isPushToTalkEnabled,
+    setPushToTalkEnabled
   } = useWebRTCStore();
 
   const [geminiApiKey, setGeminiApiKey] = useState('');
@@ -86,6 +88,26 @@ export const DeviceSelector: React.FC = () => {
           ))}
           {speakerDevices.length === 0 && <option value="">Default System Speaker</option>}
         </select>
+      </div>
+
+      {/* Push-to-Talk Option */}
+      <div className="space-y-1.5 pt-4 border-t border-hairline-soft">
+        <label className="text-xs font-semibold text-muted uppercase tracking-wider flex items-center">
+          <Keyboard className="w-3.5 h-3.5 mr-1.5 text-primary" />
+          Push-to-Talk Keyboard Shortcut
+        </label>
+        <div className="flex items-center space-x-2.5 mt-1">
+          <input
+            type="checkbox"
+            id="push-to-talk"
+            checked={isPushToTalkEnabled}
+            onChange={(e) => setPushToTalkEnabled(e.target.checked)}
+            className="rounded border-hairline text-primary focus:ring-primary w-4 h-4"
+          />
+          <label htmlFor="push-to-talk" className="text-xs text-ink font-semibold select-none cursor-pointer">
+            Hold Spacebar to unmute mic (Push-to-Talk)
+          </label>
+        </div>
       </div>
 
       {/* Gemini API Key */}

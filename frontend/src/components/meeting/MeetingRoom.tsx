@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useUser, useAuth } from '@clerk/clerk-react';
 import { useMeetingStore } from '../../stores/meetingStore';
@@ -7,8 +7,9 @@ import { useWebRTCStore } from '../../stores/webrtcStore';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 
 import { signalingClient } from '../../services/signaling';
-import { LiveKitRoom } from '@livekit/components-react';
+import { LiveKitRoom, useLocalParticipant } from '@livekit/components-react';
 import '@livekit/components-styles';
+import { createPortal } from 'react-dom';
 import { PasswordPrompt } from './PasswordPrompt';
 import { WaitingRoom } from './WaitingRoom';
 import { VideoGrid } from './VideoGrid';
@@ -19,7 +20,7 @@ import { TranscriptionPanel } from './TranscriptionPanel';
 import { ReactionOverlay } from './ReactionOverlay';
 import { Modal, Button } from '../ui';
 import { DeviceSelector } from './DeviceSelector';
-import { Copy, Check, Info, Users, Keyboard, Mic, MicOff, Video, VideoOff, Camera, User } from 'lucide-react';
+import { Copy, Check, Info, Users, Keyboard, Mic, MicOff, Video, VideoOff, Camera, User, ExternalLink } from 'lucide-react';
 
 export const MeetingRoom: React.FC = () => {
   const { code: rawCode } = useParams<{ code: string }>();
@@ -35,21 +36,13 @@ export const MeetingRoom: React.FC = () => {
     waitingStatus,
     isPasscodeGateRequired,
     isPasscodeGatePassed,
-    isChatPanelOpen,
-    isParticipantsPanelOpen,
-    isTranscriptionPanelOpen,
-    isSettingsOpen,
-    isShortcutsOpen,
     setCurrentMeeting,
     setMyRole,
     setWaitingStatus,
     setPasscodeGateRequired,
     setPasscodeGatePassed,
-    setSettingsOpen,
-    setShortcutsOpen,
     resetMeetingState,
-    setChatMessages,
-    addOrUpdateTranscript
+    setChatMessages
   } = useMeetingStore();
 
   const {
@@ -70,8 +63,6 @@ export const MeetingRoom: React.FC = () => {
 
   const [isLoadingMeeting, setIsLoadingMeeting] = useState(true);
   const [meetingError, setMeetingError] = useState<string | null>(null);
-  const [hasCopiedCode, setHasCopiedCode] = useState(false);
-  const [hasUnreadChat, setHasUnreadChat] = useState(false);
 
   // Pre-join Lobby states and refs
   const [isLobbyPassed, setIsLobbyPassed] = useState(() => {
@@ -350,74 +341,6 @@ export const MeetingRoom: React.FC = () => {
   // Speech Recognition hook for transcribing local mic inputs
   useSpeechRecognition(isMutedAudio, showCaptions);
 
-  // State to track active captions for all speakers
-  const [activeCaptions, setActiveCaptions] = useState<Record<string, { username: string; text: string; timestamp: number }>>({});
-
-  // State for floating emoji reactions
-  const [reactionList, setReactionList] = useState<Array<{ id: string; emoji: string }>>([]);
-
-  // Caption listener for remote speaker captions
-  useEffect(() => {
-    if (!shouldConnectWebRTC) return;
-
-    const handleCaption = ({ senderUserId, username, text, isFinal }: { senderUserId: string; username: string; text: string; isFinal: boolean }) => {
-      // 1. Update transient overlay captions
-      setActiveCaptions(prev => ({
-        ...prev,
-        [senderUserId]: {
-          username,
-          text,
-          timestamp: Date.now()
-        }
-      }));
-
-      // 2. Update persistent transcript log
-      addOrUpdateTranscript(senderUserId, username, text, isFinal);
-    };
-
-    signalingClient.on('caption', handleCaption);
-
-    // Setup interval to prune old captions after 5 seconds of silence
-    const interval = setInterval(() => {
-      const now = Date.now();
-      setActiveCaptions(prev => {
-        const next = { ...prev };
-        let changed = false;
-        Object.keys(next).forEach(key => {
-          if (now - next[key].timestamp > 5000) {
-            delete next[key];
-            changed = true;
-          }
-        });
-        return changed ? next : prev;
-      });
-    }, 1000);
-
-    return () => {
-      signalingClient.off('caption', handleCaption);
-      clearInterval(interval);
-    };
-  }, [shouldConnectWebRTC]);
-
-  // Reaction listener — listens for emoji reactions from all peers
-  useEffect(() => {
-    if (!shouldConnectWebRTC) return;
-
-    const handleReaction = ({ senderUserId, type }: { senderUserId: string; type: string }) => {
-      setReactionList(prev => [
-        ...prev,
-        { id: `${senderUserId}-${Date.now()}-${Math.random()}`, emoji: type }
-      ]);
-    };
-
-    signalingClient.on('reaction', handleReaction);
-    return () => {
-      signalingClient.off('reaction', handleReaction);
-    };
-  }, [shouldConnectWebRTC]);
-
-  // Keyboard shortcuts listener moved to MeetingControls
-
   // Load cached device mute state preferences on mount/code change
   useEffect(() => {
     if (!code) return;
@@ -534,16 +457,6 @@ export const MeetingRoom: React.FC = () => {
     loadMeeting();
   }, [code, user]);
 
-  // Handle incoming unread chat notification
-  useEffect(() => {
-    if (useMeetingStore.getState().chatMessages.length > 0 && !isChatPanelOpen) {
-      setHasUnreadChat(true);
-    }
-  }, [useMeetingStore.getState().chatMessages.length, isChatPanelOpen]);
-
-
-
-
   // Handle Leave Meeting
   const handleLeaveMeeting = async () => {
     const confirmLeave = window.confirm(
@@ -555,10 +468,8 @@ export const MeetingRoom: React.FC = () => {
     if (!confirmLeave) return;
 
     if (myRole === 'host') {
-      // Host closes room in signaling server
       const provider = import.meta.env.VITE_SIGNALING_PROVIDER || 'supabase';
       if (provider === 'socketio') {
-        // Kick everyone
         participants.forEach(p => {
           // @ts-ignore
           signalingClient.kickPeerInRoom(code || '', p.socketId);
@@ -569,7 +480,6 @@ export const MeetingRoom: React.FC = () => {
         });
       }
 
-      // Close room in db
       try {
         const backendUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || 'http://localhost:5001';
         let token = null;
@@ -585,7 +495,6 @@ export const MeetingRoom: React.FC = () => {
       }
     }
 
-    // Stop streams & clean up
     if (code) {
       sessionStorage.removeItem(`lobby_passed_${code}`);
       sessionStorage.removeItem(`passcode_passed_${code}`);
@@ -594,12 +503,6 @@ export const MeetingRoom: React.FC = () => {
     resetWebRTCState();
     resetMeetingState();
     navigate('/');
-  };
-
-  const handleCopyRoomLink = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setHasCopiedCode(true);
-    setTimeout(() => setHasCopiedCode(false), 2000);
   };
 
   // 1. Loading State
@@ -655,7 +558,6 @@ export const MeetingRoom: React.FC = () => {
     return (
       <div className="min-h-screen bg-canvas text-body font-sans transition-colors duration-200 flex items-center justify-center p-4">
         <div className="max-w-4xl w-full bg-surface-card border border-hairline rounded-2xl shadow-sm p-6 md:p-10 space-y-8">
-          {/* Header */}
           <div className="text-center space-y-2">
             <h1 className="text-4xl font-serif text-ink tracking-tight font-normal leading-tight">
               Ready to join?
@@ -666,7 +568,6 @@ export const MeetingRoom: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-            {/* Left: Video Preview & Onscreen toggles */}
             <div className="space-y-4">
               <div className="relative aspect-video rounded-xl bg-surface-dark overflow-hidden border border-hairline flex items-center justify-center shadow-inner">
                 {lobbyStream && !isMutedVideo ? (
@@ -688,7 +589,6 @@ export const MeetingRoom: React.FC = () => {
                   </div>
                 )}
 
-                {/* On-screen mic/video indicators */}
                 <div className="absolute bottom-3 left-3 flex items-center space-x-2 z-10">
                   <div className={`p-1.5 rounded-lg border text-white backdrop-blur-sm ${
                     isMutedAudio ? 'bg-red-500/80 border-red-400/30' : 'bg-black/40 border-white/10'
@@ -703,7 +603,6 @@ export const MeetingRoom: React.FC = () => {
                 </div>
               </div>
 
-              {/* Toggles */}
               <div className="flex justify-center space-x-4">
                 <button
                   onClick={handleToggleLobbyAudio}
@@ -731,7 +630,6 @@ export const MeetingRoom: React.FC = () => {
               </div>
             </div>
 
-            {/* Right: Device configurations & Join CTA */}
             <div className="space-y-6 flex flex-col justify-between h-full min-h-[220px]">
               <div className="space-y-4">
                 <div className="bg-surface-soft border border-hairline/60 rounded-xl p-4">
@@ -788,8 +686,7 @@ export const MeetingRoom: React.FC = () => {
     );
   }
 
-  // 5. Active Call Room Layout
-  // If we should connect but don't have the token yet, show a loader
+  // 6. Active Call Room Layout
   if (shouldConnectWebRTC && !liveKitToken) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface-dark text-on-dark-soft">
@@ -814,8 +711,351 @@ export const MeetingRoom: React.FC = () => {
       className="h-screen w-screen overflow-hidden bg-surface-dark text-on-dark"
       style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column' }}
     >
-      <div className="h-full w-full flex flex-col overflow-hidden font-sans transition-colors duration-200">
+      <ActiveRoomContent
+        code={code || ''}
+        user={user}
+        currentMeeting={currentMeeting}
+        handleLeaveMeeting={handleLeaveMeeting}
+      />
+    </LiveKitRoom>
+  );
+};
+
+// ----------------------------------------------------
+// PIP MINI PORTAL COMPONENT
+// ----------------------------------------------------
+const PipCallView: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const { setAudioMute, setVideoMute } = useWebRTCStore();
+  const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
+
+  const toggleAudio = () => {
+    const nextState = !isMicrophoneEnabled;
+    localParticipant?.setMicrophoneEnabled(nextState);
+    setAudioMute(!nextState);
+  };
+
+  const toggleVideo = () => {
+    const nextState = !isCameraEnabled;
+    localParticipant?.setCameraEnabled(nextState);
+    setVideoMute(!nextState);
+  };
+
+  return (
+    <div className="h-screen w-screen flex flex-col justify-between p-3 bg-surface-dark text-white overflow-hidden font-sans">
+      <div className="flex-grow flex items-center justify-center min-h-0 bg-surface-dark-elevated rounded-xl border border-white/5 overflow-hidden relative">
+        <VideoGrid />
+      </div>
+
+      <div className="flex items-center justify-center space-x-3.5 mt-2.5">
+        <button
+          onClick={toggleAudio}
+          className={`p-2.5 rounded-xl transition-all duration-200 focus:outline-none cursor-pointer ${
+            !isMicrophoneEnabled 
+              ? 'bg-red-600 hover:bg-red-700 text-white border border-transparent' 
+              : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
+          }`}
+          title={!isMicrophoneEnabled ? 'Unmute Mic' : 'Mute Mic'}
+        >
+          {!isMicrophoneEnabled ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+        </button>
+
+        <button
+          onClick={toggleVideo}
+          className={`p-2.5 rounded-xl transition-all duration-200 focus:outline-none cursor-pointer ${
+            !isCameraEnabled 
+              ? 'bg-red-600 hover:bg-red-700 text-white border border-transparent' 
+              : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
+          }`}
+          title={!isCameraEnabled ? 'Start Video' : 'Stop Video'}
+        >
+          {!isCameraEnabled ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+        </button>
         
+        <button
+          onClick={onClose}
+          className="p-2.5 bg-surface-dark-soft hover:bg-surface-dark text-on-dark-soft border border-white/10 rounded-xl cursor-pointer"
+          title="Return to Tab"
+        >
+          <ExternalLink className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ----------------------------------------------------
+// ACTIVE ROOM CONTENT CONTAINER (NESTS INSIDE LIVEKITROOM)
+// ----------------------------------------------------
+const ActiveRoomContent: React.FC<{
+  code: string;
+  user: any;
+  currentMeeting: any;
+  handleLeaveMeeting: () => void;
+}> = ({ code, user, currentMeeting, handleLeaveMeeting }) => {
+  const {
+    participants,
+    isChatPanelOpen,
+    isParticipantsPanelOpen,
+    isTranscriptionPanelOpen,
+    isSettingsOpen,
+    isShortcutsOpen,
+    setSettingsOpen,
+    setShortcutsOpen,
+    addOrUpdateTranscript
+  } = useMeetingStore();
+
+  const {
+    isMutedAudio,
+    setAudioMute,
+    isPushToTalkEnabled,
+    showCaptions
+  } = useWebRTCStore();
+
+  const { localParticipant, isMicrophoneEnabled } = useLocalParticipant();
+  const [hasCopiedCode, setHasCopiedCode] = useState(false);
+  const [hasUnreadChat, setHasUnreadChat] = useState(false);
+
+  // State to track active captions for all speakers
+  const [activeCaptions, setActiveCaptions] = useState<Record<string, { username: string; text: string; timestamp: number }>>({});
+
+  // State for floating emoji reactions
+  const [reactionList, setReactionList] = useState<Array<{ id: string; emoji: string }>>([]);
+
+  // Caption listener for remote speaker captions
+  useEffect(() => {
+    const handleCaption = ({ senderUserId, username, text, isFinal }: { senderUserId: string; username: string; text: string; isFinal: boolean }) => {
+      setActiveCaptions(prev => ({
+        ...prev,
+        [senderUserId]: {
+          username,
+          text,
+          timestamp: Date.now()
+        }
+      }));
+      addOrUpdateTranscript(senderUserId, username, text, isFinal);
+    };
+
+    signalingClient.on('caption', handleCaption);
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      setActiveCaptions(prev => {
+        const next = { ...prev };
+        let changed = false;
+        Object.keys(next).forEach(key => {
+          if (now - next[key].timestamp > 5000) {
+            delete next[key];
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    }, 1000);
+
+    return () => {
+      signalingClient.off('caption', handleCaption);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Reaction listener — listens for emoji reactions from all peers
+  useEffect(() => {
+    const handleReaction = ({ senderUserId, type }: { senderUserId: string; type: string }) => {
+      setReactionList(prev => [
+        ...prev,
+        { id: `${senderUserId}-${Date.now()}-${Math.random()}`, emoji: type }
+      ]);
+    };
+
+    signalingClient.on('reaction', handleReaction);
+    return () => {
+      signalingClient.off('reaction', handleReaction);
+    };
+  }, []);
+
+  // Handle incoming unread chat notification
+  useEffect(() => {
+    if (useMeetingStore.getState().chatMessages.length > 0 && !isChatPanelOpen) {
+      setHasUnreadChat(true);
+    }
+  }, [useMeetingStore.getState().chatMessages.length, isChatPanelOpen]);
+
+  const handleCopyRoomLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setHasCopiedCode(true);
+    setTimeout(() => setHasCopiedCode(false), 2000);
+  };
+
+  // ----------------------------------------------------
+  // Typing while muted suggestion feature
+  // ----------------------------------------------------
+  const [showMuteSuggestion, setShowMuteSuggestion] = useState(false);
+  const muteSuggestionTimeoutRef = useRef<any>(null);
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === 'INPUT';
+      const isPassword = isInput && (target as HTMLInputElement).type === 'password';
+      const isTyping = (isInput && !isPassword) || target.tagName === 'TEXTAREA' || target.contentEditable === 'true';
+      
+      if (isTyping && isMutedAudio) {
+        setShowMuteSuggestion(true);
+
+        if (muteSuggestionTimeoutRef.current) {
+          clearTimeout(muteSuggestionTimeoutRef.current);
+        }
+        muteSuggestionTimeoutRef.current = setTimeout(() => {
+          setShowMuteSuggestion(false);
+        }, 3000);
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown);
+      if (muteSuggestionTimeoutRef.current) {
+        clearTimeout(muteSuggestionTimeoutRef.current);
+      }
+    };
+  }, [isMutedAudio]);
+
+  // ----------------------------------------------------
+  // Push-to-Talk (Hold Space) Feature
+  // ----------------------------------------------------
+  const isHoldingSpaceRef = useRef(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isPushToTalkEnabled) return;
+      if (e.key !== ' ' && e.code !== 'Space') return;
+      if (e.repeat) return; // Ignore repeat events
+
+      const target = e.target as HTMLElement;
+      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true';
+      if (isTyping) return;
+
+      e.preventDefault(); // Stop page scrolling
+
+      // If currently muted
+      if (!isMicrophoneEnabled) {
+        localParticipant?.setMicrophoneEnabled(true);
+        setAudioMute(false);
+        isHoldingSpaceRef.current = true;
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (!isPushToTalkEnabled) return;
+      if (e.key !== ' ' && e.code !== 'Space') return;
+
+      if (isHoldingSpaceRef.current) {
+        localParticipant?.setMicrophoneEnabled(false);
+        setAudioMute(true);
+        isHoldingSpaceRef.current = false;
+        
+        if (code) {
+          sessionStorage.setItem(`meeting_audio_muted_${code}`, 'true');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [isPushToTalkEnabled, isMicrophoneEnabled, localParticipant, code]);
+
+  // ----------------------------------------------------
+  // Document Picture-in-Picture (PiP) Feature
+  // ----------------------------------------------------
+  const [pipWindow, setPipWindow] = useState<any>(null);
+  const [pipContainer, setPipContainer] = useState<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (!('documentPictureInPicture' in window)) return;
+      const pipApi = (window as any).documentPictureInPicture;
+
+      if (document.visibilityState === 'hidden') {
+        if (pipApi.window) return;
+
+        try {
+          const w = await pipApi.requestWindow({
+            width: 340,
+            height: 300,
+          });
+
+          // Copy styles
+          const allStyleSheets = Array.from(document.styleSheets);
+          allStyleSheets.forEach((styleSheet) => {
+            try {
+              if (styleSheet.cssRules) {
+                const newStyleEl = w.document.createElement('style');
+                const cssTexts = Array.from(styleSheet.cssRules)
+                  .map((rule) => rule.cssText)
+                  .join('\n');
+                newStyleEl.appendChild(w.document.createTextNode(cssTexts));
+                w.document.head.appendChild(newStyleEl);
+              }
+            } catch (e) {
+              if (styleSheet.href) {
+                const newLinkEl = w.document.createElement('link');
+                newLinkEl.rel = 'stylesheet';
+                newLinkEl.href = styleSheet.href;
+                w.document.head.appendChild(newLinkEl);
+              }
+            }
+          });
+
+          // Theme setting
+          if (document.documentElement.classList.contains('dark')) {
+            w.document.documentElement.classList.add('dark');
+            w.document.body.classList.add('dark', 'bg-surface-dark');
+          } else {
+            w.document.body.classList.add('bg-canvas');
+          }
+
+          const container = w.document.createElement('div');
+          container.id = 'pip-root';
+          container.style.height = '100%';
+          container.style.width = '100%';
+          w.document.body.appendChild(container);
+
+          setPipWindow(w);
+          setPipContainer(container);
+
+          w.addEventListener('pagehide', () => {
+            setPipWindow(null);
+            setPipContainer(null);
+          });
+        } catch (err) {
+          console.error('Failed to open Document Picture-in-Picture:', err);
+        }
+      } else {
+        if (pipApi.window) {
+          pipApi.window.close();
+          setPipWindow(null);
+          setPipContainer(null);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      const pipApi = (window as any).documentPictureInPicture;
+      if (pipApi?.window) {
+        pipApi.window.close();
+      }
+    };
+  }, []);
+
+  return (
+    <div className="h-full w-full flex flex-col overflow-hidden font-sans transition-colors duration-200">
+      
       {/* Floating Emoji Reaction Overlay */}
       <ReactionOverlay reactions={reactionList} />
       
@@ -830,7 +1070,7 @@ export const MeetingRoom: React.FC = () => {
             <span>{code}</span>
             <button
               onClick={handleCopyRoomLink}
-              className="p-0.5 hover:text-primary rounded transition-colors"
+              className="p-0.5 hover:text-primary rounded transition-colors cursor-pointer"
               title="Copy meeting link"
             >
               {hasCopiedCode ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
@@ -841,7 +1081,7 @@ export const MeetingRoom: React.FC = () => {
         <div className="flex items-center space-x-3.5 text-xs font-bold text-on-dark-soft">
           <button
             onClick={() => setShortcutsOpen(true)}
-            className="flex items-center space-x-1 hover:text-on-dark p-1 rounded-md hover:bg-surface-dark-soft transition-all"
+            className="flex items-center space-x-1 hover:text-on-dark p-1 rounded-md hover:bg-surface-dark-soft transition-all cursor-pointer"
             title="Keyboard Shortcuts"
           >
             <Keyboard className="w-4 h-4" />
@@ -908,6 +1148,30 @@ export const MeetingRoom: React.FC = () => {
         markChatRead={() => setHasUnreadChat(false)}
       />
 
+      {/* Muted typing suggestion banner */}
+      {showMuteSuggestion && (
+        <div className="absolute bottom-24 left-6 z-40 bg-primary border border-primary/20 text-white px-4 py-3 rounded-xl shadow-xl flex items-center space-x-2.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <MicOff className="w-4 h-4 text-white/90" />
+          <div className="flex flex-col">
+            <span className="text-xs font-bold text-white">Your mic is muted</span>
+            <span className="text-[10px] text-white/85">Would you like to unmute to speak?</span>
+          </div>
+          <button
+            onClick={() => {
+              localParticipant?.setMicrophoneEnabled(true);
+              setAudioMute(false);
+              if (code) {
+                sessionStorage.setItem(`meeting_audio_muted_${code}`, 'false');
+              }
+              setShowMuteSuggestion(false);
+            }}
+            className="ml-2 px-2.5 py-1 bg-white text-primary text-[10px] font-black rounded-lg hover:bg-white/90 transition-all cursor-pointer"
+          >
+            Unmute
+          </button>
+        </div>
+      )}
+
       {/* DEVICE CONFIG MODAL */}
       <Modal
         isOpen={isSettingsOpen}
@@ -956,8 +1220,16 @@ export const MeetingRoom: React.FC = () => {
           <Button onClick={() => setShortcutsOpen(false)}>Close</Button>
         </div>
       </Modal>
-      </div>
-    </LiveKitRoom>
+
+      {/* RENDER PICTURE IN PICTURE PORTAL */}
+      {pipContainer && createPortal(
+        <PipCallView onClose={() => {
+          if (pipWindow) pipWindow.close();
+        }} />,
+        pipContainer
+      )}
+    </div>
   );
 };
+
 export default MeetingRoom;

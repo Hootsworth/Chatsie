@@ -21,6 +21,10 @@ interface WebRTCState {
   selectedVideoInput: string;
   selectedAudioOutput: string;
 
+  // Push-to-Talk settings
+  isPushToTalkEnabled: boolean;
+  setPushToTalkEnabled: (enabled: boolean) => void;
+
   // Actions
   setAudioMute: (isMuted: boolean) => void;
   setVideoMute: (isMuted: boolean) => void;
@@ -56,6 +60,7 @@ export const useWebRTCStore = create<WebRTCState>((set) => ({
   isMutedAudio: cachedAudioMute,
   isMutedVideo: cachedVideoMute,
   showCaptions: false,
+  isPushToTalkEnabled: localStorage.getItem('push_to_talk_enabled') === 'true',
   
   audioDevices: [],
   videoDevices: [],
@@ -64,6 +69,11 @@ export const useWebRTCStore = create<WebRTCState>((set) => ({
   selectedAudioInput: '',
   selectedVideoInput: '',
   selectedAudioOutput: '',
+
+  setPushToTalkEnabled: (enabled) => {
+    localStorage.setItem('push_to_talk_enabled', String(enabled));
+    set({ isPushToTalkEnabled: enabled });
+  },
 
   setAudioMute: (isMuted) => set({ isMutedAudio: isMuted }),
   setVideoMute: (isMuted) => set({ isMutedVideo: isMuted }),
