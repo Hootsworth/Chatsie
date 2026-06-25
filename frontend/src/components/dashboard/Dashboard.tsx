@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import logo from '../../assets/logo.png';
 import { useUser, UserButton, useAuth } from '@clerk/clerk-react';
 import { Button, Input, Card, Modal, Badge } from '../ui';
 import {
@@ -263,12 +264,9 @@ export const Dashboard: React.FC = () => {
       
       {/* Top Navbar */}
       <header className="sticky top-0 z-40 bg-canvas/90 border-b border-hairline px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          {/* Signature Anthropic radial spike prefix */}
-          <svg viewBox="0 0 24 24" className="w-6 h-6 text-primary fill-current">
-            <path d="M12,2 C12.5,7.5 16.5,11.5 22,12 C16.5,12.5 12.5,16.5 12,22 C11.5,16.5 7.5,12.5 2,12 C7.5,11.5 11.5,7.5 12,2 Z" />
-          </svg>
-          <span className="text-2xl font-serif font-normal tracking-tight text-ink">VMeet</span>
+        <div className="flex items-center space-x-3">
+          <img src={logo} alt="Chatsie Logo" className="w-8 h-8 rounded-lg object-contain" />
+          <span className="text-2xl font-serif font-normal tracking-tight text-ink">Chatsie</span>
         </div>
 
         <div className="flex items-center space-x-4">
