@@ -249,7 +249,7 @@ export const Dashboard: React.FC = () => {
             <div className="space-y-4">
               {isLoadingMeetings ? <p className="text-body-sm">Loading...</p> : 
                upcomingMeetings.length === 0 ? <p className="text-body-sm">No upcoming meetings.</p> :
-               upcomingMeetings.map((mtg) => (
+               upcomingMeetings.slice(0, 1).map((mtg) => (
                  <div key={mtg.id} className="bg-canvas rounded-lg p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
                    <div>
                      <h3 className="text-card-title">{mtg.title}</h3>
