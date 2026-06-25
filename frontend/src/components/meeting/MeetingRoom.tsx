@@ -303,6 +303,33 @@ export const MeetingRoom: React.FC = () => {
   const [activeRoomName, setActiveRoomName] = useState(code);
   const [liveKitToken, setLiveKitToken] = useState<string | null>(null);
 
+  const customRoom = React.useMemo(() => {
+    if (!liveKitToken) return null;
+    const options: any = {
+      adaptiveStream: true,
+      dynacast: true,
+      publishDefaults: {
+        simulcast: true,
+      },
+    };
+
+    if (isE2eeEnabled) {
+      const keyProvider = new ExternalE2EEKeyProvider();
+      options.encryption = {
+        keyProvider,
+        worker: new Worker(new URL('livekit-client/e2ee-worker', import.meta.url), { type: 'module' }),
+      };
+      const encryptionKey = currentMeeting?.passcode || code || 'default-key';
+      keyProvider.setKey(encryptionKey);
+    }
+
+    const r = new Room(options);
+    if (isE2eeEnabled) {
+      r.setE2EEEnabled(true);
+    }
+    return r;
+  }, [isE2eeEnabled, code, currentMeeting?.passcode, liveKitToken]);
+
   useEffect(() => {
     setActiveRoomName(code);
   }, [code]);
@@ -814,33 +841,6 @@ export const MeetingRoom: React.FC = () => {
       </div>
     );
   }
-
-  const customRoom = React.useMemo(() => {
-    if (!liveKitToken) return null;
-    const options: any = {
-      adaptiveStream: true,
-      dynacast: true,
-      publishDefaults: {
-        simulcast: true,
-      },
-    };
-
-    if (isE2eeEnabled) {
-      const keyProvider = new ExternalE2EEKeyProvider();
-      options.encryption = {
-        keyProvider,
-        worker: new Worker(new URL('livekit-client/e2ee-worker', import.meta.url), { type: 'module' }),
-      };
-      const encryptionKey = currentMeeting?.passcode || code || 'default-key';
-      keyProvider.setKey(encryptionKey);
-    }
-
-    const r = new Room(options);
-    if (isE2eeEnabled) {
-      r.setE2EEEnabled(true);
-    }
-    return r;
-  }, [isE2eeEnabled, code, currentMeeting?.passcode, liveKitToken]);
 
   return (
     <LiveKitRoom
