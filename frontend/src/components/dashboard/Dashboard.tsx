@@ -42,6 +42,9 @@ export const Dashboard: React.FC = () => {
   const [instantMeetingError, setInstantMeetingError] = useState<string | null>(null);
   const [scheduledMeetingResult, setScheduledMeetingResult] = useState<ScheduledMeeting | null>(null);
   const [isResultCopied, setIsResultCopied] = useState(false);
+  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+  const [isJobsModalOpen, setIsJobsModalOpen] = useState(false);
 
   // Helper to fetch authorization header
   const getAuthHeader = async (): Promise<Record<string, string>> => {
@@ -324,9 +327,51 @@ export const Dashboard: React.FC = () => {
       </main>
 
       {/* FOOTER */}
-      <footer className="bg-canvas text-caption px-[32px] py-[64px] border-t border-hairline-soft flex justify-between">
-        <span>FIGMA MARKETING SYSTEM REPLICA</span>
-        <span>CHATSIE INC</span>
+      <footer className="bg-[#eaeaea] border-t border-hairline py-12 px-8 mt-12 rounded-t-xl">
+        <div className="max-w-[1280px] mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2">
+              <span className="text-body-sm font-bold text-ink">Chatsie</span>
+              <span className="text-caption text-ink/40">•</span>
+              <span className="text-caption text-ink/60">Made with love</span>
+            </div>
+            <p className="text-caption text-ink/50">
+              made by{' '}
+              <a 
+                href="https://singulr.tech" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="hover:underline font-bold text-ink"
+              >
+                singulr<span className="text-[#ff3d8b]">.</span>tech
+              </a>
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-x-6 gap-y-2 text-caption font-bold text-ink/75">
+            <button 
+              type="button"
+              onClick={() => setIsPrivacyModalOpen(true)} 
+              className="hover:text-ink cursor-pointer"
+            >
+              Privacy Policy
+            </button>
+            <button 
+              type="button"
+              onClick={() => setIsTermsModalOpen(true)} 
+              className="hover:text-ink cursor-pointer"
+            >
+              Terms & Conditions
+            </button>
+            <button 
+              type="button"
+              onClick={() => setIsJobsModalOpen(true)} 
+              className="hover:text-ink cursor-pointer"
+            >
+              Open Jobs
+            </button>
+          </div>
+        </div>
       </footer>
 
       {/* SCHEDULE MODAL */}
@@ -423,6 +468,101 @@ export const Dashboard: React.FC = () => {
             </div>
           </form>
         )}
+      </Modal>
+
+      {/* PRIVACY POLICY MODAL */}
+      <Modal isOpen={isPrivacyModalOpen} onClose={() => setIsPrivacyModalOpen(false)} title="Privacy Policy">
+        <div className="space-y-4 py-2 text-body-sm text-ink/80 leading-relaxed max-h-[60vh] overflow-y-auto pr-2">
+          <p className="font-bold text-ink text-body-default">Last Updated: June 25, 2026</p>
+          <p>
+            At Chatsie, your privacy is our core priority. This Privacy Policy details how we collect, use, and safeguard your personal information when you use our service.
+          </p>
+          <div>
+            <h4 className="font-bold text-ink mb-1">1. Information We Collect</h4>
+            <p>
+              We collect minimal information to operate the platform securely:
+            </p>
+            <ul className="list-disc pl-5 mt-1 space-y-1">
+              <li><strong>Account Credentials:</strong> Name and email address provided during Clerk sign-in.</li>
+              <li><strong>Meeting Metadata:</strong> Room titles, passcodes, and scheduling metadata.</li>
+              <li><strong>Temporary State:</strong> Interactive polls, whiteboard drawings, and Q&A logs are stored temporarily in transient memory to coordinate active calls.</li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-bold text-ink mb-1">2. Media and Stream Data</h4>
+            <p>
+              Your real-time audio and video feeds are transmitted directly through live WebRTC connections (facilitated securely via LiveKit servers). Chatsie does not record, log, or store your voice, video streams, or screen shares on our servers.
+            </p>
+          </div>
+          <div>
+            <h4 className="font-bold text-ink mb-1">3. AI Transcription</h4>
+            <p>
+              Live meeting transcriptions generated via Gemini AI are processed client-side using your custom Gemini API key. Transcription text is streamed directly through WebRTC to local session participants and is not stored or collected on our backend.
+            </p>
+          </div>
+          <div>
+            <h4 className="font-bold text-ink mb-1">4. Data Retention and Erasure</h4>
+            <p>
+              All room state, including chat transcripts, live questions, and poll data, is automatically purged from memory immediately when the meeting room session is terminated.
+            </p>
+          </div>
+          <div className="flex justify-end pt-4 border-t border-hairline mt-4">
+            <Button onClick={() => setIsPrivacyModalOpen(false)} variant="primary">Close</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* TERMS & CONDITIONS MODAL */}
+      <Modal isOpen={isTermsModalOpen} onClose={() => setIsTermsModalOpen(false)} title="Terms & Conditions">
+        <div className="space-y-4 py-2 text-body-sm text-ink/80 leading-relaxed max-h-[60vh] overflow-y-auto pr-2">
+          <p className="font-bold text-ink text-body-default">Last Updated: June 25, 2026</p>
+          <p>
+            Welcome to Chatsie. By accessing or using our platform, you agree to comply with and be bound by the following Terms & Conditions.
+          </p>
+          <div>
+            <h4 className="font-bold text-ink mb-1">1. Acceptance of Terms</h4>
+            <p>
+              These terms govern your access to Chatsie. If you do not agree with any part of these terms, you must immediately cease using the platform.
+            </p>
+          </div>
+          <div>
+            <h4 className="font-bold text-ink mb-1">2. Permitted Use</h4>
+            <p>
+              You agree to use Chatsie only for lawful, collaborative communication. You are prohibited from sending spam, transmitting malware, harassing other call participants, or attempting to compromise connection security.
+            </p>
+          </div>
+          <div>
+            <h4 className="font-bold text-ink mb-1">3. Moderation and Host Authority</h4>
+            <p>
+              Meeting hosts and moderators retain absolute authority over their sessions. Hosts can approve or deny admission, mute any participant, and kick or ban individuals from the meeting room.
+            </p>
+          </div>
+          <div>
+            <h4 className="font-bold text-ink mb-1">4. Disclaimer of Warranties</h4>
+            <p>
+              Chatsie is provided "as is" and "as available" without warranties of any kind, either express or implied, including warranties of uptime, merchantability, or fitness for a particular purpose.
+            </p>
+          </div>
+          <div className="flex justify-end pt-4 border-t border-hairline mt-4">
+            <Button onClick={() => setIsTermsModalOpen(false)} variant="primary">Close</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* OPEN JOBS MODAL */}
+      <Modal isOpen={isJobsModalOpen} onClose={() => setIsJobsModalOpen(false)} title="Open Jobs">
+        <div className="space-y-4 py-2 text-body-sm text-ink/80 leading-relaxed">
+          <p className="font-bold text-ink">Currently, there are no open positions at Chatsie.</p>
+          <p>
+            Chatsie is built and maintained by a small, hyper-efficient team at singulr.tech. We do not have any active openings or internship opportunities at this time.
+          </p>
+          <p>
+            Please check back in the future, or follow our work on GitHub to stay updated with potential developer opportunities.
+          </p>
+          <div className="flex justify-end pt-4 border-t border-hairline mt-4">
+            <Button onClick={() => setIsJobsModalOpen(false)} variant="primary">Close</Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
