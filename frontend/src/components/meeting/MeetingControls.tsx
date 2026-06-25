@@ -107,7 +107,7 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
   };
 
   return (
-    <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 bg-canvas border border-hairline px-6 py-3 flex items-center justify-between text-ink select-none z-30 rounded-pill shadow-sm transition-all duration-300 hover:scale-[1.01] hover:bg-surface-dark-elevated/85 ${className}`}>
+    <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-3xl border border-white/10 px-6 py-3 flex items-center justify-between text-white select-none z-30 rounded-full shadow-2xl transition-all duration-300 hover:scale-[1.01] hover:bg-surface-dark-elevated/85 ${className}`}>
       
       {/* Left section: Info */}
       <div className="hidden lg:flex items-center space-x-1 text-[10px] uppercase font-bold tracking-wider text-emerald-500 mr-2 flex-shrink-0">
@@ -124,7 +124,7 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
           className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
             !isMicrophoneEnabled 
               ? 'bg-red-500 hover:bg-red-600 text-white' 
-              : 'bg-canvas border border-hairline text-ink hover:bg-block-cream'
+              : 'bg-white/10 border border-white/10 text-white hover:bg-white/20'
           }`}
           title={!isMicrophoneEnabled ? 'Unmute Mic' : 'Mute Mic'}
         >
@@ -137,7 +137,7 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
           className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
             !isCameraEnabled 
               ? 'bg-red-500 hover:bg-red-600 text-white' 
-              : 'bg-canvas border border-hairline text-ink hover:bg-block-cream'
+              : 'bg-white/10 border border-white/10 text-white hover:bg-white/20'
           }`}
           title={!isCameraEnabled ? 'Start Video' : 'Stop Video'}
         >
@@ -150,7 +150,7 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
           className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
             isScreenShareEnabled 
               ? 'bg-primary hover:bg-primary-active text-white' 
-              : 'bg-canvas border border-hairline text-ink hover:bg-block-cream'
+              : 'bg-white/10 border border-white/10 text-white hover:bg-white/20'
           }`}
           title={isScreenShareEnabled ? 'Stop Screen Sharing' : 'Share Screen'}
         >
@@ -163,7 +163,7 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
           className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
             isLocalHandRaised 
               ? 'bg-amber-500 hover:bg-amber-600 text-white' 
-              : 'bg-canvas border border-hairline text-ink hover:bg-block-cream'
+              : 'bg-white/10 border border-white/10 text-white hover:bg-white/20'
           }`}
           title={isLocalHandRaised ? 'Lower Hand' : 'Raise Hand'}
         >
@@ -177,7 +177,7 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
             className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
               isReactionPickerOpen 
                 ? 'bg-primary hover:bg-primary-active text-white' 
-                : 'bg-canvas border border-hairline text-ink hover:bg-block-cream'
+                : 'bg-white/10 border border-white/10 text-white hover:bg-white/20'
             }`}
             title="Send Reaction"
           >
@@ -186,7 +186,7 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
 
           {/* Popover emoji picker */}
           {isReactionPickerOpen && (
-            <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 bg-canvas border border-hairline rounded-lg p-2.5 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-200 z-50">
+            <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-2xl text-white p-2.5 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-200 z-50">
               <div className="flex items-center space-x-1.5">
                 {REACTION_EMOJIS.map((emoji) => (
                   <button
@@ -209,7 +209,7 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
           className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
             showCaptions 
               ? 'bg-primary hover:bg-primary-active text-white' 
-              : 'bg-canvas border border-hairline text-ink hover:bg-block-cream'
+              : 'bg-white/10 border border-white/10 text-white hover:bg-white/20'
           }`}
           title={showCaptions ? 'Hide Captions' : 'Show Captions'}
         >
@@ -234,8 +234,8 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
           onClick={handleToggleChat}
           className={`p-2.5 rounded-lg transition-all relative ${
             isChatPanelOpen 
-              ? 'bg-block-lime border border-hairline text-ink' 
-              : 'hover:bg-block-cream text-ink'
+              ? 'bg-white/20 border border-white/20 text-white' 
+              : 'hover:bg-white/10 text-white/80 hover:text-white'
           }`}
           title="Meeting Chat"
         >
@@ -250,13 +250,13 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
           onClick={toggleParticipantsPanel}
           className={`p-2.5 rounded-lg transition-all flex items-center space-x-1.5 relative ${
             isParticipantsPanelOpen 
-              ? 'bg-block-lime border border-hairline text-ink' 
-              : 'hover:bg-block-cream text-ink'
+              ? 'bg-white/20 border border-white/20 text-white' 
+              : 'hover:bg-white/10 text-white/80 hover:text-white'
           }`}
           title="Participants List"
         >
           <Users className="w-5 h-5" />
-          <span className="text-[10px] font-bold bg-block-lilac text-ink px-1.5 py-0.5 rounded border border-hairline">
+          <span className="text-[10px] font-bold bg-white/20 text-white px-1.5 py-0.5 rounded border border-white/10">
             {allParticipants.length}
           </span>
         </button>
