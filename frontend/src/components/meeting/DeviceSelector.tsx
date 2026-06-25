@@ -278,7 +278,7 @@ export const DeviceSelector: React.FC = () => {
                 <div className="flex-1">
                   <label htmlFor="gesture-reactions" className="text-xs text-ink font-bold select-none cursor-pointer flex items-center">
                     <Smile className="w-3.5 h-3.5 mr-1.5 text-ink/70" />
-                    Enable On-Device Gesture Controls (Opt-in)
+                    Enable On-Device Gesture Controls (Beta)
                   </label>
                   <p className="text-[10px] text-ink/60 leading-normal mt-0.5">
                     Detect physical gestures (subtle head nod, thumbs up) locally on your device to trigger meeting reactions.

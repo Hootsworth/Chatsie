@@ -542,9 +542,9 @@ export const FutureFeatures: React.FC = () => {
           {/* FEATURE 4: Silky Gesture Triggers */}
           <section className="bg-block-mint rounded-2xl p-8 md:p-12 flex flex-col md:flex-row-reverse gap-10 items-center border border-hairline shadow-sm">
             <div className="flex-1 space-y-4">
-              <span className="text-eyebrow text-ink/60">Coming Soon • Feature 04</span>
+              <span className="text-eyebrow text-ink/60">Coming Soon • Feature 04 (Beta)</span>
               <h2 className="text-headline text-ink font-bold leading-tight flex items-center">
-                <Smile className="w-6 h-6 mr-2 text-primary" /> Silky Gesture Triggers
+                <Smile className="w-6 h-6 mr-2 text-primary" /> Silky Gesture Triggers (Beta)
               </h2>
               <p className="text-body-default text-ink/80 leading-relaxed">
                 Reactions shouldn't feel like a chore. Rather than forcing you to look down, hunt for, and click tiny emoji reaction buttons, Chatsie uses local on-device computer vision to detect real-world physical gestures—like a subtle nod of agreement or a physical thumbs up—and instantly maps them to premium, high-fidelity canvas particle bursts overlaid on your video card.
@@ -558,9 +558,9 @@ export const FutureFeatures: React.FC = () => {
           {/* FEATURE 5: Multiplayer Screenshare Cursors */}
           <section className="bg-block-pink rounded-2xl p-8 md:p-12 flex flex-col md:flex-row gap-10 items-center border border-hairline shadow-sm">
             <div className="flex-1 space-y-4">
-              <span className="text-eyebrow text-ink/60">Coming Soon • Feature 05</span>
+              <span className="text-eyebrow text-ink/60">Coming Soon • Feature 05 (Beta)</span>
               <h2 className="text-headline text-ink font-bold leading-tight flex items-center">
-                <MousePointer className="w-6 h-6 mr-2 text-primary" /> Multiplayer Screenshare Canvas
+                <MousePointer className="w-6 h-6 mr-2 text-primary" /> Multiplayer Screenshare Canvas (Beta)
               </h2>
               <p className="text-body-default text-ink/80 leading-relaxed">
                 Screen sharing is traditionally a clunky, passive broadcast where you have to direct viewers verbally. Instead, Chatsie overlays a transparent multiplayer canvas. When opted in by the host, viewers can move their own localized cursors on top of the shared screen. Rendered as glowing orbs with initials, it turns any broadcast into an interactive collaborative whiteboard.

@@ -101,6 +101,8 @@ export const MeetingRoom: React.FC = () => {
     lobbyStreamRef.current = lobbyStream;
   }, [lobbyStream]);
 
+
+
   // Guaranteed unmount cleanup
   React.useEffect(() => {
     return () => {
@@ -703,8 +705,31 @@ export const MeetingRoom: React.FC = () => {
   // 4. Pre-Join Lobby View
   if (!isLobbyPassed) {
     return (
-      <div className="min-h-screen flex flex-col justify-center items-center bg-canvas text-ink p-4 md:p-8 z-10">
-        <div className="w-full max-w-6xl flex flex-col lg:flex-row gap-8 lg:gap-12 items-center bg-block-lime p-8 md:p-12 rounded-lg border border-hairline">
+      <div className="min-h-screen flex flex-col justify-center items-center bg-canvas text-ink p-4 md:p-8 z-10 relative overflow-hidden">
+        {/* Colorful Wavy/Curly Background Lines */}
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+          {/* Orange Wave */}
+          <svg className="absolute -top-12 -left-12 w-96 h-96 opacity-[0.14] text-[#fa7b17]" viewBox="0 0 100 100" fill="none">
+            <path d="M-10,30 C30,10 20,80 110,60" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          
+          {/* Pink Loop */}
+          <svg className="absolute -bottom-16 -right-16 w-[450px] h-[450px] opacity-[0.14] text-[#ff3d8b]" viewBox="0 0 100 100" fill="none">
+            <path d="M10,80 C40,20 60,90 90,30" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+          </svg>
+
+          {/* Cyan Sweep */}
+          <svg className="absolute top-1/4 -right-12 w-80 h-80 opacity-[0.14] text-[#00e5ff]" viewBox="0 0 100 100" fill="none">
+            <path d="M0,20 C40,40 10,70 100,50" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+
+          {/* Yellow Curve */}
+          <svg className="absolute bottom-1/4 -left-12 w-72 h-72 opacity-[0.14] text-[#ffc700]" viewBox="0 0 100 100" fill="none">
+            <path d="M10,10 Q60,50 90,90" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </div>
+
+        <div className="w-full max-w-6xl flex flex-col lg:flex-row gap-8 lg:gap-12 items-center bg-block-lime p-8 md:p-12 rounded-lg border border-hairline relative z-10">
           {/* Left Column: Typography & Preview */}
           <div className="w-full lg:w-3/5 space-y-6 flex flex-col items-center lg:items-start text-center lg:text-left">
             <div className="space-y-2">
@@ -1055,6 +1080,11 @@ const ActiveRoomContent: React.FC<{
   const [isUiControlsVisible, setIsUiControlsVisible] = useState(true);
 
   const { isRecording, startRecording, stopRecording } = useCallRecorder();
+
+  // Play synthesized join sound on mount (when the user enters the active meeting room)
+  useEffect(() => {
+    playSynthesizedSound('coin');
+  }, []);
 
   // Dynamic Low Bandwidth track subscription manager
   useEffect(() => {
@@ -1775,7 +1805,7 @@ const ActiveRoomContent: React.FC<{
               <button 
                 onClick={() => signalingClient.sendMultiplayerCursorsToggle(!isMultiplayerCursorEnabled)} 
                 className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${isMultiplayerCursorEnabled ? 'text-pink-500' : 'text-[#9aa0a6] hover:text-[#e8eaed]'}`} 
-                title={isMultiplayerCursorEnabled ? 'Disable Multiplayer Cursors' : 'Enable Multiplayer Cursors'}
+                title={isMultiplayerCursorEnabled ? 'Disable Multiplayer Cursors (Beta)' : 'Enable Multiplayer Cursors (Beta)'}
               >
                 <MousePointer className="w-4 h-4" />
               </button>
