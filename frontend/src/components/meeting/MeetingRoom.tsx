@@ -24,7 +24,7 @@ import { WhiteboardPanel } from './WhiteboardPanel';
 import { BreakoutModal } from './BreakoutModal';
 import { Modal, Button } from '../ui';
 import { DeviceSelector } from './DeviceSelector';
-import { Copy, Check, Info, Users, Keyboard, Mic, MicOff, Video, VideoOff, Camera, User, ExternalLink, Lock, Unlock, Mail, Loader2 } from 'lucide-react';
+import { Copy, Check, Info, Users, Keyboard, Mic, MicOff, Video, VideoOff, Camera, User, ExternalLink, Lock, Unlock, Mail, Loader2, Settings } from 'lucide-react';
 
 export const MeetingRoom: React.FC = () => {
   const { code: rawCode } = useParams<{ code: string }>();
@@ -88,6 +88,7 @@ export const MeetingRoom: React.FC = () => {
     if (!code) return false;
     return sessionStorage.getItem(`lobby_passed_${code}`) === 'true';
   });
+  const [isLobbySettingsOpen, setIsLobbySettingsOpen] = useState(false);
   const [lobbyStream, setLobbyStream] = useState<MediaStream | null>(null);
   const lobbyStreamRef = React.useRef<MediaStream | null>(null);
 
@@ -786,13 +787,17 @@ export const MeetingRoom: React.FC = () => {
                   )}
                 </div>
 
-                {/* Media Hardware Settings */}
-                <div className="border border-hairline/45 dark:border-dark-800 rounded-2xl p-4.5 bg-surface-card/40 dark:bg-dark-950/20 space-y-4">
-                  <h3 className="font-serif text-base font-normal text-ink flex items-center border-b border-hairline/40 dark:border-dark-800 pb-2.5">
-                    <Camera className="w-4 h-4 mr-2 text-primary" /> Audio & Video Settings
-                  </h3>
-                  <DeviceSelector />
-                </div>
+                {/* Media Hardware Settings Toggle button */}
+                <button
+                  onClick={() => setIsLobbySettingsOpen(true)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-surface-soft/40 dark:bg-dark-950/20 hover:bg-surface-soft/80 dark:hover:bg-dark-950/40 border border-hairline/30 dark:border-dark-800 rounded-2xl text-xs text-on-dark-soft hover:text-on-dark font-semibold transition-all cursor-pointer"
+                >
+                  <div className="flex items-center space-x-2">
+                    <Camera className="w-4 h-4 text-primary" />
+                    <span>Check Audio & Video Devices</span>
+                  </div>
+                  <Settings className="w-4 h-4 opacity-75" />
+                </button>
               </div>
 
               {/* Join call button */}
@@ -811,6 +816,20 @@ export const MeetingRoom: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Lobby Settings Modal */}
+        <Modal
+          isOpen={isLobbySettingsOpen}
+          onClose={() => setIsLobbySettingsOpen(false)}
+          title="Audio & Video Settings"
+        >
+          <div className="space-y-4">
+            <DeviceSelector />
+            <div className="mt-6 flex justify-end">
+              <Button onClick={() => setIsLobbySettingsOpen(false)}>Done</Button>
+            </div>
+          </div>
+        </Modal>
       </div>
     );
   }
