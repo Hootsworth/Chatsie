@@ -1027,6 +1027,7 @@ const ActiveRoomContent: React.FC<{
   const { getToken } = useAuth();
   const [hasCopiedCode, setHasCopiedCode] = useState(false);
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
+  const [chatToasts, setChatToasts] = useState<Array<{ id: string; sender: string; text: string }>>([]);
 
   // Breakout Rooms states
   const [isBreakoutActive, setIsBreakoutActive] = useState(false);
@@ -1340,6 +1341,13 @@ const ActiveRoomContent: React.FC<{
   useEffect(() => {
     const handleChatReceived = (message: any) => {
       addChatMessage(message);
+      if (message.senderId !== user?.id) {
+        const toastId = `toast-${Date.now()}-${Math.random()}`;
+        setChatToasts(prev => [...prev, { id: toastId, sender: message.senderName || 'Anonymous', text: message.text }]);
+        setTimeout(() => {
+          setChatToasts(prev => prev.filter(t => t.id !== toastId));
+        }, 4000);
+      }
     };
 
     const handleHandRaised = ({ userId, isRaised }: { userId: string; isRaised: boolean }) => {
@@ -1368,6 +1376,7 @@ const ActiveRoomContent: React.FC<{
 
     const handlePeerJoined = (peer: any) => {
       addParticipant(peer);
+      playSynthesizedSound('coin');
     };
 
     const handlePeerLeft = ({ userId }: { userId: string }) => {
@@ -1484,7 +1493,9 @@ const ActiveRoomContent: React.FC<{
     addQuestion,
     updateQuestionUpvotes,
     setQuestionAnswered,
-    deleteQuestion
+    deleteQuestion,
+    setChatToasts,
+    user?.id
   ]);
 
   // Handle incoming unread chat notification
@@ -1810,6 +1821,21 @@ const ActiveRoomContent: React.FC<{
                 >
                   <span className="text-[#8ab4f8] font-medium text-xs mr-2">{caption.username}:</span>
                   <span className="text-white text-sm">{caption.text}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Chat Toasts Overlay */}
+          {chatToasts.length > 0 && (
+            <div className="absolute bottom-6 left-6 z-30 space-y-2 pointer-events-none max-w-xs">
+              {chatToasts.map((toast) => (
+                <div
+                  key={toast.id}
+                  className="bg-black/85 border border-white/[0.08] px-3 py-2 rounded-lg text-left shadow-lg animate-in slide-in-from-bottom duration-250 flex flex-col gap-0.5"
+                >
+                  <span className="text-[#8ab4f8] font-bold text-[10px]">{toast.sender}</span>
+                  <span className="text-white text-xs leading-normal">{toast.text}</span>
                 </div>
               ))}
             </div>

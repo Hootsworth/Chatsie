@@ -2,7 +2,6 @@ import React from 'react';
 import { useMeetingStore } from '../../stores/meetingStore';
 import { signalingClient } from '../../services/signaling';
 import { useParticipants, useLocalParticipant } from '@livekit/components-react';
-import { Badge } from '../ui';
 import { MicOff, VideoOff, Trash2, Check, X, ShieldAlert, VolumeX } from 'lucide-react';
 
 export const ParticipantPanel: React.FC = () => {
@@ -35,12 +34,12 @@ export const ParticipantPanel: React.FC = () => {
   const isHost = myRole === 'host';
 
   return (
-    <div className="w-full h-full flex flex-col bg-transparent z-20 overflow-y-auto">
+    <div className="w-full h-full flex flex-col bg-[#202124] text-[#e8eaed] z-20 overflow-y-auto">
       
       {/* 1. WAITING ROOM QUEUE (HOST ONLY) */}
       {isHost && waitingRoomList.length > 0 && (
-        <div className="border-b border-hairline p-4 bg-amber-500/5">
-          <h3 className="font-bold text-[11px] text-amber-500 uppercase tracking-widest flex items-center mb-3">
+        <div className="border-b border-white/[0.06] p-4 bg-amber-500/5">
+          <h3 className="font-bold text-[11px] text-amber-400 uppercase tracking-widest flex items-center mb-3">
             <ShieldAlert className="w-4 h-4 mr-1.5" />
             Waiting Room ({waitingRoomList.length})
           </h3>
@@ -49,22 +48,22 @@ export const ParticipantPanel: React.FC = () => {
             {waitingRoomList.map((waiter) => (
               <div 
                 key={waiter.userId}
-                className="flex items-center justify-between p-2.5 bg-canvas rounded-lg border border-amber-500/20 text-xs"
+                className="flex items-center justify-between p-2.5 bg-[#292b2f] rounded-lg border border-amber-500/20 text-xs"
               >
-                <span className="font-bold text-ink truncate mr-2">
+                <span className="font-bold text-[#e8eaed] truncate mr-2">
                   {waiter.username}
                 </span>
                 <div className="flex space-x-1.5 flex-shrink-0">
                   <button
                     onClick={() => handleWaitingAction(waiter.userId, 'approve')}
-                    className="p-1 bg-emerald-500 hover:bg-emerald-600 text-ink rounded transition-colors"
+                    className="p-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded transition-colors cursor-pointer"
                     title="Admit"
                   >
                     <Check className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleWaitingAction(waiter.userId, 'deny')}
-                    className="p-1 bg-red-500 hover:bg-red-600 text-ink rounded transition-colors"
+                    className="p-1 bg-red-600 hover:bg-red-700 text-white rounded transition-colors cursor-pointer"
                     title="Deny"
                   >
                     <X className="w-4 h-4" />
@@ -77,15 +76,17 @@ export const ParticipantPanel: React.FC = () => {
       )}
 
       {/* 2. ACTIVE PARTICIPANTS HEADER */}
-      <div className="px-5 py-4 border-b border-hairline flex items-center justify-between">
-        <h3 className="font-bold text-sm text-ink uppercase tracking-wider">
+      <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
+        <h3 className="font-bold text-xs text-[#e8eaed] uppercase tracking-wider">
           Participants
         </h3>
-        <Badge>{allParticipants.length}</Badge>
+        <span className="px-2 py-0.5 bg-[#3c4043] text-[#e8eaed] rounded text-[10px] font-bold">
+          {allParticipants.length}
+        </span>
       </div>
 
       {/* 3. ACTIVE PARTICIPANTS LIST */}
-      <div className="flex-grow p-4 space-y-3.5">
+      <div className="flex-grow p-4 space-y-3.5 bg-[#202124]">
         
         {/* Participants (Local & Remote) */}
         {allParticipants.map((p) => {
@@ -104,15 +105,15 @@ export const ParticipantPanel: React.FC = () => {
             >
               {/* Meta */}
               <div className="flex items-center space-x-2.5 min-w-0">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold ${isMe ? 'bg-primary/20 text-primary' : 'bg-canvas text-ink'}`}>
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${isMe ? 'bg-[#8ab4f8]/20 text-[#8ab4f8]' : 'bg-[#3c4043] text-[#e8eaed]'}`}>
                   {p.name?.charAt(0).toUpperCase() || 'U'}
                 </div>
                 <div className="truncate">
                   <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-ink truncate">{isMe ? 'Me' : p.name}</span>
-                    {isHandRaised && <span className="text-amber-500 font-bold" title="Hand Raised">✋</span>}
+                    <span className="font-bold text-[#e8eaed] truncate">{isMe ? 'Me' : p.name}</span>
+                    {isHandRaised && <span className="text-amber-400 font-bold animate-bounce" title="Hand Raised">✋</span>}
                   </div>
-                  <span className="text-[10px] text-ink/70 font-semibold block">{p.identity === currentMeeting?.host_id ? '@host' : ''}</span>
+                  <span className="text-[10px] text-[#9aa0a6] font-semibold block">{p.identity === currentMeeting?.host_id ? '@host' : ''}</span>
                 </div>
               </div>
 
@@ -125,12 +126,12 @@ export const ParticipantPanel: React.FC = () => {
 
                 {/* Control Actions (visible on hover/mobile) */}
                 {!isMe && (canMute || isHost) && (
-                  <div className="hidden group-hover:flex items-center space-x-1 pl-1 bg-canvas text-ink">
+                  <div className="hidden group-hover:flex items-center space-x-1 pl-1 bg-[#202124] text-[#e8eaed]">
                     {/* Remote Mute Audio */}
                     {canMute && p.isMicrophoneEnabled && (
                       <button
                         onClick={() => handleMutePeer(p.identity, 'audio')}
-                        className="p-1 text-ink/70 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors cursor-pointer"
+                        className="p-1 text-[#9aa0a6] hover:text-red-400 hover:bg-red-500/10 rounded transition-colors cursor-pointer"
                         title="Mute Audio"
                       >
                         <VolumeX className="w-3.5 h-3.5" />
@@ -140,7 +141,7 @@ export const ParticipantPanel: React.FC = () => {
                     {canMute && p.isCameraEnabled && (
                       <button
                         onClick={() => handleMutePeer(p.identity, 'video')}
-                        className="p-1 text-ink/70 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors cursor-pointer"
+                        className="p-1 text-[#9aa0a6] hover:text-red-400 hover:bg-red-500/10 rounded transition-colors cursor-pointer"
                         title="Mute Video"
                       >
                         <VideoOff className="w-3.5 h-3.5" />
@@ -150,7 +151,7 @@ export const ParticipantPanel: React.FC = () => {
                     {isHost && (
                       <button
                         onClick={() => handleKickPeer(p.identity)}
-                        className="p-1 text-ink/70 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors cursor-pointer"
+                        className="p-1 text-[#9aa0a6] hover:text-red-400 hover:bg-red-500/10 rounded transition-colors cursor-pointer"
                         title="Remove from meeting"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
