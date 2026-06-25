@@ -26,7 +26,10 @@ import {
   Smile,
   Circle,
   Users,
-  Sparkles
+  Sparkles,
+  Link2,
+  Plus,
+  ChevronRight
 } from 'lucide-react';
 
 const FEATURES = [
@@ -186,7 +189,6 @@ export const Dashboard: React.FC = () => {
       const apiUrl = import.meta.env.VITE_API_URL;
       
       if (!apiUrl || apiUrl === 'undefined' || apiUrl === 'null') {
-        // Without an API URL configured, we just don't load history
         setIsLoadingMeetings(false);
         return;
       }
@@ -221,7 +223,6 @@ export const Dashboard: React.FC = () => {
       const apiUrl = import.meta.env.VITE_API_URL;
       
       if (!apiUrl || apiUrl === 'undefined' || apiUrl === 'null') {
-        // Without an API, just navigate to a random room code directly
         const code = generateRoomCode();
         navigate(`/room/${code}`);
         return;
@@ -351,6 +352,9 @@ export const Dashboard: React.FC = () => {
     year: 'numeric'
   });
 
+  const currentHour = new Date().getHours();
+  const greeting = currentHour < 12 ? 'Good morning' : currentHour < 18 ? 'Good afternoon' : 'Good evening';
+
   // Carousel drag-to-scroll
   const carouselRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -378,249 +382,282 @@ export const Dashboard: React.FC = () => {
   }, []);
 
   return (
-    <div className="relative min-h-screen lg:h-screen lg:max-h-screen flex flex-col justify-between bg-canvas dark:bg-dark-950 text-body dark:text-gray-200 transition-colors duration-200 lg:overflow-hidden z-10">
+    <div className="relative min-h-screen bg-canvas dark:bg-dark-950 text-body dark:text-gray-200 transition-colors duration-200 overflow-x-hidden">
       
-      {/* Background drifting mesh glows */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute -top-[30%] -left-[20%] w-[60%] h-[60%] rounded-full bg-primary/5 dark:bg-primary/10 blur-[120px] animate-mesh-glow" />
-        <div className="absolute -bottom-[20%] -right-[10%] w-[50%] h-[50%] rounded-full bg-primary/5 dark:bg-primary/5 blur-[100px] animate-mesh-glow" style={{ animationDelay: '-10s' }} />
+      {/* Background layers */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute -top-[40%] -left-[20%] w-[70%] h-[70%] rounded-full bg-primary/[0.04] dark:bg-primary/[0.08] blur-[150px] animate-mesh-glow" />
+        <div className="absolute top-[20%] -right-[15%] w-[50%] h-[50%] rounded-full bg-violet-500/[0.03] dark:bg-violet-500/[0.05] blur-[130px] animate-mesh-glow" style={{ animationDelay: '-7s' }} />
+        <div className="absolute -bottom-[30%] left-[20%] w-[60%] h-[60%] rounded-full bg-primary/[0.03] dark:bg-primary/[0.04] blur-[120px] animate-mesh-glow" style={{ animationDelay: '-14s' }} />
+        {/* Grid pattern overlay */}
+        <div className="absolute inset-0 opacity-[0.015] dark:opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
       </div>
 
-      {/* Top Navbar */}
-      <header className="relative z-40 bg-transparent px-8 py-5 flex items-center justify-between flex-shrink-0 animate-fade-in-up">
+      {/* ===== NAVBAR ===== */}
+      <header className="relative z-40 px-6 md:px-10 py-4 flex items-center justify-between animate-fade-in-up">
         <div className="flex items-center space-x-3">
-          <img src={logo} alt="Chatsie Logo" className="w-8 h-8 rounded-xl object-contain shadow-sm" />
-          <span className="text-xl font-serif font-semibold tracking-tight text-ink">Chatsie</span>
+          <div className="relative">
+            <img src={logo} alt="Chatsie Logo" className="w-9 h-9 rounded-xl object-contain shadow-sm" />
+            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-canvas dark:border-dark-950" />
+          </div>
+          <span className="text-lg font-serif font-semibold tracking-tight text-ink">Chatsie</span>
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2">
           <button
             onClick={toggleDarkMode}
-            className="p-2 text-muted hover:text-ink dark:text-gray-400 rounded-xl hover:bg-surface-soft/40 transition-all duration-300 cursor-pointer"
+            className="p-2.5 text-muted hover:text-ink dark:hover:text-white rounded-xl hover:bg-surface-soft/60 dark:hover:bg-dark-800/60 transition-all duration-300 cursor-pointer"
             title="Toggle theme"
           >
-            {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            {darkMode ? <Sun className="w-4.5 h-4.5" /> : <Moon className="w-4.5 h-4.5" />}
           </button>
 
-          <div className="flex items-center space-x-3 border-l border-hairline dark:border-dark-800 pl-4">
-            <div className="hidden md:block text-right mr-1">
+          <div className="h-6 w-px bg-hairline dark:bg-dark-800 mx-1" />
+
+          <div className="flex items-center space-x-3">
+            <div className="hidden md:block text-right">
               <p className="text-xs font-bold text-ink leading-tight">
                 {user?.fullName || 'Loading...'}
               </p>
-              <p className="text-[10px] text-muted font-semibold leading-none mt-0.5">{user?.primaryEmailAddress?.emailAddress}</p>
+              <p className="text-[10px] text-muted font-medium leading-none mt-0.5">{user?.primaryEmailAddress?.emailAddress}</p>
             </div>
             <UserButton afterSignOutUrl="/signin" />
           </div>
         </div>
       </header>
 
-      {/* Main Grid */}
-      <main className="flex-grow max-w-7xl w-full mx-auto px-6 md:px-8 py-4 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start lg:items-center z-10 min-h-0 overflow-y-auto lg:overflow-visible">
-        
-        {/* Left Column: Typography & Actions */}
-        <div className="lg:col-span-7 flex flex-col justify-between py-6 lg:h-full min-h-0 animate-fade-in-up space-y-8 lg:space-y-0">
-          
-          <div className="space-y-4">
-            <h1 className="text-5xl md:text-7xl lg:text-8xl tracking-tight leading-[0.9] text-ink font-serif font-light">
-              Hello, <br />
-              <span className="font-normal text-primary">{user?.firstName || 'there'}</span>.
-            </h1>
-            <p className="text-muted text-sm md:text-base font-light tracking-wide max-w-md">
-              {formattedDate} • Chatsie premium video network. Start an instant call, schedule a sync, or join an active room.
-            </p>
-          </div>
+      {/* ===== HERO ===== */}
+      <section className="relative z-10 text-center pt-8 md:pt-14 pb-10 md:pb-14 px-6 animate-fade-in-up">
+        <p className="text-xs font-bold tracking-[0.2em] uppercase text-muted mb-4">{formattedDate}</p>
+        <h1 className="text-5xl md:text-7xl lg:text-[5.5rem] font-serif font-light tracking-tight leading-[0.95] text-ink">
+          {greeting},<br />
+          <span className="bg-gradient-to-r from-primary via-primary to-rose-400 dark:to-amber-400 bg-clip-text text-transparent font-normal">{user?.firstName || 'there'}</span>.
+        </h1>
+        <p className="text-sm md:text-base text-muted font-light mt-5 max-w-lg mx-auto leading-relaxed">
+          Start an instant call, schedule a sync, or jump into an active room.
+        </p>
 
-          <div className="space-y-8 my-8">
-            <div className="flex flex-wrap gap-4">
+        {instantMeetingError && (
+          <div className="max-w-md mx-auto mt-5 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/40 p-3 rounded-xl text-xs font-semibold flex items-center justify-between animate-fade-in-up">
+            <span>{instantMeetingError}</span>
+            <button onClick={() => setInstantMeetingError(null)} className="text-xs underline hover:text-red-800 dark:hover:text-red-300 ml-4 font-normal">Dismiss</button>
+          </div>
+        )}
+      </section>
+
+      {/* ===== BENTO GRID ===== */}
+      <section className="relative z-10 max-w-6xl mx-auto px-4 md:px-8 pb-10 animate-fade-in-up delay-100">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4">
+
+          {/* ── Start Call Card (spans 5 cols) ── */}
+          <div className="lg:col-span-5 group relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/90 to-primary-active dark:from-primary/80 dark:to-rose-700/70 p-6 md:p-8 text-white shadow-xl shadow-primary/10 hover:shadow-2xl hover:shadow-primary/20 transition-all duration-500 hover:-translate-y-0.5">
+            {/* Decorative circles */}
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
+            <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-white/5 rounded-full blur-xl" />
+            
+            <div className="relative">
+              <div className="w-12 h-12 bg-white/15 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
+                <Video className="w-6 h-6" />
+              </div>
+              <h2 className="text-2xl md:text-3xl font-serif font-normal mb-2 tracking-tight">Start an instant call</h2>
+              <p className="text-white/70 text-sm font-light mb-6 max-w-xs">Launch a new room in one click. Share the link with anyone to join.</p>
               <button
                 onClick={handleStartInstantMeeting}
-                className="px-6 py-4.5 bg-primary hover:bg-primary-active text-white font-medium text-sm tracking-wider rounded-xl transition-all duration-300 transform hover:scale-[1.02] active:scale-95 shadow-lg shadow-primary/10 hover:shadow-primary/20 flex items-center cursor-pointer"
+                className="px-6 py-3 bg-white text-primary font-bold text-sm rounded-xl hover:bg-white/90 active:scale-[0.97] transition-all duration-200 shadow-lg shadow-black/10 cursor-pointer flex items-center space-x-2"
               >
-                <Video className="w-4 h-4 mr-2" /> Start Instant Call
-              </button>
-              
-              <button
-                onClick={() => setIsScheduleModalOpen(true)}
-                className="px-6 py-4.5 bg-transparent hover:bg-surface-soft border border-hairline hover:border-primary/40 text-ink font-medium text-sm tracking-wider rounded-xl transition-all duration-300 transform hover:scale-[1.02] active:scale-95 flex items-center cursor-pointer"
-              >
-                <Calendar className="w-4 h-4 mr-2 text-primary" /> Schedule for Later
+                <Plus className="w-4 h-4" />
+                <span>New Meeting</span>
               </button>
             </div>
+          </div>
 
-            {/* Sleek unified Join Room input */}
-            <div className="max-w-md space-y-2">
-              <label className="text-xs font-bold tracking-wider text-muted uppercase">Join by Code or URL</label>
-              <form onSubmit={handleJoinByCode} className="relative flex items-center border-b border-hairline focus-within:border-primary transition-colors pb-1">
+          {/* ── Join + Schedule Stack (spans 3 cols) ── */}
+          <div className="lg:col-span-3 flex flex-col gap-4">
+            {/* Join by Code */}
+            <div className="flex-1 bento-card group">
+              <div className="flex items-center space-x-2 mb-3">
+                <div className="w-8 h-8 rounded-xl bg-sky-500/10 dark:bg-sky-500/15 text-sky-500 flex items-center justify-center">
+                  <Link2 className="w-4 h-4" />
+                </div>
+                <h3 className="text-xs font-bold text-ink uppercase tracking-wider">Join by Code</h3>
+              </div>
+              <form onSubmit={handleJoinByCode} className="flex items-center gap-2">
                 <input
                   type="text"
-                  placeholder="enter-room-code-here"
+                  placeholder="abc-defg-hij"
                   value={joinCode}
                   onChange={(e) => setJoinCode(e.target.value)}
-                  className="bg-transparent text-lg text-ink font-mono tracking-widest placeholder:text-muted/40 placeholder:font-sans focus:outline-none w-full pr-10 pl-1"
+                  className="flex-1 bg-surface-soft/50 dark:bg-dark-800/60 border border-hairline/50 dark:border-white/5 rounded-xl px-3.5 py-2.5 text-sm text-ink font-mono tracking-wider placeholder:text-muted/40 placeholder:font-sans focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all"
                 />
                 <button 
                   type="submit" 
                   disabled={!joinCode}
-                  className={`absolute right-1 p-2 rounded-lg transition-all ${
+                  className={`p-2.5 rounded-xl transition-all ${
                     joinCode 
-                      ? 'text-primary hover:bg-primary/5 cursor-pointer scale-100' 
-                      : 'text-muted/30 scale-95 pointer-events-none'
+                      ? 'bg-ink dark:bg-white text-canvas dark:text-dark-950 hover:scale-105 active:scale-95 cursor-pointer shadow-md' 
+                      : 'bg-hairline/50 dark:bg-dark-800/50 text-muted/30 pointer-events-none'
                   }`}
                 >
-                  <ArrowRight className="w-5 h-5" />
+                  <ArrowRight className="w-4 h-4" />
                 </button>
               </form>
             </div>
-          </div>
 
-          <div className="pt-6 border-t border-hairline/50">
-            {instantMeetingError && (
-              <div className="bg-red-50 dark:bg-red-950/20 text-red-650 dark:text-red-400 border border-red-100 dark:border-red-900/40 p-4 rounded-xl text-xs font-semibold flex items-center justify-between max-w-md mb-4 animate-fade-in-up">
-                <span>{instantMeetingError}</span>
-                <button 
-                  onClick={() => setInstantMeetingError(null)} 
-                  className="text-xs underline hover:text-red-800 dark:hover:text-red-300 ml-4 font-normal"
-                >
-                  Dismiss
-                </button>
-              </div>
-            )}
-
-            <div className="flex items-center justify-between max-w-md bg-surface-soft/60 backdrop-blur-sm rounded-xl p-3 border border-hairline/30">
-              <div className="truncate mr-3">
-                <p className="text-[10px] font-bold text-muted uppercase tracking-wider">Your Personal Meeting Link</p>
-                <p className="text-xs font-mono text-ink truncate mt-0.5">
-                  {window.location.origin}{import.meta.env.BASE_URL}room/personal-{user?.id}
-                </p>
-              </div>
-              <div className="flex items-center space-x-1 flex-shrink-0">
-                <button
-                  onClick={handleCopyPersonalLink}
-                  className="p-2 hover:bg-canvas rounded-lg transition-all text-muted hover:text-primary cursor-pointer"
-                  title="Copy permanent link"
-                >
-                  {isCopied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                </button>
-                <button
-                  onClick={handleStartPersonalRoom}
-                  className="p-2 hover:bg-canvas rounded-lg transition-all text-primary hover:text-primary-active cursor-pointer"
-                  title="Start personal room"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                </button>
+            {/* Schedule for Later */}
+            <div 
+              className="flex-1 bento-card group cursor-pointer hover:-translate-y-0.5"
+              onClick={() => setIsScheduleModalOpen(true)}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 rounded-xl bg-violet-500/10 dark:bg-violet-500/15 text-violet-500 flex items-center justify-center">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-ink uppercase tracking-wider">Schedule</h3>
+                    <p className="text-[10px] text-muted font-light mt-0.5">Plan a future meeting</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
               </div>
             </div>
           </div>
 
-        </div>
-
-        {/* Right Column: Scheduled Lists */}
-        <div className="lg:col-span-5 w-full flex flex-col justify-center py-6 min-h-0 animate-fade-in-up delay-100">
-          <div className="glass dark:bg-dark-900/40 border border-hairline/65 rounded-3xl p-6 flex flex-col lg:h-full max-h-[450px] lg:max-h-[75vh] overflow-hidden">
-            
-            {/* Upcoming List Section */}
-            <div className="flex-grow flex flex-col min-h-0 mb-6">
-              <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                <h2 className="font-serif text-2xl text-ink flex items-center">
-                  <Clock className="w-4.5 h-4.5 mr-2 text-primary" />
-                  Upcoming Rooms
-                </h2>
-                {upcomingMeetings.length > 0 && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 bg-primary/10 text-primary rounded-full">
-                    {upcomingMeetings.length} scheduled
-                  </span>
-                )}
+          {/* ── Personal Room Card (spans 4 cols) ── */}
+          <div className="lg:col-span-4 bento-card group">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-500 flex items-center justify-center">
+                  <ExternalLink className="w-4 h-4" />
+                </div>
+                <h3 className="text-xs font-bold text-ink uppercase tracking-wider">Your Room</h3>
               </div>
+              <div className="flex items-center space-x-1">
+                <button
+                  onClick={handleCopyPersonalLink}
+                  className="p-2 rounded-lg hover:bg-surface-soft dark:hover:bg-dark-800 text-muted hover:text-primary transition-all cursor-pointer"
+                  title="Copy link"
+                >
+                  {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+            <p className="text-[11px] font-mono text-muted truncate bg-surface-soft/50 dark:bg-dark-800/40 rounded-lg px-3 py-2 border border-hairline/30 dark:border-white/5 mb-4">
+              {window.location.host}/room/personal-{user?.id?.slice(0, 8)}…
+            </p>
+            <button
+              onClick={handleStartPersonalRoom}
+              className="w-full px-4 py-2.5 bg-ink dark:bg-white text-canvas dark:text-dark-950 font-bold text-xs rounded-xl hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer shadow-sm flex items-center justify-center space-x-2"
+            >
+              <Video className="w-3.5 h-3.5" />
+              <span>Launch Personal Room</span>
+            </button>
+          </div>
 
-              <div className="flex-grow overflow-y-auto pr-1 space-y-3 scrollbar-thin">
-                {isLoadingMeetings ? (
-                  <div className="flex items-center justify-center h-32 text-muted text-xs">
-                    <Loader2 className="w-5 h-5 animate-spin mr-2 text-primary/60" />
-                    Loading meetings...
-                  </div>
-                ) : upcomingMeetings.length === 0 ? (
-                  <div className="h-32 flex flex-col items-center justify-center border border-dashed border-hairline/70 rounded-2xl text-center p-4">
-                    <Calendar className="w-5 h-5 text-muted/30 mb-2" />
-                    <p className="text-[11px] text-muted font-light">No upcoming connections scheduled.</p>
-                  </div>
-                ) : (
-                  upcomingMeetings.map((mtg) => (
-                    <div 
-                      key={mtg.id}
-                      className="p-3.5 bg-canvas/30 hover:bg-canvas/80 rounded-2xl border border-hairline/35 hover:border-primary/30 flex items-center justify-between transition-all duration-300 group hover:shadow-md hover:shadow-primary/2"
-                    >
-                      <div className="truncate mr-3">
-                        <p className="text-xs font-bold text-ink truncate group-hover:text-primary transition-colors">{mtg.title}</p>
-                        <p className="text-[10px] text-muted font-medium mt-1">
+          {/* ── Upcoming Rooms (spans 7 cols) ── */}
+          <div className="lg:col-span-7 bento-card">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 rounded-xl bg-primary/10 dark:bg-primary/15 text-primary flex items-center justify-center">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <h3 className="text-xs font-bold text-ink uppercase tracking-wider">Upcoming</h3>
+              </div>
+              {upcomingMeetings.length > 0 && (
+                <span className="text-[10px] font-bold px-2.5 py-1 bg-primary/10 text-primary rounded-full">
+                  {upcomingMeetings.length}
+                </span>
+              )}
+            </div>
+
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
+              {isLoadingMeetings ? (
+                <div className="flex items-center justify-center h-24 text-muted text-xs">
+                  <Loader2 className="w-4 h-4 animate-spin mr-2 text-primary/60" />
+                  Loading...
+                </div>
+              ) : upcomingMeetings.length === 0 ? (
+                <div className="h-24 flex flex-col items-center justify-center border border-dashed border-hairline/50 dark:border-white/5 rounded-2xl">
+                  <Calendar className="w-5 h-5 text-muted/20 mb-2" />
+                  <p className="text-[11px] text-muted/50 font-light">No upcoming meetings</p>
+                </div>
+              ) : (
+                upcomingMeetings.map((mtg) => (
+                  <div 
+                    key={mtg.id}
+                    className="flex items-center justify-between p-3 rounded-xl bg-surface-soft/30 dark:bg-dark-800/30 border border-hairline/20 dark:border-white/5 hover:border-primary/20 dark:hover:border-primary/20 group/item transition-all duration-200"
+                  >
+                    <div className="truncate mr-3">
+                      <p className="text-xs font-bold text-ink truncate group-hover/item:text-primary transition-colors">{mtg.title}</p>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <p className="text-[10px] text-muted font-medium">
                           {mtg.scheduled_start ? new Date(mtg.scheduled_start).toLocaleString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
+                            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
                           }) : 'Instant Link'}
                         </p>
                         {mtg.passcode && (
-                          <div className="flex items-center text-[9px] text-primary font-bold mt-1">
+                          <span className="flex items-center text-[9px] text-primary font-bold">
                             <Shield className="w-2.5 h-2.5 mr-0.5" /> Protected
-                          </div>
+                          </span>
                         )}
                       </div>
-                      <button 
-                        onClick={() => navigate(`/room/${mtg.code}`)}
-                        className="px-4 py-2 bg-ink hover:bg-primary text-white hover:text-white dark:bg-surface-soft dark:hover:bg-primary dark:text-ink dark:hover:text-white text-[10px] font-bold rounded-xl transition-all duration-300 cursor-pointer active:scale-95 flex-shrink-0"
-                      >
-                        Join Room
-                      </button>
                     </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* History Section */}
-            <div className="h-[35%] flex flex-col min-h-0 border-t border-hairline/40 pt-5">
-              <h2 className="font-serif text-xl text-ink mb-3 flex items-center flex-shrink-0">
-                <History className="w-4 h-4 mr-2 text-muted" />
-                History Log
-              </h2>
-
-              <div className="flex-grow overflow-y-auto pr-1 space-y-2.5 scrollbar-thin">
-                {isLoadingMeetings ? (
-                  <div className="text-center py-4 text-muted text-xs">Loading history...</div>
-                ) : pastMeetings.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-center">
-                    <p className="text-[10px] text-muted/60 font-light">History log is empty.</p>
-                  </div>
-                ) : (
-                  pastMeetings.map((mtg) => (
-                    <div 
-                      key={mtg.id}
-                      className="p-2.5 bg-canvas/10 rounded-xl border border-hairline/20 flex justify-between items-center text-[11px]"
+                    <button 
+                      onClick={() => navigate(`/room/${mtg.code}`)}
+                      className="px-3.5 py-1.5 bg-ink dark:bg-white text-canvas dark:text-dark-950 hover:bg-primary dark:hover:bg-primary dark:hover:text-white text-[10px] font-bold rounded-lg transition-all duration-200 cursor-pointer active:scale-95 flex-shrink-0"
                     >
-                      <div className="truncate mr-2">
-                        <p className="font-bold text-body-strong truncate">{mtg.title}</p>
-                        <p className="text-[9px] text-muted font-mono mt-0.5">Code: {mtg.code}</p>
-                      </div>
-                      <Badge color="gray">Ended</Badge>
-                    </div>
-                  ))
-                )}
+                      Join
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* ── History Log (spans 5 cols) ── */}
+          <div className="lg:col-span-5 bento-card">
+            <div className="flex items-center space-x-2 mb-4">
+              <div className="w-8 h-8 rounded-xl bg-muted/10 dark:bg-white/5 text-muted flex items-center justify-center">
+                <History className="w-4 h-4" />
               </div>
+              <h3 className="text-xs font-bold text-ink uppercase tracking-wider">History</h3>
             </div>
 
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
+              {isLoadingMeetings ? (
+                <div className="text-center py-6 text-muted text-xs">Loading...</div>
+              ) : pastMeetings.length === 0 ? (
+                <div className="h-24 flex items-center justify-center">
+                  <p className="text-[10px] text-muted/40 font-light">No past meetings yet</p>
+                </div>
+              ) : (
+                pastMeetings.map((mtg) => (
+                  <div 
+                    key={mtg.id}
+                    className="flex justify-between items-center p-2.5 rounded-xl bg-surface-soft/20 dark:bg-dark-800/20 border border-hairline/15 dark:border-white/5"
+                  >
+                    <div className="truncate mr-2">
+                      <p className="text-xs font-bold text-body-strong truncate">{mtg.title}</p>
+                      <p className="text-[9px] text-muted font-mono mt-0.5">{mtg.code}</p>
+                    </div>
+                    <Badge color="gray">Ended</Badge>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
+
         </div>
+      </section>
 
-      </main>
-
-      {/* Features Carousel */}
-      <div 
-        className="relative z-20 flex-shrink-0 border-t border-hairline/20 dark:border-white/5 animate-fade-in-up delay-200"
+      {/* ===== FEATURES CAROUSEL ===== */}
+      <section 
+        className="relative z-10 border-t border-hairline/15 dark:border-white/5 animate-fade-in-up delay-200"
         onMouseEnter={() => setIsCarouselPaused(true)}
         onMouseLeave={() => { setIsCarouselPaused(false); setIsDragging(false); }}
       >
-        <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-canvas dark:from-dark-950 to-transparent z-10 pointer-events-none" />
-        <div className="absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-canvas dark:from-dark-950 to-transparent z-10 pointer-events-none" />
+        <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-canvas dark:from-dark-950 to-transparent z-10 pointer-events-none" />
+        <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-canvas dark:from-dark-950 to-transparent z-10 pointer-events-none" />
         
         <div
           ref={carouselRef}
@@ -631,24 +668,23 @@ export const Dashboard: React.FC = () => {
           onMouseLeave={handleMouseUp}
         >
           <div 
-            className={`flex gap-4 py-4 px-6 w-max ${
+            className={`flex gap-4 py-5 px-8 w-max ${
               isCarouselPaused ? '' : 'animate-carousel-scroll'
             }`}
           >
-            {/* Duplicate for infinite scroll illusion */}
             {[...FEATURES, ...FEATURES].map((feature, idx) => {
               const Icon = feature.icon;
               return (
                 <div
                   key={`${feature.title}-${idx}`}
-                  className="group relative w-64 flex-shrink-0 bg-surface-soft/50 dark:bg-dark-800/40 border border-hairline/40 dark:border-white/5 rounded-2xl p-4 hover:border-primary/30 dark:hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5"
+                  className="group relative w-60 flex-shrink-0 bg-surface-soft/40 dark:bg-dark-800/30 border border-hairline/30 dark:border-white/5 rounded-2xl p-4 hover:border-primary/25 dark:hover:border-primary/25 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5"
                 >
                   <div className="flex items-start space-x-3">
-                    <div className={`w-9 h-9 rounded-xl ${feature.iconBg} flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110`}>
-                      <Icon className="w-4.5 h-4.5" />
+                    <div className={`w-8 h-8 rounded-lg ${feature.iconBg} flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110`}>
+                      <Icon className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-xs font-bold text-ink leading-tight">{feature.title}</h3>
+                      <h3 className="text-[11px] font-bold text-ink leading-tight">{feature.title}</h3>
                       <p className="text-[10px] text-muted font-light leading-relaxed mt-1 line-clamp-2">{feature.description}</p>
                     </div>
                   </div>
@@ -658,15 +694,15 @@ export const Dashboard: React.FC = () => {
             })}
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Sleek Minimalist Footer */}
-      <footer className="relative z-40 bg-transparent px-8 py-3 flex items-center justify-between flex-shrink-0 text-[10px] text-muted tracking-widest uppercase font-light border-t border-hairline/30">
+      {/* ===== FOOTER ===== */}
+      <footer className="relative z-10 px-8 py-3 flex items-center justify-between text-[10px] text-muted/60 tracking-widest uppercase font-light border-t border-hairline/15 dark:border-white/5">
         <div>Chatsie • Immersive Screenings</div>
         <div>{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })}</div>
       </footer>
 
-      {/* SCHEDULE MEETING MODAL */}
+      {/* ===== SCHEDULE MEETING MODAL ===== */}
       <Modal
         isOpen={isScheduleModalOpen}
         onClose={() => setIsScheduleModalOpen(false)}

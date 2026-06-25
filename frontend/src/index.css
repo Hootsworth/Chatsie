@@ -77,6 +77,23 @@ h1, h2, h3, .font-serif-display {
   @apply bg-surface-dark/90 backdrop-blur-md border border-white/5;
 }
 
+/* Bento grid card base */
+.bento-card {
+  @apply bg-surface-soft/40 backdrop-blur-sm border border-hairline/40 rounded-3xl p-5 transition-all duration-300;
+}
+
+html.dark .bento-card {
+  @apply bg-dark-800/30 border-white/5;
+}
+
+.bento-card:hover {
+  @apply shadow-xl shadow-black/[0.03] border-hairline/60;
+}
+
+html.dark .bento-card:hover {
+  @apply shadow-xl shadow-black/20 border-white/10;
+}
+
 /* Custom scrollbars matching the warm theme */
 ::-webkit-scrollbar {
   width: 6px;
