@@ -261,7 +261,7 @@ export const Dashboard: React.FC = () => {
   });
 
   return (
-    <div className="relative min-h-screen max-h-screen h-screen flex flex-col justify-between bg-canvas dark:bg-dark-950 text-body dark:text-gray-200 transition-colors duration-200 overflow-hidden z-10">
+    <div className="relative min-h-screen lg:h-screen lg:max-h-screen flex flex-col justify-between bg-canvas dark:bg-dark-950 text-body dark:text-gray-200 transition-colors duration-200 lg:overflow-hidden z-10">
       
       {/* Background drifting mesh glows */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
@@ -298,10 +298,10 @@ export const Dashboard: React.FC = () => {
       </header>
 
       {/* Main Grid */}
-      <main className="flex-grow max-w-7xl w-full mx-auto px-8 py-4 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center z-10 min-h-0">
+      <main className="flex-grow max-w-7xl w-full mx-auto px-6 md:px-8 py-4 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start lg:items-center z-10 min-h-0 overflow-y-auto lg:overflow-visible">
         
         {/* Left Column: Typography & Actions */}
-        <div className="lg:col-span-7 flex flex-col justify-between py-6 h-full min-h-0 animate-fade-in-up">
+        <div className="lg:col-span-7 flex flex-col justify-between py-6 lg:h-full min-h-0 animate-fade-in-up space-y-8 lg:space-y-0">
           
           <div className="space-y-4">
             <h1 className="text-5xl md:text-7xl lg:text-8xl tracking-tight leading-[0.9] text-ink font-serif font-light">
@@ -398,8 +398,8 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Right Column: Scheduled Lists */}
-        <div className="lg:col-span-5 h-full flex flex-col justify-center py-6 min-h-0 animate-fade-in-up delay-100">
-          <div className="glass dark:bg-dark-900/40 border border-hairline/65 rounded-3xl p-6 flex flex-col h-full max-h-[75vh] overflow-hidden">
+        <div className="lg:col-span-5 w-full flex flex-col justify-center py-6 min-h-0 animate-fade-in-up delay-100">
+          <div className="glass dark:bg-dark-900/40 border border-hairline/65 rounded-3xl p-6 flex flex-col lg:h-full max-h-[450px] lg:max-h-[75vh] overflow-hidden">
             
             {/* Upcoming List Section */}
             <div className="flex-grow flex flex-col min-h-0 mb-6">
