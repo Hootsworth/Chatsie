@@ -5,6 +5,7 @@ import { useMeetingStore } from '../../stores/meetingStore';
 import type { Meeting } from '../../stores/meetingStore';
 import { useWebRTCStore } from '../../stores/webrtcStore';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
+import { useCallRecorder } from '../../hooks/useCallRecorder';
 import { applyVirtualBackgroundToStream } from '../../utils/mediaProcessors';
 import { playSynthesizedSound, SOUND_DEFINITIONS } from '../../utils/soundSynthesizer';
 
@@ -24,7 +25,7 @@ import { WhiteboardPanel } from './WhiteboardPanel';
 import { BreakoutModal } from './BreakoutModal';
 import { Modal, Button } from '../ui';
 import { DeviceSelector } from './DeviceSelector';
-import { Copy, Check, Info, Users, Keyboard, Mic, MicOff, Video, VideoOff, Camera, User, ExternalLink, Lock, Unlock, Mail, Loader2, Settings } from 'lucide-react';
+import { Copy, Check, Info, Users, Keyboard, Mic, MicOff, Video, VideoOff, Camera, User, ExternalLink, Lock, Unlock, Mail, Loader2, Settings, Palette, FileText, PictureInPicture, Circle } from 'lucide-react';
 
 export const MeetingRoom: React.FC = () => {
   const { code: rawCode } = useParams<{ code: string }>();
@@ -1031,7 +1032,9 @@ const ActiveRoomContent: React.FC<{
     setParticipants,
     addParticipant,
     removeParticipant,
-    updateParticipantMute
+    updateParticipantMute,
+    toggleWhiteboard,
+    toggleTranscriptionPanel
   } = useMeetingStore();
 
   const {
@@ -1060,6 +1063,8 @@ const ActiveRoomContent: React.FC<{
   const [isSoundboardHUDOpen, setIsSoundboardHUDOpen] = useState(false);
   const [activeSoundId, setActiveSoundId] = useState<string | null>(null);
   const [isUiControlsVisible, setIsUiControlsVisible] = useState(true);
+
+  const { isRecording, startRecording, stopRecording } = useCallRecorder();
 
   // Monitor tab visibility to suspend rendering/streaming when backgrounded
   useEffect(() => {
@@ -1694,15 +1699,75 @@ const ActiveRoomContent: React.FC<{
             </div>
           )}
 
+          {/* Call Recording */}
+          <button
+            onClick={isRecording ? stopRecording : startRecording}
+            className={`flex items-center space-x-1.5 p-1 rounded-md hover:bg-surface-dark-soft transition-all cursor-pointer ${
+              isRecording ? 'text-red-500 hover:text-red-400 font-extrabold' : 'hover:text-on-dark text-on-dark-soft'
+            }`}
+            title={isRecording ? 'Stop Recording' : 'Record Call'}
+          >
+            <Circle className={`w-4 h-4 ${isRecording ? 'fill-red-500 text-red-500 animate-pulse' : ''}`} />
+            <span className="hidden sm:inline">{isRecording ? 'Recording' : 'Record'}</span>
+          </button>
+
+          {/* Interactive Whiteboard */}
+          <button
+            onClick={toggleWhiteboard}
+            className={`flex items-center space-x-1.5 p-1 rounded-md hover:bg-surface-dark-soft transition-all cursor-pointer ${
+              isWhiteboardOpen ? 'text-primary' : 'hover:text-on-dark text-on-dark-soft'
+            }`}
+            title="Interactive Whiteboard"
+          >
+            <Palette className="w-4 h-4" />
+            <span className="hidden sm:inline">Whiteboard</span>
+          </button>
+
+          {/* Live Transcription */}
+          <button
+            onClick={toggleTranscriptionPanel}
+            className={`flex items-center space-x-1.5 p-1 rounded-md hover:bg-surface-dark-soft transition-all cursor-pointer ${
+              isTranscriptionPanelOpen ? 'text-primary' : 'hover:text-on-dark text-on-dark-soft'
+            }`}
+            title="Live Transcription"
+          >
+            <FileText className="w-4 h-4" />
+            <span className="hidden sm:inline">Transcript</span>
+          </button>
+
+          {/* Picture-in-Picture Mode */}
+          {'documentPictureInPicture' in window && (
+            <button
+              onClick={togglePip}
+              className="flex items-center space-x-1.5 hover:text-on-dark p-1 rounded-md hover:bg-surface-dark-soft transition-all cursor-pointer text-on-dark-soft"
+              title="Picture-in-Picture Mode"
+            >
+              <PictureInPicture className="w-4 h-4" />
+              <span className="hidden sm:inline">PiP</span>
+            </button>
+          )}
+
+          {/* Keyboard Shortcuts */}
           <button
             onClick={() => setShortcutsOpen(true)}
-            className="flex items-center space-x-1 hover:text-on-dark p-1 rounded-md hover:bg-surface-dark-soft transition-all cursor-pointer"
+            className="flex items-center space-x-1.5 hover:text-on-dark p-1 rounded-md hover:bg-surface-dark-soft transition-all cursor-pointer text-on-dark-soft"
             title="Keyboard Shortcuts"
           >
             <Keyboard className="w-4 h-4" />
             <span className="hidden sm:inline">Shortcuts</span>
           </button>
-          <div className="flex items-center space-x-1 bg-surface-dark-soft px-2.5 py-1 rounded-md">
+
+          {/* Device Settings */}
+          <button
+            onClick={() => setSettingsOpen(true)}
+            className="flex items-center space-x-1.5 hover:text-on-dark p-1 rounded-md hover:bg-surface-dark-soft transition-all cursor-pointer text-on-dark-soft"
+            title="Device Settings"
+          >
+            <Settings className="w-4 h-4" />
+            <span className="hidden sm:inline">Settings</span>
+          </button>
+
+          <div className="flex items-center space-x-1 bg-surface-dark-soft px-2.5 py-1 rounded-md text-on-dark-soft">
             <Users className="w-3.5 h-3.5" />
             <span>{participants.length + 1} active</span>
           </div>
@@ -1827,7 +1892,6 @@ const ActiveRoomContent: React.FC<{
         onLeave={handleLeaveMeeting}
         hasUnreadMessages={hasUnreadChat}
         markChatRead={() => setHasUnreadChat(false)}
-        onTogglePip={togglePip}
         className={isUiControlsVisible ? 'translate-y-0 opacity-100' : 'translate-y-24 opacity-0 pointer-events-none'}
       />
 

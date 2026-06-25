@@ -3,7 +3,6 @@ import { useMeetingStore } from '../../stores/meetingStore';
 import { useWebRTCStore } from '../../stores/webrtcStore';
 import { signalingClient } from '../../services/signaling';
 import { useLocalParticipant, useParticipants } from '@livekit/components-react';
-import { useCallRecorder } from '../../hooks/useCallRecorder';
 import {
   Mic,
   MicOff,
@@ -14,14 +13,9 @@ import {
   Hand,
   MessageSquare,
   Users,
-  Settings,
   PhoneOff,
   Captions,
-  FileText,
-  Smile,
-  PictureInPicture,
-  Palette,
-  Circle
+  Smile
 } from 'lucide-react';
 
 const REACTION_EMOJIS = ['👍', '👏', '❤️', '🎉', '😂', '🔥', '🤔', '😮'];
@@ -30,7 +24,6 @@ interface MeetingControlsProps {
   onLeave: () => void;
   hasUnreadMessages: boolean;
   markChatRead: () => void;
-  onTogglePip?: () => void;
   className?: string;
 }
 
@@ -38,26 +31,18 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
   onLeave,
   hasUnreadMessages,
   markChatRead,
-  onTogglePip,
   className = ''
 }) => {
   const {
     myRole,
     isChatPanelOpen,
     isParticipantsPanelOpen,
-    isTranscriptionPanelOpen,
-    isWhiteboardOpen,
     toggleChatPanel,
     toggleParticipantsPanel,
-    toggleTranscriptionPanel,
-    toggleWhiteboard,
-    setSettingsOpen,
     currentMeeting,
     isLocalHandRaised,
     setLocalHandRaised
   } = useMeetingStore();
-
-  const { isRecording, startRecording, stopRecording } = useCallRecorder();
 
   const { setAudioMute, setVideoMute } = useWebRTCStore();
 
@@ -274,65 +259,6 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
           <span className="text-[10px] font-bold bg-surface-dark-soft text-on-dark px-1.5 py-0.5 rounded border border-white/10">
             {allParticipants.length}
           </span>
-        </button>
-
-        {/* Transcription Toggle Button */}
-        <button
-          onClick={toggleTranscriptionPanel}
-          className={`p-2.5 rounded-lg transition-all relative ${
-            isTranscriptionPanelOpen 
-              ? 'bg-primary/20 text-primary border border-primary/30' 
-              : 'hover:bg-surface-dark-soft text-on-dark-soft'
-          }`}
-          title="Live Transcription"
-        >
-          <FileText className="w-5 h-5" />
-        </button>
-
-        {/* Whiteboard Toggle Button */}
-        <button
-          onClick={toggleWhiteboard}
-          className={`p-2.5 rounded-lg transition-all relative cursor-pointer ${
-            isWhiteboardOpen 
-              ? 'bg-primary/20 text-primary border border-primary/30' 
-              : 'hover:bg-surface-dark-soft text-on-dark-soft'
-          }`}
-          title="Interactive Whiteboard"
-        >
-          <Palette className="w-5 h-5" />
-        </button>
-
-        {/* Call Recording Toggle Button */}
-        <button
-          onClick={isRecording ? stopRecording : startRecording}
-          className={`p-2.5 rounded-lg transition-all relative cursor-pointer ${
-            isRecording 
-              ? 'bg-red-500/20 text-red-500 border border-red-500/30' 
-              : 'hover:bg-surface-dark-soft text-on-dark-soft'
-          }`}
-          title={isRecording ? 'Stop Recording' : 'Record Call'}
-        >
-          <Circle className={`w-5 h-5 ${isRecording ? 'fill-red-500 animate-pulse' : ''}`} />
-        </button>
-
-        {/* Picture-in-Picture Toggle Button */}
-        {onTogglePip && 'documentPictureInPicture' in window && (
-          <button
-            onClick={onTogglePip}
-            className="p-2.5 hover:bg-surface-dark-soft text-on-dark-soft rounded-lg transition-colors cursor-pointer"
-            title="Picture-in-Picture Mode"
-          >
-            <PictureInPicture className="w-5 h-5" />
-          </button>
-        )}
-
-        {/* Device Settings Toggle Button */}
-        <button
-          onClick={() => setSettingsOpen(true)}
-          className="p-2.5 hover:bg-surface-dark-soft text-on-dark-soft rounded-lg transition-colors cursor-pointer"
-          title="Device Settings"
-        >
-          <Settings className="w-5 h-5" />
         </button>
       </div>
     </div>
