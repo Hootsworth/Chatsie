@@ -380,115 +380,258 @@ app.post('/api/meetings/:code/invite', (0, express_2.requireAuth)(), async (req,
 <html>
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Meeting Invitation</title>
   <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      background-color: #0c0a09;
-      color: #fafaf9;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      margin: 0;
-      padding: 0;
+      background-color: #f7f7f5;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #000000;
+      -webkit-font-smoothing: antialiased;
     }
+
     .wrapper {
-      padding: 40px 20px;
+      padding: 48px 20px;
     }
+
     .container {
-      max-width: 500px;
+      max-width: 520px;
       margin: 0 auto;
-      background-color: #1c1917;
-      border: 1px solid #2e2a24;
-      border-radius: 16px;
-      padding: 32px;
-      text-align: center;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+      background-color: #ffffff;
     }
-    .header-logo {
-      font-size: 24px;
-      font-weight: 800;
-      letter-spacing: -0.05em;
-      color: #6366f1;
-      margin-bottom: 24px;
+
+    /* Header strip — table-based for Outlook/Gmail */
+    .header-table {
+      width: 100%;
+      border-bottom: 1px solid #e6e6e6;
     }
-    .title {
-      font-size: 20px;
+
+    .header-table td {
+      padding: 20px 32px;
+      vertical-align: middle;
+    }
+
+    .wordmark {
+      font-size: 17px;
       font-weight: 700;
-      margin-bottom: 12px;
-      color: #ffffff;
-      line-height: 1.4;
+      letter-spacing: -0.03em;
+      color: #000000;
     }
-    .subtitle {
-      font-size: 14px;
-      color: #a8a29e;
-      margin-bottom: 28px;
-      line-height: 1.6;
-    }
-    .meeting-card {
-      background-color: #292524;
-      border: 1px solid #44403c;
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 32px;
-      text-align: left;
-    }
-    .meeting-label {
+
+    .eyebrow-tag {
+      font-family: 'Courier New', Courier, monospace;
       font-size: 10px;
+      font-weight: 400;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
-      font-weight: 700;
-      color: #a8a29e;
-      letter-spacing: 0.05em;
-      margin-bottom: 4px;
+      color: #000000;
+      background-color: #dceeb1;
+      padding: 3px 8px;
+      border-radius: 2px;
     }
-    .meeting-title {
+
+    /* Color block — lime */
+    .color-block {
+      background-color: #dceeb1;
+      padding: 40px 32px 36px;
+    }
+
+    .eyebrow {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #000000;
+      margin-bottom: 14px;
+    }
+
+    .headline {
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.25;
+      letter-spacing: -0.03em;
+      color: #000000;
+      margin-bottom: 12px;
+    }
+
+    .subtext {
+      font-size: 15px;
+      font-weight: 400;
+      line-height: 1.5;
+      color: #000000;
+    }
+
+    .subtext strong {
+      font-weight: 700;
+    }
+
+    /* White canvas body */
+    .body-section {
+      padding: 32px 32px 28px;
+      background-color: #ffffff;
+    }
+
+    /* Meeting detail card — table-based */
+    .meeting-card {
+      border: 1px solid #e6e6e6;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 28px;
+    }
+
+    .detail-table {
+      width: 100%;
+    }
+
+    .detail-table td {
+      vertical-align: top;
+      padding-bottom: 14px;
+    }
+
+    .detail-table tr:last-child td {
+      padding-bottom: 0;
+    }
+
+    .detail-label {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 10px;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #000000;
+      opacity: 0.5;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .detail-value {
       font-size: 15px;
       font-weight: 700;
-      color: #ffffff;
-      margin-bottom: 8px;
+      color: #000000;
+      letter-spacing: -0.01em;
+      display: block;
     }
-    .meeting-code {
-      font-family: monospace;
-      font-size: 13px;
-      color: #6366f1;
-      font-weight: 700;
-    }
-    .btn {
+
+    .detail-value.code {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 14px;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      background-color: #f7f7f5;
       display: inline-block;
-      background-color: #6366f1;
+      padding: 4px 10px;
+      border-radius: 4px;
+    }
+
+    /* CTA pill */
+    .cta-wrap {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .btn-primary {
+      display: inline-block;
+      background-color: #000000;
       color: #ffffff !important;
       text-decoration: none;
+      font-size: 15px;
       font-weight: 700;
-      font-size: 14px;
-      padding: 12px 32px;
-      border-radius: 10px;
-      box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.3);
-      margin-bottom: 24px;
+      letter-spacing: -0.01em;
+      padding: 13px 36px;
+      border-radius: 9999px;
     }
+
+    /* Hairline divider */
+    .divider {
+      height: 1px;
+      background-color: #e6e6e6;
+      margin: 0 32px;
+      font-size: 0;
+      line-height: 0;
+    }
+
+    /* Footer */
     .footer {
-      font-size: 11px;
-      color: #78716c;
-      margin-top: 16px;
+      padding: 20px 32px;
+      background-color: #ffffff;
+    }
+
+    .footer-text {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      color: #000000;
+      opacity: 0.45;
+      line-height: 1.7;
+    }
+
+    .footer-link {
+      color: #000000;
+      word-break: break-all;
+      text-decoration: underline;
     }
   </style>
 </head>
 <body>
   <div class="wrapper">
     <div class="container">
-      <div class="header-logo">Chatsie</div>
-      <div class="title">You're invited!</div>
-      <div class="subtitle"><strong>${hostName}</strong> has invited you to join a secure live video meeting.</div>
-      
-      <div class="meeting-card">
-        <div class="meeting-label">Meeting Room</div>
-        <div class="meeting-title">${meeting.title}</div>
-        <div class="meeting-label">Code</div>
-        <div class="meeting-code">${code}</div>
+
+      <!-- Header (table-based for email clients) -->
+      <table class="header-table" cellpadding="0" cellspacing="0" role="presentation">
+        <tr>
+          <td style="text-align: left;">
+            <div class="wordmark">Chatsie</div>
+          </td>
+          <td style="text-align: right;">
+            <span class="eyebrow-tag">Invitation</span>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Lime color block -->
+      <div class="color-block">
+        <div class="eyebrow">Secure video meeting</div>
+        <div class="headline">You're invited.</div>
+        <div class="subtext"><strong>${hostName}</strong> has invited you to join a live meeting.</div>
       </div>
-      
-      <a href="${joinLink}" class="btn" target="_blank">Join Meeting</a>
-      
+
+      <!-- White canvas body -->
+      <div class="body-section">
+        <div class="meeting-card">
+          <table class="detail-table" cellpadding="0" cellspacing="0" role="presentation">
+            <tr>
+              <td>
+                <span class="detail-label">Meeting Room</span>
+                <span class="detail-value">${meeting.title}</span>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <span class="detail-label">Code</span>
+                <span class="detail-value code">${code}</span>
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="cta-wrap">
+          <a href="${joinLink}" class="btn-primary" target="_blank">Join meeting</a>
+        </div>
+      </div>
+
+      <div class="divider">&nbsp;</div>
+
+      <!-- Footer -->
       <div class="footer">
-        If the button above does not work, copy and paste this URL into your browser:<br>
-        <span style="color: #6366f1; word-break: break-all;">${joinLink}</span>
+        <div class="footer-text">
+          Button not working? Paste this URL into your browser:<br>
+          <a href="${joinLink}" class="footer-link">${joinLink}</a>
+        </div>
       </div>
+
     </div>
   </div>
 </body>
@@ -628,6 +771,9 @@ const io = new socket_io_1.Server(server, {
 });
 // Memory storage for active rooms: RoomID -> Array of Participants
 const rooms = new Map();
+const roomPolls = new Map();
+const roomQuestions = new Map();
+const bannedUsers = new Map();
 // Disconnect timeouts map: userId -> Timeout ID
 const disconnectTimeouts = new Map();
 io.on('connection', (socket) => {
@@ -635,6 +781,12 @@ io.on('connection', (socket) => {
     // 1. Join Room
     socket.on('join-room', (data) => {
         const { roomId, userId, username, role, isWaiting } = data;
+        // Check if participant is banned
+        if (bannedUsers.get(roomId)?.has(userId)) {
+            console.log(`Banned user ${username} (${userId}) blocked from room ${roomId}`);
+            socket.emit('waiting-status', { status: 'denied' });
+            return;
+        }
         // Attach identifiers to socket instance
         socket.userId = userId;
         socket.roomId = roomId;
@@ -678,6 +830,9 @@ io.on('connection', (socket) => {
             // Send current active participants list to the joiner
             const activeParticipants = roomParticipants.filter(p => !p.isWaiting && p.userId !== userId);
             socket.emit('room-participants', { participants: activeParticipants });
+            // Send polls and questions history
+            socket.emit('polls-history', { polls: roomPolls.get(roomId) || [] });
+            socket.emit('questions-history', { questions: roomQuestions.get(roomId) || [] });
             // Notify others in the room
             socket.to(roomId).emit('peer-joined', {
                 socketId: socket.id,
@@ -821,6 +976,12 @@ io.on('connection', (socket) => {
         const participant = roomParticipants.find(p => p.userId === targetUserId);
         if (participant) {
             io.to(participant.socketId).emit('kicked-command');
+            // Add user to ban list
+            if (!bannedUsers.has(roomId)) {
+                bannedUsers.set(roomId, new Set());
+            }
+            bannedUsers.get(roomId)?.add(targetUserId);
+            console.log(`Banned user ${targetUserId} from room ${roomId}`);
             const updatedParticipants = roomParticipants.filter(p => p.userId !== targetUserId);
             rooms.set(roomId, updatedParticipants);
             console.log(`User kicked: ${targetUserId} from room ${roomId}`);
@@ -890,6 +1051,116 @@ io.on('connection', (socket) => {
         const { roomId } = data;
         io.to(roomId).emit('breakout-ended');
     });
+    // Interactive Polls Socket Handlers
+    socket.on('create-poll', (data) => {
+        const { roomId, question, options } = data;
+        const userId = socket.userId;
+        const roomParticipants = rooms.get(roomId) || [];
+        const creator = roomParticipants.find(p => p.userId === userId);
+        const creatorName = creator ? creator.username : 'Host';
+        const newPoll = {
+            id: `poll-${Date.now()}`,
+            creatorId: userId || '',
+            creatorName,
+            question,
+            options: options.map((opt, idx) => ({ id: `opt-${idx}`, text: opt, votes: [] })),
+            isActive: true,
+            createdAt: Date.now()
+        };
+        const polls = roomPolls.get(roomId) || [];
+        polls.push(newPoll);
+        roomPolls.set(roomId, polls);
+        io.to(roomId).emit('poll-created', { poll: newPoll });
+    });
+    socket.on('vote-poll', (data) => {
+        const { roomId, pollId, optionId } = data;
+        const userId = socket.userId;
+        if (!userId)
+            return;
+        const polls = roomPolls.get(roomId) || [];
+        const poll = polls.find(p => p.id === pollId);
+        if (poll && poll.isActive) {
+            poll.options.forEach(opt => {
+                opt.votes = opt.votes.filter(v => v !== userId);
+                if (opt.id === optionId) {
+                    opt.votes.push(userId);
+                }
+            });
+            roomPolls.set(roomId, polls);
+            io.to(roomId).emit('poll-voted', { pollId, optionId, voterId: userId });
+        }
+    });
+    socket.on('close-poll', (data) => {
+        const { roomId, pollId } = data;
+        const polls = roomPolls.get(roomId) || [];
+        const poll = polls.find(p => p.id === pollId);
+        if (poll) {
+            poll.isActive = false;
+            roomPolls.set(roomId, polls);
+            io.to(roomId).emit('poll-closed', { pollId });
+        }
+    });
+    socket.on('delete-poll', (data) => {
+        const { roomId, pollId } = data;
+        const polls = roomPolls.get(roomId) || [];
+        const filtered = polls.filter(p => p.id !== pollId);
+        roomPolls.set(roomId, filtered);
+        io.to(roomId).emit('poll-deleted', { pollId });
+    });
+    // Structured Q&A Socket Handlers
+    socket.on('create-question', (data) => {
+        const { roomId, text, username } = data;
+        const userId = socket.userId || '';
+        const newQuestion = {
+            id: `q-${Date.now()}`,
+            userId,
+            username: username || 'Anonymous',
+            text,
+            upvotes: [],
+            isAnswered: false,
+            createdAt: Date.now()
+        };
+        const questions = roomQuestions.get(roomId) || [];
+        questions.push(newQuestion);
+        roomQuestions.set(roomId, questions);
+        io.to(roomId).emit('question-created', { question: newQuestion });
+    });
+    socket.on('upvote-question', (data) => {
+        const { roomId, questionId, isUpvote } = data;
+        const userId = socket.userId;
+        if (!userId)
+            return;
+        const questions = roomQuestions.get(roomId) || [];
+        const question = questions.find(q => q.id === questionId);
+        if (question) {
+            const hasUpvoted = question.upvotes.includes(userId);
+            if (isUpvote && !hasUpvoted) {
+                question.upvotes.push(userId);
+            }
+            else if (!isUpvote && hasUpvoted) {
+                question.upvotes = question.upvotes.filter(v => v !== userId);
+            }
+            roomQuestions.set(roomId, questions);
+            io.to(roomId).emit('question-upvoted', { questionId, voterId: userId, isUpvote });
+        }
+    });
+    socket.on('answer-question', (data) => {
+        const { roomId, questionId, isAnswered } = data;
+        const questions = roomQuestions.get(roomId) || [];
+        const question = questions.find(q => q.id === questionId);
+        if (question) {
+            question.isAnswered = isAnswered;
+            roomQuestions.set(roomId, questions);
+            io.to(roomId).emit('question-answered', { questionId, isAnswered });
+        }
+    });
+    socket.on('delete-question', (data) => {
+        const { roomId, questionId } = data;
+        const questions = roomQuestions.get(roomId) || [];
+        const filtered = questions.filter(q => q.id !== questionId);
+        roomQuestions.set(roomId, filtered);
+        io.to(roomId).emit('question-deleted', { questionId });
+    });
     // 11. Disconnect (with 5-second grace period)
     socket.on('disconnect', () => {
         const userId = socket.userId;
@@ -906,7 +1177,10 @@ io.on('connection', (socket) => {
                 const updatedParticipants = roomParticipants.filter(p => p.userId !== userId);
                 if (updatedParticipants.length === 0) {
                     rooms.delete(roomId);
-                    console.log(`Room ${roomId} is now empty. Deleting.`);
+                    roomPolls.delete(roomId);
+                    roomQuestions.delete(roomId);
+                    bannedUsers.delete(roomId);
+                    console.log(`Room ${roomId} is now empty. Deleting all room state.`);
                 }
                 else {
                     rooms.set(roomId, updatedParticipants);

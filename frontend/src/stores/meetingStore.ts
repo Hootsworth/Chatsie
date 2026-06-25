@@ -42,6 +42,32 @@ export interface Transcript {
   isFinal: boolean;
 }
 
+export interface PollOption {
+  id: string;
+  text: string;
+  votes: string[]; // User IDs who voted
+}
+
+export interface Poll {
+  id: string;
+  creatorId: string;
+  creatorName: string;
+  question: string;
+  options: PollOption[];
+  isActive: boolean;
+  createdAt: number;
+}
+
+export interface Question {
+  id: string;
+  userId: string;
+  username: string;
+  text: string;
+  upvotes: string[]; // User IDs who upvoted
+  isAnswered: boolean;
+  createdAt: number;
+}
+
 interface MeetingState {
   // Current Active Meeting details
   currentMeeting: Meeting | null;
@@ -60,6 +86,10 @@ interface MeetingState {
   chatMessages: ChatMessage[];
   // Transcription history
   transcripts: Transcript[];
+  
+  // Interactive Polls & Q&A
+  polls: Poll[];
+  questions: Question[];
   
   // Local participant hand raised state
   isLocalHandRaised: boolean;
@@ -89,6 +119,18 @@ interface MeetingState {
   setChatMessages: (messages: ChatMessage[]) => void;
   addOrUpdateTranscript: (senderId: string, username: string, text: string, isFinal: boolean) => void;
   
+  // Polls & Q&A Actions
+  setPolls: (polls: Poll[]) => void;
+  addPoll: (poll: Poll) => void;
+  updatePollVotes: (pollId: string, optionId: string, voterId: string) => void;
+  closePoll: (pollId: string) => void;
+  deletePoll: (pollId: string) => void;
+  setQuestions: (questions: Question[]) => void;
+  addQuestion: (question: Question) => void;
+  updateQuestionUpvotes: (questionId: string, voterId: string, isUpvote: boolean) => void;
+  setQuestionAnswered: (questionId: string, isAnswered: boolean) => void;
+  deleteQuestion: (questionId: string) => void;
+
   // UI Actions
   toggleChatPanel: () => void;
   toggleParticipantsPanel: () => void;
@@ -109,6 +151,8 @@ export const useMeetingStore = create<MeetingState>((set) => ({
   isPasscodeGatePassed: false,
   chatMessages: [],
   transcripts: [],
+  polls: [],
+  questions: [],
   isLocalHandRaised: false,
   
   isChatPanelOpen: false,
@@ -191,6 +235,46 @@ export const useMeetingStore = create<MeetingState>((set) => ({
       return { transcripts: [...state.transcripts, newEntry] };
     }
   }),
+
+  // Polls & Q&A Actions
+  setPolls: (polls) => set({ polls }),
+  addPoll: (poll) => set((state) => ({ polls: [...state.polls, poll] })),
+  updatePollVotes: (pollId, optionId, voterId) => set((state) => ({
+    polls: state.polls.map(p => p.id === pollId ? {
+      ...p,
+      options: p.options.map(opt => {
+        const cleanVotes = opt.votes.filter(v => v !== voterId);
+        if (opt.id === optionId) {
+          return { ...opt, votes: [...cleanVotes, voterId] };
+        }
+        return { ...opt, votes: cleanVotes };
+      })
+    } : p)
+  })),
+  closePoll: (pollId) => set((state) => ({
+    polls: state.polls.map(p => p.id === pollId ? { ...p, isActive: false } : p)
+  })),
+  deletePoll: (pollId) => set((state) => ({
+    polls: state.polls.filter(p => p.id !== pollId)
+  })),
+  setQuestions: (questions) => set({ questions }),
+  addQuestion: (question) => set((state) => ({
+    questions: [...state.questions, question]
+  })),
+  updateQuestionUpvotes: (questionId, voterId, isUpvote) => set((state) => ({
+    questions: state.questions.map(q => q.id === questionId ? {
+      ...q,
+      upvotes: isUpvote 
+        ? [...q.upvotes.filter(v => v !== voterId), voterId]
+        : q.upvotes.filter(v => v !== voterId)
+    } : q)
+  })),
+  setQuestionAnswered: (questionId, isAnswered) => set((state) => ({
+    questions: state.questions.map(q => q.id === questionId ? { ...q, isAnswered } : q)
+  })),
+  deleteQuestion: (questionId) => set((state) => ({
+    questions: state.questions.filter(q => q.id !== questionId)
+  })),
   
   toggleChatPanel: () => set((state) => ({ 
     isChatPanelOpen: !state.isChatPanelOpen,
@@ -233,6 +317,8 @@ export const useMeetingStore = create<MeetingState>((set) => ({
     isPasscodeGatePassed: false,
     chatMessages: [],
     transcripts: [],
+    polls: [],
+    questions: [],
     isLocalHandRaised: false,
     isChatPanelOpen: false,
     isParticipantsPanelOpen: false,

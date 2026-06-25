@@ -3,6 +3,7 @@ import { ParticipantTile, useTracks, useLocalParticipant } from '@livekit/compon
 import { Track } from 'livekit-client';
 import { Monitor } from 'lucide-react';
 import { useMeetingStore } from '../../stores/meetingStore';
+import { useWebRTCStore } from '../../stores/webrtcStore';
 import { signalingClient } from '../../services/signaling';
 
 /* ── Soft avatar palette for camera-off tiles ── */
@@ -19,6 +20,7 @@ export const VideoGrid: React.FC = () => {
   const { localParticipant } = useLocalParticipant();
   const participantsList = useMeetingStore(state => state.participants);
   const isLocalHandRaised = useMeetingStore(state => state.isLocalHandRaised);
+  const isLowBandwidthMode = useWebRTCStore(state => state.isLowBandwidthMode);
 
   const tracks = useTracks(
     [
@@ -107,7 +109,7 @@ export const VideoGrid: React.FC = () => {
           const isHandRaised = isMe
             ? isLocalHandRaised
             : participantsList.find(sp => sp.userId === track.participant.identity)?.isHandRaised;
-          const isCameraOff = track.source === Track.Source.Camera && !track.participant.isCameraEnabled;
+          const isCameraOff = (track.source === Track.Source.Camera && !track.participant.isCameraEnabled) || (isLowBandwidthMode && !isMe);
 
           const speakingRing = isSpeaking ? 'ring-2 ring-[#8ab4f8] ring-offset-2 ring-offset-[#202124]' : '';
           const displayName = track.participant.name || track.participant.identity;
@@ -147,10 +149,10 @@ export const VideoGrid: React.FC = () => {
                     className="w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center text-xl md:text-2xl font-semibold select-none"
                     style={{ backgroundColor: palette.bg, color: palette.text }}
                   >
-                    {getInitials(track.participant.name, track.participant.identity)}
+                    {track.source === Track.Source.ScreenShare ? '🖥️' : getInitials(track.participant.name, track.participant.identity)}
                   </div>
                   <span className="mt-2.5 text-xs font-medium text-[#e8eaed] truncate max-w-[80%]">
-                    {displayName} {isMe ? '(You)' : ''}
+                    {displayName} {track.source === Track.Source.ScreenShare ? '(Presentation)' : ''} {isMe ? '(You)' : ''}
                   </span>
                 </div>
               </div>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import logo from '../../assets/logo.png';
 import { useUser, UserButton, useAuth } from '@clerk/clerk-react';
 import { Button, Input, Modal, Badge } from '../ui';
+import { generateGoogleCalendarUrl, downloadIcsFile } from '../../utils/calendar';
 
 interface ScheduledMeeting {
   id: string;
@@ -39,6 +40,8 @@ export const Dashboard: React.FC = () => {
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
   const [createMeetingError, setCreateMeetingError] = useState<string | null>(null);
   const [instantMeetingError, setInstantMeetingError] = useState<string | null>(null);
+  const [scheduledMeetingResult, setScheduledMeetingResult] = useState<ScheduledMeeting | null>(null);
+  const [isResultCopied, setIsResultCopied] = useState(false);
 
   // Helper to fetch authorization header
   const getAuthHeader = async (): Promise<Record<string, string>> => {
@@ -138,13 +141,32 @@ export const Dashboard: React.FC = () => {
         })
       });
       if (!response.ok) throw new Error('Failed to schedule meeting');
-      setMeetingTitle(''); setScheduledDate(''); setScheduledTime(''); setMeetingPasscode(''); setIsScheduleModalOpen(false);
+      const data = await response.json();
+      setScheduledMeetingResult(data.meeting);
       fetchMeetings();
     } catch (err: any) {
       setCreateMeetingError(err.message || 'An error occurred.');
     } finally {
       setIsCreatingMeeting(false);
     }
+  };
+
+  const handleCloseScheduleSuccess = () => {
+    setMeetingTitle('');
+    setScheduledDate('');
+    setScheduledTime('');
+    setMeetingPasscode('');
+    setScheduledMeetingResult(null);
+    setIsScheduleModalOpen(false);
+  };
+
+  const handleCloseScheduleModal = () => {
+    setMeetingTitle('');
+    setScheduledDate('');
+    setScheduledTime('');
+    setMeetingPasscode('');
+    setScheduledMeetingResult(null);
+    setIsScheduleModalOpen(false);
   };
 
   const handleJoinByCode = (e: React.FormEvent) => {
@@ -228,7 +250,7 @@ export const Dashboard: React.FC = () => {
               {isLoadingMeetings ? <p className="text-body-sm">Loading...</p> : 
                upcomingMeetings.length === 0 ? <p className="text-body-sm">No upcoming meetings.</p> :
                upcomingMeetings.map((mtg) => (
-                 <div key={mtg.id} className="bg-canvas rounded-lg p-6 flex items-center justify-between shadow-sm">
+                 <div key={mtg.id} className="bg-canvas rounded-lg p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
                    <div>
                      <h3 className="text-card-title">{mtg.title}</h3>
                      <p className="text-body-sm text-ink/70">
@@ -237,7 +259,26 @@ export const Dashboard: React.FC = () => {
                        }) : 'Instant Link'}
                      </p>
                    </div>
-                   <Button onClick={() => navigate(`/room/${mtg.code}`)} variant="primary">Join</Button>
+                   <div className="flex items-center gap-2">
+                     <Button 
+                       onClick={() => {
+                         const url = generateGoogleCalendarUrl(mtg.title, mtg.scheduled_start, mtg.duration, mtg.code);
+                         window.open(url, '_blank');
+                       }} 
+                       variant="tertiary-text"
+                       className="text-xs py-1 px-2"
+                     >
+                       Google Cal
+                     </Button>
+                     <Button 
+                       onClick={() => downloadIcsFile(mtg.title, mtg.scheduled_start, mtg.duration, mtg.code)} 
+                       variant="tertiary-text"
+                       className="text-xs py-1 px-2"
+                     >
+                       Outlook (.ics)
+                     </Button>
+                     <Button onClick={() => navigate(`/room/${mtg.code}`)} variant="primary">Join</Button>
+                   </div>
                  </div>
                ))
               }
@@ -289,27 +330,99 @@ export const Dashboard: React.FC = () => {
       </footer>
 
       {/* SCHEDULE MODAL */}
-      <Modal isOpen={isScheduleModalOpen} onClose={() => setIsScheduleModalOpen(false)} title="Schedule Upcoming Meeting">
-        <form onSubmit={handleScheduleMeeting} className="space-y-4">
-          {createMeetingError && <div className="text-red-500 text-body-sm">{createMeetingError}</div>}
-          <Input label="Meeting Title" value={meetingTitle} onChange={(e) => setMeetingTitle(e.target.value)} />
-          <div className="flex gap-4">
-            <Input label="Date" type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} />
-            <Input label="Time" type="time" value={scheduledTime} onChange={(e) => setScheduledTime(e.target.value)} />
+      <Modal 
+        isOpen={isScheduleModalOpen} 
+        onClose={handleCloseScheduleModal} 
+        title={scheduledMeetingResult ? "Meeting Scheduled Successfully!" : "Schedule Upcoming Meeting"}
+      >
+        {scheduledMeetingResult ? (
+          <div className="space-y-6 py-2">
+            <div className="p-4 bg-block-lime/10 border border-block-lime/30 rounded-lg text-ink space-y-3">
+              <h3 className="text-body-strong font-bold">{scheduledMeetingResult.title}</h3>
+              <p className="text-body-sm text-ink/75">
+                {scheduledMeetingResult.scheduled_start ? new Date(scheduledMeetingResult.scheduled_start).toLocaleString('en-US', {
+                  weekday: 'long', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                }) : 'Anytime'}
+              </p>
+              <div className="flex items-center justify-between bg-canvas border border-hairline rounded p-2 text-body-xs font-mono">
+                <span className="truncate">{window.location.origin}/room/{scheduledMeetingResult.code}</span>
+                <Button 
+                  variant="tertiary-text"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/room/${scheduledMeetingResult.code}`);
+                    setIsResultCopied(true);
+                    setTimeout(() => setIsResultCopied(false), 2000);
+                  }}
+                  className="py-1 px-2 text-xs"
+                >
+                  {isResultCopied ? 'Copied!' : 'Copy Link'}
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-eyebrow text-ink/60">Add to your calendar</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  onClick={() => {
+                    const url = generateGoogleCalendarUrl(
+                      scheduledMeetingResult.title,
+                      scheduledMeetingResult.scheduled_start,
+                      scheduledMeetingResult.duration,
+                      scheduledMeetingResult.code
+                    );
+                    window.open(url, '_blank');
+                  }}
+                  variant="secondary"
+                  className="w-full text-center"
+                >
+                  Google Calendar
+                </Button>
+                <Button
+                  onClick={() => {
+                    downloadIcsFile(
+                      scheduledMeetingResult.title,
+                      scheduledMeetingResult.scheduled_start,
+                      scheduledMeetingResult.duration,
+                      scheduledMeetingResult.code
+                    );
+                  }}
+                  variant="secondary"
+                  className="w-full text-center"
+                >
+                  Outlook / Apple (.ics)
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4 border-t border-hairline">
+              <Button onClick={handleCloseScheduleSuccess} variant="primary">
+                Done
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-4">
-            <Input label="Duration (min)" type="number" value={meetingDuration} onChange={(e) => setMeetingDuration(e.target.value)} />
-            <Input label="Passcode (Optional)" value={meetingPasscode} onChange={(e) => setMeetingPasscode(e.target.value)} />
-          </div>
-          <div className="flex items-center gap-3 py-2">
-            <input type="checkbox" checked={isWaitingRoomEnabled} onChange={(e) => setIsWaitingRoomEnabled(e.target.checked)} className="w-4 h-4 accent-primary" />
-            <label className="text-body-sm font-bold">Enable Waiting Room</label>
-          </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="secondary" type="button" onClick={() => setIsScheduleModalOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="primary" isLoading={isCreatingMeeting}>Schedule</Button>
-          </div>
-        </form>
+        ) : (
+          <form onSubmit={handleScheduleMeeting} className="space-y-4">
+            {createMeetingError && <div className="text-red-500 text-body-sm">{createMeetingError}</div>}
+            <Input label="Meeting Title" value={meetingTitle} onChange={(e) => setMeetingTitle(e.target.value)} />
+            <div className="flex gap-4">
+              <Input label="Date" type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} />
+              <Input label="Time" type="time" value={scheduledTime} onChange={(e) => setScheduledTime(e.target.value)} />
+            </div>
+            <div className="flex gap-4">
+              <Input label="Duration (min)" type="number" value={meetingDuration} onChange={(e) => setMeetingDuration(e.target.value)} />
+              <Input label="Passcode (Optional)" value={meetingPasscode} onChange={(e) => setMeetingPasscode(e.target.value)} />
+            </div>
+            <div className="flex items-center gap-3 py-2">
+              <input type="checkbox" checked={isWaitingRoomEnabled} onChange={(e) => setIsWaitingRoomEnabled(e.target.checked)} className="w-4 h-4 accent-primary" />
+              <label className="text-body-sm font-bold">Enable Waiting Room</label>
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="secondary" type="button" onClick={handleCloseScheduleModal}>Cancel</Button>
+              <Button type="submit" variant="primary" isLoading={isCreatingMeeting}>Schedule</Button>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );

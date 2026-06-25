@@ -10,7 +10,8 @@ export const ParticipantPanel: React.FC = () => {
     myRole,
     waitingRoomList,
     participants,
-    isLocalHandRaised
+    isLocalHandRaised,
+    currentMeeting
   } = useMeetingStore();
 
   const allParticipants = useParticipants();
@@ -93,6 +94,9 @@ export const ParticipantPanel: React.FC = () => {
             ? isLocalHandRaised 
             : participants.find(sp => sp.userId === p.identity)?.isHandRaised;
           
+          const isTargetHost = p.identity === currentMeeting?.host_id;
+          const canMute = !isMe && (isHost || !isTargetHost);
+          
           return (
             <div 
               key={p.identity}
@@ -108,7 +112,7 @@ export const ParticipantPanel: React.FC = () => {
                     <span className="font-bold text-ink truncate">{isMe ? 'Me' : p.name}</span>
                     {isHandRaised && <span className="text-amber-500 font-bold" title="Hand Raised">✋</span>}
                   </div>
-                  <span className="text-[10px] text-ink/70 font-semibold block">{isMe && isHost ? '@host' : ''}</span>
+                  <span className="text-[10px] text-ink/70 font-semibold block">{p.identity === currentMeeting?.host_id ? '@host' : ''}</span>
                 </div>
               </div>
 
@@ -119,37 +123,39 @@ export const ParticipantPanel: React.FC = () => {
                 {!p.isMicrophoneEnabled && <MicOff className="w-3.5 h-3.5 text-red-500" />}
                 {!p.isCameraEnabled && <VideoOff className="w-3.5 h-3.5 text-red-500" />}
 
-                {/* Host Control Actions (visible on hover/mobile for host only) */}
-                {isHost && !isMe && (
+                {/* Control Actions (visible on hover/mobile) */}
+                {!isMe && (canMute || isHost) && (
                   <div className="hidden group-hover:flex items-center space-x-1 pl-1 bg-canvas text-ink">
                     {/* Remote Mute Audio */}
-                    {p.isMicrophoneEnabled && (
+                    {canMute && p.isMicrophoneEnabled && (
                       <button
                         onClick={() => handleMutePeer(p.identity, 'audio')}
-                        className="p-1 text-ink/70 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"
+                        className="p-1 text-ink/70 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors cursor-pointer"
                         title="Mute Audio"
                       >
                         <VolumeX className="w-3.5 h-3.5" />
                       </button>
                     )}
                     {/* Remote Mute Video */}
-                    {p.isCameraEnabled && (
+                    {canMute && p.isCameraEnabled && (
                       <button
                         onClick={() => handleMutePeer(p.identity, 'video')}
-                        className="p-1 text-ink/70 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"
+                        className="p-1 text-ink/70 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors cursor-pointer"
                         title="Mute Video"
                       >
                         <VideoOff className="w-3.5 h-3.5" />
                       </button>
                     )}
                     {/* Kick Peer */}
-                    <button
-                      onClick={() => handleKickPeer(p.identity)}
-                      className="p-1 text-ink/70 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"
-                      title="Remove from meeting"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {isHost && (
+                      <button
+                        onClick={() => handleKickPeer(p.identity)}
+                        className="p-1 text-ink/70 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors cursor-pointer"
+                        title="Remove from meeting"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

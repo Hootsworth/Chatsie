@@ -33,6 +33,12 @@ interface WebRTCState {
   virtualBackgroundMode: 'none' | 'blur' | 'office' | 'gradient';
   setVirtualBackgroundMode: (mode: 'none' | 'blur' | 'office' | 'gradient') => void;
 
+  // E2EE and Low Bandwidth Mode settings
+  isE2eeEnabled: boolean;
+  setE2eeEnabled: (enabled: boolean) => void;
+  isLowBandwidthMode: boolean;
+  setLowBandwidthMode: (enabled: boolean) => void;
+
   // Actions
   setAudioMute: (isMuted: boolean) => void;
   setVideoMute: (isMuted: boolean) => void;
@@ -71,6 +77,8 @@ export const useWebRTCStore = create<WebRTCState>((set) => ({
   isPushToTalkEnabled: localStorage.getItem('push_to_talk_enabled') === 'true',
   isNoiseSuppressionEnabled: localStorage.getItem('noise_suppression_enabled') === 'true',
   virtualBackgroundMode: (localStorage.getItem('virtual_background_mode') as any) || 'none',
+  isE2eeEnabled: localStorage.getItem('e2ee_enabled') === 'true',
+  isLowBandwidthMode: localStorage.getItem('low_bandwidth_mode') === 'true',
   
   audioDevices: [],
   videoDevices: [],
@@ -95,6 +103,16 @@ export const useWebRTCStore = create<WebRTCState>((set) => ({
     set({ virtualBackgroundMode: mode });
   },
 
+  setE2eeEnabled: (enabled) => {
+    localStorage.setItem('e2ee_enabled', String(enabled));
+    set({ isE2eeEnabled: enabled });
+  },
+
+  setLowBandwidthMode: (enabled) => {
+    localStorage.setItem('low_bandwidth_mode', String(enabled));
+    set({ isLowBandwidthMode: enabled });
+  },
+
   setAudioMute: (isMuted) => set({ isMutedAudio: isMuted }),
   setVideoMute: (isMuted) => set({ isMutedVideo: isMuted }),
   setCaptionsEnabled: (enabled) => set({ showCaptions: enabled }),
@@ -117,7 +135,9 @@ export const useWebRTCStore = create<WebRTCState>((set) => ({
     selectedVideoInput: '',
     selectedAudioOutput: '',
     isNoiseSuppressionEnabled: false,
-    virtualBackgroundMode: 'none'
+    virtualBackgroundMode: 'none',
+    isE2eeEnabled: false,
+    isLowBandwidthMode: false
   })
 }));
 export default useWebRTCStore;

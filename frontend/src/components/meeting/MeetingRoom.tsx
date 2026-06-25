@@ -4,13 +4,14 @@ import { useUser, useAuth } from '@clerk/clerk-react';
 import { useMeetingStore } from '../../stores/meetingStore';
 import type { Meeting } from '../../stores/meetingStore';
 import { useWebRTCStore } from '../../stores/webrtcStore';
+import { Room, ExternalE2EEKeyProvider } from 'livekit-client';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 import { useCallRecorder } from '../../hooks/useCallRecorder';
 import { applyVirtualBackgroundToStream } from '../../utils/mediaProcessors';
 import { playSynthesizedSound, SOUND_DEFINITIONS } from '../../utils/soundSynthesizer';
 
 import { signalingClient } from '../../services/signaling';
-import { LiveKitRoom, useLocalParticipant, RoomAudioRenderer } from '@livekit/components-react';
+import { LiveKitRoom, useLocalParticipant, RoomAudioRenderer, useRoomContext } from '@livekit/components-react';
 import '@livekit/components-styles';
 import { createPortal } from 'react-dom';
 import { PasswordPrompt } from './PasswordPrompt';
@@ -66,7 +67,8 @@ export const MeetingRoom: React.FC = () => {
     setSelectedAudioOutput,
     showCaptions,
     isNoiseSuppressionEnabled,
-    virtualBackgroundMode
+    virtualBackgroundMode,
+    isE2eeEnabled
   } = useWebRTCStore();
 
   const [isLoadingMeeting, setIsLoadingMeeting] = useState(true);
@@ -813,19 +815,40 @@ export const MeetingRoom: React.FC = () => {
     );
   }
 
+  const customRoom = React.useMemo(() => {
+    if (!liveKitToken) return null;
+    const options: any = {
+      adaptiveStream: true,
+      dynacast: true,
+      publishDefaults: {
+        simulcast: true,
+      },
+    };
+
+    if (isE2eeEnabled) {
+      const keyProvider = new ExternalE2EEKeyProvider();
+      options.encryption = {
+        keyProvider,
+        worker: new Worker(new URL('livekit-client/e2ee-worker', import.meta.url), { type: 'module' }),
+      };
+      const encryptionKey = currentMeeting?.passcode || code || 'default-key';
+      keyProvider.setKey(encryptionKey);
+    }
+
+    const r = new Room(options);
+    if (isE2eeEnabled) {
+      r.setE2EEEnabled(true);
+    }
+    return r;
+  }, [isE2eeEnabled, code, currentMeeting?.passcode, liveKitToken]);
+
   return (
     <LiveKitRoom
       video={!isMutedVideo}
       audio={!isMutedAudio}
       token={liveKitToken || undefined}
       serverUrl={import.meta.env.VITE_LIVEKIT_URL}
-      options={{
-        adaptiveStream: true,
-        dynacast: true,
-        publishDefaults: {
-          simulcast: true,
-        },
-      }}
+      room={customRoom || undefined}
       data-lk-theme="default"
       className="h-screen w-screen overflow-hidden bg-[#202124] text-[#e8eaed]"
       style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column' }}
@@ -974,7 +997,17 @@ const ActiveRoomContent: React.FC<{
     removeParticipant,
     updateParticipantMute,
     toggleWhiteboard,
-    toggleTranscriptionPanel
+    toggleTranscriptionPanel,
+    setPolls,
+    addPoll,
+    updatePollVotes,
+    closePoll,
+    deletePoll,
+    setQuestions,
+    addQuestion,
+    updateQuestionUpvotes,
+    setQuestionAnswered,
+    deleteQuestion
   } = useMeetingStore();
 
   const {
@@ -984,8 +1017,11 @@ const ActiveRoomContent: React.FC<{
     isPushToTalkEnabled,
     showCaptions,
     isNoiseSuppressionEnabled,
-    virtualBackgroundMode
+    virtualBackgroundMode,
+    isLowBandwidthMode
   } = useWebRTCStore();
+
+  const room = useRoomContext();
 
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
   const { getToken } = useAuth();
@@ -1005,6 +1041,34 @@ const ActiveRoomContent: React.FC<{
   const [isUiControlsVisible, setIsUiControlsVisible] = useState(true);
 
   const { isRecording, startRecording, stopRecording } = useCallRecorder();
+
+  // Dynamic Low Bandwidth track subscription manager
+  useEffect(() => {
+    if (!room) return;
+
+    const handleSubscriptions = () => {
+      room.remoteParticipants.forEach((p: any) => {
+        p.trackPublications.forEach((pub: any) => {
+          if (pub.kind === 'video') {
+            pub.setSubscribed(!isLowBandwidthMode);
+          }
+        });
+      });
+    };
+
+    handleSubscriptions();
+
+    const handleTrackPublished = (pub: any) => {
+      if (pub.kind === 'video') {
+        pub.setSubscribed(!isLowBandwidthMode);
+      }
+    };
+
+    room.on('trackPublished', handleTrackPublished);
+    return () => {
+      room.off('trackPublished', handleTrackPublished);
+    };
+  }, [room, isLowBandwidthMode]);
 
   // Monitor tab visibility to suspend rendering/streaming when backgrounded
   useEffect(() => {
@@ -1320,6 +1384,46 @@ const ActiveRoomContent: React.FC<{
       setTimeout(() => setActiveSoundId(null), 300);
     };
 
+    const handlePollsHistory = ({ polls }: { polls: any[] }) => {
+      setPolls(polls);
+    };
+
+    const handlePollCreated = ({ poll }: { poll: any }) => {
+      addPoll(poll);
+    };
+
+    const handlePollVoted = ({ pollId, optionId, voterId }: { pollId: string; optionId: string; voterId: string }) => {
+      updatePollVotes(pollId, optionId, voterId);
+    };
+
+    const handlePollClosed = ({ pollId }: { pollId: string }) => {
+      closePoll(pollId);
+    };
+
+    const handlePollDeleted = ({ pollId }: { pollId: string }) => {
+      deletePoll(pollId);
+    };
+
+    const handleQuestionsHistory = ({ questions }: { questions: any[] }) => {
+      setQuestions(questions);
+    };
+
+    const handleQuestionCreated = ({ question }: { question: any }) => {
+      addQuestion(question);
+    };
+
+    const handleQuestionUpvoted = ({ questionId, voterId, isUpvote }: { questionId: string; voterId: string; isUpvote: boolean }) => {
+      updateQuestionUpvotes(questionId, voterId, isUpvote);
+    };
+
+    const handleQuestionAnswered = ({ questionId, isAnswered }: { questionId: string; isAnswered: boolean }) => {
+      setQuestionAnswered(questionId, isAnswered);
+    };
+
+    const handleQuestionDeleted = ({ questionId }: { questionId: string }) => {
+      deleteQuestion(questionId);
+    };
+
     signalingClient.on('chat-received', handleChatReceived);
     signalingClient.on('hand-raised', handleHandRaised);
     signalingClient.on('mute-command', handleMuteCommand);
@@ -1328,6 +1432,16 @@ const ActiveRoomContent: React.FC<{
     signalingClient.on('peer-left', handlePeerLeft);
     signalingClient.on('peer-muted-status', handlePeerMutedStatus);
     signalingClient.on('soundboard-play', handleSoundboardPlay);
+    signalingClient.on('polls-history', handlePollsHistory);
+    signalingClient.on('poll-created', handlePollCreated);
+    signalingClient.on('poll-voted', handlePollVoted);
+    signalingClient.on('poll-closed', handlePollClosed);
+    signalingClient.on('poll-deleted', handlePollDeleted);
+    signalingClient.on('questions-history', handleQuestionsHistory);
+    signalingClient.on('question-created', handleQuestionCreated);
+    signalingClient.on('question-upvoted', handleQuestionUpvoted);
+    signalingClient.on('question-answered', handleQuestionAnswered);
+    signalingClient.on('question-deleted', handleQuestionDeleted);
 
     return () => {
       signalingClient.off('chat-received', handleChatReceived);
@@ -1338,6 +1452,16 @@ const ActiveRoomContent: React.FC<{
       signalingClient.off('peer-left', handlePeerLeft);
       signalingClient.off('peer-muted-status', handlePeerMutedStatus);
       signalingClient.off('soundboard-play', handleSoundboardPlay);
+      signalingClient.off('polls-history', handlePollsHistory);
+      signalingClient.off('poll-created', handlePollCreated);
+      signalingClient.off('poll-voted', handlePollVoted);
+      signalingClient.off('poll-closed', handlePollClosed);
+      signalingClient.off('poll-deleted', handlePollDeleted);
+      signalingClient.off('questions-history', handleQuestionsHistory);
+      signalingClient.off('question-created', handleQuestionCreated);
+      signalingClient.off('question-upvoted', handleQuestionUpvoted);
+      signalingClient.off('question-answered', handleQuestionAnswered);
+      signalingClient.off('question-deleted', handleQuestionDeleted);
     };
   }, [
     localParticipant,
@@ -1350,7 +1474,17 @@ const ActiveRoomContent: React.FC<{
     addParticipant,
     removeParticipant,
     updateParticipantMute,
-    setActiveSoundId
+    setActiveSoundId,
+    setPolls,
+    addPoll,
+    updatePollVotes,
+    closePoll,
+    deletePoll,
+    setQuestions,
+    addQuestion,
+    updateQuestionUpvotes,
+    setQuestionAnswered,
+    deleteQuestion
   ]);
 
   // Handle incoming unread chat notification

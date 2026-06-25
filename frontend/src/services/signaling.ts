@@ -2,6 +2,7 @@ import { io, Socket } from 'socket.io-client';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import supabase from './supabase';
 import { useMeetingStore } from '../stores/meetingStore';
+import type { Poll, Question } from '../stores/meetingStore';
 
 export interface SignalingEventMap {
   'peer-joined': (data: {
@@ -40,6 +41,18 @@ export interface SignalingEventMap {
   'waiting-doodle-draw': (data: { x1: number; y1: number; x2: number; y2: number; color: string; thickness: number }) => void;
   'waiting-doodle-clear': () => void;
   'soundboard-play': (data: { userId: string; soundId: string }) => void;
+  
+  // Interactive Polls & Q&A
+  'polls-history': (data: { polls: Poll[] }) => void;
+  'poll-created': (data: { poll: Poll }) => void;
+  'poll-voted': (data: { pollId: string; optionId: string; voterId: string }) => void;
+  'poll-closed': (data: { pollId: string }) => void;
+  'poll-deleted': (data: { pollId: string }) => void;
+  'questions-history': (data: { questions: Question[] }) => void;
+  'question-created': (data: { question: Question }) => void;
+  'question-upvoted': (data: { questionId: string; voterId: string; isUpvote: boolean }) => void;
+  'question-answered': (data: { questionId: string; isAnswered: boolean }) => void;
+  'question-deleted': (data: { questionId: string }) => void;
 }
 
 export interface ISignalingClient {
@@ -65,6 +78,16 @@ export interface ISignalingClient {
   sendWaitingDoodleDraw(x1: number, y1: number, x2: number, y2: number, color: string, thickness: number): void;
   sendWaitingDoodleClear(): void;
   sendSoundboardPlay(soundId: string): void;
+  
+  // Interactive Polls & Q&A
+  sendCreatePoll(question: string, options: string[]): void;
+  sendVotePoll(pollId: string, optionId: string): void;
+  sendClosePoll(pollId: string): void;
+  sendDeletePoll(pollId: string): void;
+  sendCreateQuestion(text: string, username: string): void;
+  sendUpvoteQuestion(questionId: string, isUpvote: boolean): void;
+  sendAnswerQuestion(questionId: string, isAnswered: boolean): void;
+  sendDeleteQuestion(questionId: string): void;
 }
 
 // ----------------------------------------------------
@@ -129,6 +152,18 @@ class SocketIOSignalingClient implements ISignalingClient {
     this.socket.on('waiting-doodle-draw', (data) => this.emit('waiting-doodle-draw', data));
     this.socket.on('waiting-doodle-clear', () => this.emit('waiting-doodle-clear'));
     this.socket.on('soundboard-play', (data) => this.emit('soundboard-play', data));
+    
+    // Polls & Q&A
+    this.socket.on('polls-history', (data) => this.emit('polls-history', data));
+    this.socket.on('poll-created', (data) => this.emit('poll-created', data));
+    this.socket.on('poll-voted', (data) => this.emit('poll-voted', data));
+    this.socket.on('poll-closed', (data) => this.emit('poll-closed', data));
+    this.socket.on('poll-deleted', (data) => this.emit('poll-deleted', data));
+    this.socket.on('questions-history', (data) => this.emit('questions-history', data));
+    this.socket.on('question-created', (data) => this.emit('question-created', data));
+    this.socket.on('question-upvoted', (data) => this.emit('question-upvoted', data));
+    this.socket.on('question-answered', (data) => this.emit('question-answered', data));
+    this.socket.on('question-deleted', (data) => this.emit('question-deleted', data));
   }
 
   disconnect(): void {
@@ -240,6 +275,54 @@ class SocketIOSignalingClient implements ISignalingClient {
   sendSoundboardPlay(soundId: string): void {
     if (this.socket) {
       this.socket.emit('soundboard-play', { roomId: this.roomId, soundId });
+    }
+  }
+
+  sendCreatePoll(question: string, options: string[]): void {
+    if (this.socket) {
+      this.socket.emit('create-poll', { roomId: this.roomId, question, options });
+    }
+  }
+
+  sendVotePoll(pollId: string, optionId: string): void {
+    if (this.socket) {
+      this.socket.emit('vote-poll', { roomId: this.roomId, pollId, optionId });
+    }
+  }
+
+  sendClosePoll(pollId: string): void {
+    if (this.socket) {
+      this.socket.emit('close-poll', { roomId: this.roomId, pollId });
+    }
+  }
+
+  sendDeletePoll(pollId: string): void {
+    if (this.socket) {
+      this.socket.emit('delete-poll', { roomId: this.roomId, pollId });
+    }
+  }
+
+  sendCreateQuestion(text: string, username: string): void {
+    if (this.socket) {
+      this.socket.emit('create-question', { roomId: this.roomId, text, username });
+    }
+  }
+
+  sendUpvoteQuestion(questionId: string, isUpvote: boolean): void {
+    if (this.socket) {
+      this.socket.emit('upvote-question', { roomId: this.roomId, questionId, isUpvote });
+    }
+  }
+
+  sendAnswerQuestion(questionId: string, isAnswered: boolean): void {
+    if (this.socket) {
+      this.socket.emit('answer-question', { roomId: this.roomId, questionId, isAnswered });
+    }
+  }
+
+  sendDeleteQuestion(questionId: string): void {
+    if (this.socket) {
+      this.socket.emit('delete-question', { roomId: this.roomId, questionId });
     }
   }
 
@@ -366,6 +449,30 @@ class SupabaseSignalingClient implements ISignalingClient {
       })
       .on('broadcast', { event: 'soundboard-play' }, (payload) => {
         this.emit('soundboard-play', payload.payload);
+      })
+      .on('broadcast', { event: 'poll-created' }, (payload) => {
+        this.emit('poll-created', payload.payload);
+      })
+      .on('broadcast', { event: 'poll-voted' }, (payload) => {
+        this.emit('poll-voted', payload.payload);
+      })
+      .on('broadcast', { event: 'poll-closed' }, (payload) => {
+        this.emit('poll-closed', payload.payload);
+      })
+      .on('broadcast', { event: 'poll-deleted' }, (payload) => {
+        this.emit('poll-deleted', payload.payload);
+      })
+      .on('broadcast', { event: 'question-created' }, (payload) => {
+        this.emit('question-created', payload.payload);
+      })
+      .on('broadcast', { event: 'question-upvoted' }, (payload) => {
+        this.emit('question-upvoted', payload.payload);
+      })
+      .on('broadcast', { event: 'question-answered' }, (payload) => {
+        this.emit('question-answered', payload.payload);
+      })
+      .on('broadcast', { event: 'question-deleted' }, (payload) => {
+        this.emit('question-deleted', payload.payload);
       });
 
     // 2. Presence synchronization (Tracks active list of users and waiting room)
@@ -659,6 +766,100 @@ class SupabaseSignalingClient implements ISignalingClient {
         soundId
       }
     });
+  }
+
+  sendCreatePoll(question: string, options: string[]): void {
+    if (!this.user) return;
+    const poll: Poll = {
+      id: `poll-${Date.now()}`,
+      creatorId: this.user.userId,
+      creatorName: this.user.username,
+      question,
+      options: options.map((opt, idx) => ({ id: `opt-${idx}`, text: opt, votes: [] })),
+      isActive: true,
+      createdAt: Date.now()
+    };
+    this.channel?.send({
+      type: 'broadcast',
+      event: 'poll-created',
+      payload: { poll }
+    });
+    this.emit('poll-created', { poll });
+  }
+
+  sendVotePoll(pollId: string, optionId: string): void {
+    if (!this.user) return;
+    this.channel?.send({
+      type: 'broadcast',
+      event: 'poll-voted',
+      payload: { pollId, optionId, voterId: this.user.userId }
+    });
+    this.emit('poll-voted', { pollId, optionId, voterId: this.user.userId });
+  }
+
+  sendClosePoll(pollId: string): void {
+    this.channel?.send({
+      type: 'broadcast',
+      event: 'poll-closed',
+      payload: { pollId }
+    });
+    this.emit('poll-closed', { pollId });
+  }
+
+  sendDeletePoll(pollId: string): void {
+    this.channel?.send({
+      type: 'broadcast',
+      event: 'poll-deleted',
+      payload: { pollId }
+    });
+    this.emit('poll-deleted', { pollId });
+  }
+
+  sendCreateQuestion(text: string, username: string): void {
+    if (!this.user) return;
+    const question: Question = {
+      id: `q-${Date.now()}`,
+      userId: this.user.userId,
+      username: username || 'Anonymous',
+      text,
+      upvotes: [],
+      isAnswered: false,
+      createdAt: Date.now()
+    };
+    this.channel?.send({
+      type: 'broadcast',
+      event: 'question-created',
+      payload: { question }
+    });
+    this.emit('question-created', { question });
+  }
+
+  sendUpvoteQuestion(questionId: string, isUpvote: boolean): void {
+    if (!this.user) return;
+    this.channel?.send({
+      type: 'broadcast',
+      event: 'question-upvoted',
+      payload: { questionId, voterId: this.user.userId, isUpvote }
+    });
+    this.emit('question-upvoted', { questionId, voterId: this.user.userId, isUpvote });
+  }
+
+  sendAnswerQuestion(questionId: string, isAnswered: boolean): void {
+    this.channel?.send({
+      type: 'broadcast',
+      event: 'question-answered',
+      payload: { questionId, isAnswered }
+    });
+    this.emit('question-answered', { questionId, isAnswered });
+  }
+
+  sendDeleteQuestion(questionId: string): void {
+    this.channel?.send({
+      type: 'broadcast',
+      event: 'question-deleted',
+      payload: { questionId }
+    });
+    this.emit('question-deleted', { questionId });
   }
 
   on<K extends keyof SignalingEventMap>(event: K, listener: SignalingEventMap[K]): void {

@@ -181,7 +181,7 @@ export const Modal: React.FC<ModalProps> = ({
       />
 
       {/* Modal Container */}
-      <div className={`relative w-full ${sizes[size]} bg-canvas rounded-xl shadow-2xl border border-hairline overflow-hidden transform transition-all z-10 animate-in fade-in zoom-in-95 duration-200`}>
+      <div className={`relative w-full ${sizes[size]} bg-canvas text-ink rounded-xl shadow-2xl border border-hairline overflow-hidden transform transition-all z-10 animate-in fade-in zoom-in-95 duration-200`}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-hairline">
           <h3 className="text-card-title text-ink tracking-tight">{title}</h3>

@@ -850,8 +850,37 @@ interface Participant {
   isMutedVideo: boolean;
 }
 
+interface BackendPollOption {
+  id: string;
+  text: string;
+  votes: string[];
+}
+
+interface BackendPoll {
+  id: string;
+  creatorId: string;
+  creatorName: string;
+  question: string;
+  options: BackendPollOption[];
+  isActive: boolean;
+  createdAt: number;
+}
+
+interface BackendQuestion {
+  id: string;
+  userId: string;
+  username: string;
+  text: string;
+  upvotes: string[];
+  isAnswered: boolean;
+  createdAt: number;
+}
+
 // Memory storage for active rooms: RoomID -> Array of Participants
 const rooms = new Map<string, Participant[]>();
+const roomPolls = new Map<string, BackendPoll[]>();
+const roomQuestions = new Map<string, BackendQuestion[]>();
+const bannedUsers = new Map<string, Set<string>>();
 
 // Disconnect timeouts map: userId -> Timeout ID
 const disconnectTimeouts = new Map<string, NodeJS.Timeout>();
@@ -862,6 +891,13 @@ io.on('connection', (socket: Socket) => {
   // 1. Join Room
   socket.on('join-room', (data: { roomId: string; userId: string; username: string; role: 'host' | 'participant'; isWaiting: boolean }) => {
     const { roomId, userId, username, role, isWaiting } = data;
+
+    // Check if participant is banned
+    if (bannedUsers.get(roomId)?.has(userId)) {
+      console.log(`Banned user ${username} (${userId}) blocked from room ${roomId}`);
+      socket.emit('waiting-status', { status: 'denied' });
+      return;
+    }
 
     // Attach identifiers to socket instance
     (socket as any).userId = userId;
@@ -912,6 +948,10 @@ io.on('connection', (socket: Socket) => {
       // Send current active participants list to the joiner
       const activeParticipants = roomParticipants.filter(p => !p.isWaiting && p.userId !== userId);
       socket.emit('room-participants', { participants: activeParticipants });
+
+      // Send polls and questions history
+      socket.emit('polls-history', { polls: roomPolls.get(roomId) || [] });
+      socket.emit('questions-history', { questions: roomQuestions.get(roomId) || [] });
 
       // Notify others in the room
       socket.to(roomId).emit('peer-joined', {
@@ -1077,6 +1117,13 @@ io.on('connection', (socket: Socket) => {
     if (participant) {
       io.to(participant.socketId).emit('kicked-command');
 
+      // Add user to ban list
+      if (!bannedUsers.has(roomId)) {
+        bannedUsers.set(roomId, new Set());
+      }
+      bannedUsers.get(roomId)?.add(targetUserId);
+      console.log(`Banned user ${targetUserId} from room ${roomId}`);
+
       const updatedParticipants = roomParticipants.filter(p => p.userId !== targetUserId);
       rooms.set(roomId, updatedParticipants);
 
@@ -1158,6 +1205,129 @@ io.on('connection', (socket: Socket) => {
     io.to(roomId).emit('breakout-ended');
   });
 
+  // Interactive Polls Socket Handlers
+  socket.on('create-poll', (data: { roomId: string; question: string; options: string[] }) => {
+    const { roomId, question, options } = data;
+    const userId = (socket as any).userId;
+    const roomParticipants = rooms.get(roomId) || [];
+    const creator = roomParticipants.find(p => p.userId === userId);
+    const creatorName = creator ? creator.username : 'Host';
+
+    const newPoll: BackendPoll = {
+      id: `poll-${Date.now()}`,
+      creatorId: userId || '',
+      creatorName,
+      question,
+      options: options.map((opt, idx) => ({ id: `opt-${idx}`, text: opt, votes: [] })),
+      isActive: true,
+      createdAt: Date.now()
+    };
+
+    const polls = roomPolls.get(roomId) || [];
+    polls.push(newPoll);
+    roomPolls.set(roomId, polls);
+
+    io.to(roomId).emit('poll-created', { poll: newPoll });
+  });
+
+  socket.on('vote-poll', (data: { roomId: string; pollId: string; optionId: string }) => {
+    const { roomId, pollId, optionId } = data;
+    const userId = (socket as any).userId;
+    if (!userId) return;
+
+    const polls = roomPolls.get(roomId) || [];
+    const poll = polls.find(p => p.id === pollId);
+    if (poll && poll.isActive) {
+      poll.options.forEach(opt => {
+        opt.votes = opt.votes.filter(v => v !== userId);
+        if (opt.id === optionId) {
+          opt.votes.push(userId);
+        }
+      });
+      roomPolls.set(roomId, polls);
+      io.to(roomId).emit('poll-voted', { pollId, optionId, voterId: userId });
+    }
+  });
+
+  socket.on('close-poll', (data: { roomId: string; pollId: string }) => {
+    const { roomId, pollId } = data;
+    const polls = roomPolls.get(roomId) || [];
+    const poll = polls.find(p => p.id === pollId);
+    if (poll) {
+      poll.isActive = false;
+      roomPolls.set(roomId, polls);
+      io.to(roomId).emit('poll-closed', { pollId });
+    }
+  });
+
+  socket.on('delete-poll', (data: { roomId: string; pollId: string }) => {
+    const { roomId, pollId } = data;
+    const polls = roomPolls.get(roomId) || [];
+    const filtered = polls.filter(p => p.id !== pollId);
+    roomPolls.set(roomId, filtered);
+    io.to(roomId).emit('poll-deleted', { pollId });
+  });
+
+  // Structured Q&A Socket Handlers
+  socket.on('create-question', (data: { roomId: string; text: string; username: string }) => {
+    const { roomId, text, username } = data;
+    const userId = (socket as any).userId || '';
+
+    const newQuestion: BackendQuestion = {
+      id: `q-${Date.now()}`,
+      userId,
+      username: username || 'Anonymous',
+      text,
+      upvotes: [],
+      isAnswered: false,
+      createdAt: Date.now()
+    };
+
+    const questions = roomQuestions.get(roomId) || [];
+    questions.push(newQuestion);
+    roomQuestions.set(roomId, questions);
+
+    io.to(roomId).emit('question-created', { question: newQuestion });
+  });
+
+  socket.on('upvote-question', (data: { roomId: string; questionId: string; isUpvote: boolean }) => {
+    const { roomId, questionId, isUpvote } = data;
+    const userId = (socket as any).userId;
+    if (!userId) return;
+
+    const questions = roomQuestions.get(roomId) || [];
+    const question = questions.find(q => q.id === questionId);
+    if (question) {
+      const hasUpvoted = question.upvotes.includes(userId);
+      if (isUpvote && !hasUpvoted) {
+        question.upvotes.push(userId);
+      } else if (!isUpvote && hasUpvoted) {
+        question.upvotes = question.upvotes.filter(v => v !== userId);
+      }
+      roomQuestions.set(roomId, questions);
+      io.to(roomId).emit('question-upvoted', { questionId, voterId: userId, isUpvote });
+    }
+  });
+
+  socket.on('answer-question', (data: { roomId: string; questionId: string; isAnswered: boolean }) => {
+    const { roomId, questionId, isAnswered } = data;
+    const questions = roomQuestions.get(roomId) || [];
+    const question = questions.find(q => q.id === questionId);
+    if (question) {
+      question.isAnswered = isAnswered;
+      roomQuestions.set(roomId, questions);
+      io.to(roomId).emit('question-answered', { questionId, isAnswered });
+    }
+  });
+
+  socket.on('delete-question', (data: { roomId: string; questionId: string }) => {
+    const { roomId, questionId } = data;
+    const questions = roomQuestions.get(roomId) || [];
+    const filtered = questions.filter(q => q.id !== questionId);
+    roomQuestions.set(roomId, filtered);
+    io.to(roomId).emit('question-deleted', { questionId });
+  });
+
   // 11. Disconnect (with 5-second grace period)
   socket.on('disconnect', () => {
     const userId = (socket as any).userId;
@@ -1179,7 +1349,10 @@ io.on('connection', (socket: Socket) => {
 
         if (updatedParticipants.length === 0) {
           rooms.delete(roomId);
-          console.log(`Room ${roomId} is now empty. Deleting.`);
+          roomPolls.delete(roomId);
+          roomQuestions.delete(roomId);
+          bannedUsers.delete(roomId);
+          console.log(`Room ${roomId} is now empty. Deleting all room state.`);
         } else {
           rooms.set(roomId, updatedParticipants);
 

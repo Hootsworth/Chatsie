@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useWebRTCStore } from '../../stores/webrtcStore';
-import { Camera, Mic, Volume2, Key, Keyboard, Sparkles } from 'lucide-react';
+import { Camera, Mic, Volume2, Key, Keyboard, Sparkles, Shield } from 'lucide-react';
 
 export const DeviceSelector: React.FC = () => {
   const {
@@ -18,7 +18,11 @@ export const DeviceSelector: React.FC = () => {
     isNoiseSuppressionEnabled,
     setNoiseSuppressionEnabled,
     virtualBackgroundMode,
-    setVirtualBackgroundMode
+    setVirtualBackgroundMode,
+    isE2eeEnabled,
+    setE2eeEnabled,
+    isLowBandwidthMode,
+    setLowBandwidthMode
   } = useWebRTCStore();
 
   const [geminiApiKey, setGeminiApiKey] = useState('');
@@ -145,6 +149,52 @@ export const DeviceSelector: React.FC = () => {
           <label htmlFor="push-to-talk" className="text-xs text-ink font-semibold select-none cursor-pointer">
             Hold Spacebar to unmute mic (Push-to-Talk)
           </label>
+        </div>
+      </div>
+
+      {/* Advanced Room Settings */}
+      <div className="space-y-3 pt-4 border-t border-hairline-soft">
+        <label className="text-xs font-semibold text-muted uppercase tracking-wider flex items-center">
+          <Shield className="w-3.5 h-3.5 mr-1.5 text-primary" />
+          Advanced Room Settings
+        </label>
+        
+        {/* Low Bandwidth Mode */}
+        <div className="flex items-start space-x-2.5 mt-1">
+          <input
+            type="checkbox"
+            id="low-bandwidth-mode"
+            checked={isLowBandwidthMode}
+            onChange={(e) => setLowBandwidthMode(e.target.checked)}
+            className="rounded border-hairline text-primary focus:ring-primary w-4 h-4 mt-0.5"
+          />
+          <div>
+            <label htmlFor="low-bandwidth-mode" className="text-xs text-ink font-semibold select-none cursor-pointer">
+              Low Bandwidth Mode (Audio-Only)
+            </label>
+            <p className="text-[10px] text-muted leading-tight mt-0.5">
+              Stops receiving all remote video and screen share streams to save maximum internet data.
+            </p>
+          </div>
+        </div>
+
+        {/* E2EE Mode */}
+        <div className="flex items-start space-x-2.5 mt-2">
+          <input
+            type="checkbox"
+            id="e2ee-mode"
+            checked={isE2eeEnabled}
+            onChange={(e) => setE2eeEnabled(e.target.checked)}
+            className="rounded border-hairline text-primary focus:ring-primary w-4 h-4 mt-0.5"
+          />
+          <div>
+            <label htmlFor="e2ee-mode" className="text-xs text-ink font-semibold select-none cursor-pointer">
+              End-to-End Encryption (E2EE)
+            </label>
+            <p className="text-[10px] text-muted leading-tight mt-0.5">
+              Encrypts all media tracks locally. Requires all participants to have E2EE enabled.
+            </p>
+          </div>
         </div>
       </div>
 
