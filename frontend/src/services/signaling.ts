@@ -39,6 +39,7 @@ export interface SignalingEventMap {
   'room-lock-toggled': (data: { isLocked: boolean }) => void;
   'waiting-doodle-draw': (data: { x1: number; y1: number; x2: number; y2: number; color: string; thickness: number }) => void;
   'waiting-doodle-clear': () => void;
+  'soundboard-play': (data: { userId: string; soundId: string }) => void;
 }
 
 export interface ISignalingClient {
@@ -63,6 +64,7 @@ export interface ISignalingClient {
   sendRoomLockToggle(isLocked: boolean): void;
   sendWaitingDoodleDraw(x1: number, y1: number, x2: number, y2: number, color: string, thickness: number): void;
   sendWaitingDoodleClear(): void;
+  sendSoundboardPlay(soundId: string): void;
 }
 
 // ----------------------------------------------------
@@ -126,6 +128,7 @@ class SocketIOSignalingClient implements ISignalingClient {
     this.socket.on('room-lock-toggled', (data) => this.emit('room-lock-toggled', data));
     this.socket.on('waiting-doodle-draw', (data) => this.emit('waiting-doodle-draw', data));
     this.socket.on('waiting-doodle-clear', () => this.emit('waiting-doodle-clear'));
+    this.socket.on('soundboard-play', (data) => this.emit('soundboard-play', data));
   }
 
   disconnect(): void {
@@ -231,6 +234,12 @@ class SocketIOSignalingClient implements ISignalingClient {
   sendWaitingDoodleClear(): void {
     if (this.socket) {
       this.socket.emit('waiting-doodle-clear', { roomId: this.roomId });
+    }
+  }
+
+  sendSoundboardPlay(soundId: string): void {
+    if (this.socket) {
+      this.socket.emit('soundboard-play', { roomId: this.roomId, soundId });
     }
   }
 
@@ -354,6 +363,9 @@ class SupabaseSignalingClient implements ISignalingClient {
       })
       .on('broadcast', { event: 'waiting-doodle-clear' }, () => {
         this.emit('waiting-doodle-clear');
+      })
+      .on('broadcast', { event: 'soundboard-play' }, (payload) => {
+        this.emit('soundboard-play', payload.payload);
       });
 
     // 2. Presence synchronization (Tracks active list of users and waiting room)
@@ -634,6 +646,18 @@ class SupabaseSignalingClient implements ISignalingClient {
       type: 'broadcast',
       event: 'waiting-doodle-clear',
       payload: {}
+    });
+  }
+
+  sendSoundboardPlay(soundId: string): void {
+    if (!this.user) return;
+    this.channel?.send({
+      type: 'broadcast',
+      event: 'soundboard-play',
+      payload: {
+        userId: this.user.userId,
+        soundId
+      }
     });
   }
 

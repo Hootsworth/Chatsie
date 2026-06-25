@@ -6,6 +6,7 @@ import type { Meeting } from '../../stores/meetingStore';
 import { useWebRTCStore } from '../../stores/webrtcStore';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 import { applyVirtualBackgroundToStream } from '../../utils/mediaProcessors';
+import { playSynthesizedSound, SOUND_DEFINITIONS } from '../../utils/soundSynthesizer';
 
 import { signalingClient } from '../../services/signaling';
 import { LiveKitRoom, useLocalParticipant, RoomAudioRenderer } from '@livekit/components-react';
@@ -1036,6 +1037,10 @@ const ActiveRoomContent: React.FC<{
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isTabVisible, setIsTabVisible] = useState(true);
 
+  // Soundboard states
+  const [isSoundboardHUDOpen, setIsSoundboardHUDOpen] = useState(false);
+  const [activeSoundId, setActiveSoundId] = useState<string | null>(null);
+
   // Monitor tab visibility to suspend rendering/streaming when backgrounded
   useEffect(() => {
     const handleVisibility = () => {
@@ -1044,6 +1049,45 @@ const ActiveRoomContent: React.FC<{
     document.addEventListener('visibilitychange', handleVisibility);
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
+
+  // Global Soundboard Hotkeys Listener
+  useEffect(() => {
+    const handleGlobalKeys = (e: KeyboardEvent) => {
+      // Ignore if user is typing in inputs or textareas or contenteditables
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true';
+      if (isInput) return;
+
+      // Alt + S to toggle HUD
+      if (e.altKey && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        setIsSoundboardHUDOpen(prev => !prev);
+        return;
+      }
+
+      // Keys 1-8 to trigger sounds
+      const sound = SOUND_DEFINITIONS.find(s => s.key === e.key);
+      if (sound) {
+        e.preventDefault();
+        
+        // Play locally
+        playSynthesizedSound(sound.id);
+        
+        // Broadcast to peers
+        signalingClient.sendSoundboardPlay(sound.id);
+
+        // Highlight HUD key temporarily
+        setActiveSoundId(sound.id);
+        const timeout = setTimeout(() => setActiveSoundId(null), 300);
+        return () => clearTimeout(timeout);
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeys);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeys);
     };
   }, []);
 
@@ -1264,6 +1308,12 @@ const ActiveRoomContent: React.FC<{
       updateParticipantMute(userId, type, isMuted);
     };
 
+    const handleSoundboardPlay = ({ soundId }: { soundId: string }) => {
+      playSynthesizedSound(soundId);
+      setActiveSoundId(soundId);
+      setTimeout(() => setActiveSoundId(null), 300);
+    };
+
     signalingClient.on('chat-received', handleChatReceived);
     signalingClient.on('hand-raised', handleHandRaised);
     signalingClient.on('mute-command', handleMuteCommand);
@@ -1271,6 +1321,7 @@ const ActiveRoomContent: React.FC<{
     signalingClient.on('peer-joined', handlePeerJoined);
     signalingClient.on('peer-left', handlePeerLeft);
     signalingClient.on('peer-muted-status', handlePeerMutedStatus);
+    signalingClient.on('soundboard-play', handleSoundboardPlay);
 
     return () => {
       signalingClient.off('chat-received', handleChatReceived);
@@ -1280,6 +1331,7 @@ const ActiveRoomContent: React.FC<{
       signalingClient.off('peer-joined', handlePeerJoined);
       signalingClient.off('peer-left', handlePeerLeft);
       signalingClient.off('peer-muted-status', handlePeerMutedStatus);
+      signalingClient.off('soundboard-play', handleSoundboardPlay);
     };
   }, [
     localParticipant,
@@ -1291,7 +1343,8 @@ const ActiveRoomContent: React.FC<{
     setParticipants,
     addParticipant,
     removeParticipant,
-    updateParticipantMute
+    updateParticipantMute,
+    setActiveSoundId
   ]);
 
   // Handle incoming unread chat notification
@@ -1657,6 +1710,46 @@ const ActiveRoomContent: React.FC<{
           </div>
         )}
       </div>
+
+      {/* Soundboard HUD Overlay */}
+      {isSoundboardHUDOpen && (
+        <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 z-40 w-full max-w-2xl px-4 animate-in fade-in slide-in-from-bottom-5 duration-200">
+          <div className="backdrop-blur-md bg-surface-dark-elevated/90 border border-white/10 rounded-2xl p-4 shadow-2xl flex flex-col space-y-3">
+            <div className="flex justify-between items-center border-b border-white/5 pb-2">
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-bold text-primary uppercase tracking-wider">🔊 Live Soundboard</span>
+                <span className="text-[10px] text-on-dark-soft bg-surface-dark-soft px-1.5 py-0.5 rounded">Hotkeys Only</span>
+              </div>
+              <span className="text-[10px] text-on-dark-soft">Press <kbd className="bg-surface-dark-soft px-1.5 py-0.5 rounded border border-white/10 text-white font-mono text-[9px] font-black">Alt + S</kbd> to close</span>
+            </div>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              {SOUND_DEFINITIONS.map((sound) => {
+                const isActive = activeSoundId === sound.id;
+                return (
+                  <div
+                    key={sound.id}
+                    className={`flex items-center justify-between p-2.5 rounded-xl border text-[11px] transition-all duration-200 ${
+                      isActive
+                        ? 'bg-primary border-primary-active scale-95 shadow-lg shadow-primary/20 text-white'
+                        : 'bg-surface-dark-soft/50 border-white/5 text-on-dark-soft hover:bg-surface-dark-soft hover:text-on-dark'
+                    }`}
+                  >
+                    <span className="truncate font-bold">{sound.name}</span>
+                    <kbd className={`px-2 py-0.5 rounded font-mono text-[10px] font-black ${
+                      isActive 
+                        ? 'bg-white/20 text-white' 
+                        : 'bg-surface-dark border border-white/10 text-on-dark-soft'
+                    }`}>
+                      {sound.key}
+                    </kbd>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom meeting control bar */}
       <MeetingControls
