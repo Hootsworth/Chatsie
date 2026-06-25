@@ -92,16 +92,51 @@ export const VideoGrid: React.FC = () => {
 
   const count = finalTracks.length;
 
-  /* ── Responsive grid classes ── */
-  let gridCls = 'grid gap-2 w-full h-full p-2';
-  if (count === 1)      gridCls += ' grid-cols-1';
-  else if (count === 2) gridCls += ' grid-cols-1 md:grid-cols-2';
-  else if (count <= 4)  gridCls += ' grid-cols-2';
-  else                  gridCls += ' grid-cols-2 md:grid-cols-3';
+  const getGridLayout = (itemCount: number) => {
+    let cols = 1;
+    let rows = 1;
+    let mdCols = 1;
+    let mdRows = 1;
+
+    if (itemCount === 1) {
+      cols = 1; rows = 1;
+      mdCols = 1; mdRows = 1;
+    } else if (itemCount === 2) {
+      cols = 1; rows = 2;
+      mdCols = 2; mdRows = 1;
+    } else if (itemCount <= 4) {
+      cols = 2; rows = 2;
+      mdCols = 2; mdRows = 2;
+    } else if (itemCount <= 6) {
+      cols = 2; rows = 3;
+      mdCols = 3; mdRows = 2;
+    } else if (itemCount <= 9) {
+      cols = 3; rows = 3;
+      mdCols = 3; mdRows = 3;
+    } else {
+      cols = 3; rows = Math.ceil(itemCount / 3);
+      mdCols = 4; mdRows = Math.ceil(itemCount / 4);
+    }
+    return { cols, rows, mdCols, mdRows };
+  };
+
+  const { cols, rows, mdCols, mdRows } = getGridLayout(count);
+
+  const gridStyle = {
+    '--grid-cols': cols,
+    '--grid-rows': rows,
+    '--grid-md-cols': mdCols,
+    '--grid-md-rows': mdRows,
+    display: 'grid',
+    gap: '12px',
+    width: '100%',
+    height: '100%',
+    padding: '12px'
+  } as React.CSSProperties;
 
   return (
     <div className="absolute inset-0">
-      <div className={gridCls}>
+      <div className="video-grid-container" style={gridStyle}>
         {finalTracks.map((track) => {
           const isLocalScreen = track.source === Track.Source.ScreenShare && track.participant.isLocal;
           const isMe = track.participant.isLocal;
@@ -117,7 +152,7 @@ export const VideoGrid: React.FC = () => {
           if (isLocalScreen) {
             return (
               <div key={`${track.participant.identity}-${track.source}`} className="w-full h-full flex items-center justify-center">
-                <div className={`relative w-full h-full rounded-xl bg-[#292b2f] flex flex-col items-center justify-center ${speakingRing}`}>
+                <div className={`relative w-full h-full rounded-xl bg-[#292b2f] border border-white/[0.06] flex flex-col items-center justify-center transition-all ${speakingRing}`}>
                   <div className="w-12 h-12 rounded-full bg-[#8ab4f8]/20 flex items-center justify-center mb-3">
                     <Monitor className="w-6 h-6 text-[#8ab4f8]" />
                   </div>
@@ -139,14 +174,14 @@ export const VideoGrid: React.FC = () => {
             const palette = AVATAR_COLORS[colorIdx];
             return (
               <div key={`${track.participant.identity}-${track.source}`} className="w-full h-full flex items-center justify-center">
-                <div className={`relative w-full h-full rounded-xl bg-[#292b2f] flex flex-col items-center justify-center transition-all ${speakingRing}`}>
+                <div className={`relative w-full h-full rounded-xl bg-[#292b2f] border border-white/[0.06] flex flex-col items-center justify-center transition-all ${speakingRing}`}>
                   {isHandRaised && (
                     <div className="absolute top-2 left-2 bg-[#fbbc04] text-[#202124] text-[10px] font-bold px-2 py-1 rounded-full z-10">
                       ✋ Raised
                     </div>
                   )}
                   <div
-                    className="w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center text-xl md:text-2xl font-semibold select-none"
+                    className="w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center text-xl md:text-2xl font-semibold select-none animate-in fade-in duration-300"
                     style={{ backgroundColor: palette.bg, color: palette.text }}
                   >
                     {track.source === Track.Source.ScreenShare ? '🖥️' : getInitials(track.participant.name, track.participant.identity)}
@@ -161,7 +196,7 @@ export const VideoGrid: React.FC = () => {
 
           return (
             <div key={`${track.participant.identity}-${track.source}`} className="w-full h-full flex items-center justify-center">
-              <div className={`relative w-full h-full rounded-xl overflow-hidden bg-[#292b2f] transition-all [&_video]:object-cover [&_video]:w-full [&_video]:h-full ${speakingRing}`}>
+              <div className={`relative w-full h-full rounded-xl overflow-hidden bg-[#292b2f] border border-white/[0.06] transition-all hover:border-white/[0.1] duration-300 [&_video]:object-cover [&_video]:w-full [&_video]:h-full ${speakingRing}`}>
                 {isHandRaised && (
                   <div className="absolute top-2 left-2 bg-[#fbbc04] text-[#202124] text-[10px] font-bold px-2 py-1 rounded-full z-10">
                     ✋ Raised

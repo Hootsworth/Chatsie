@@ -224,3 +224,35 @@ body {
 .animate-carousel-scroll {
   animation: carousel-scroll 40s linear infinite;
 }
+
+/* LiveKit components custom overrides to make video fill container */
+.lk-participant-tile {
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+  background-color: transparent !important;
+}
+
+.lk-video-container {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.lk-video-container video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+/* Responsive CSS variables grid mapping */
+.video-grid-container {
+  grid-template-columns: repeat(var(--grid-cols, 1), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--grid-rows, 1), minmax(0, 1fr));
+}
+
+@media (min-width: 768px) {
+  .video-grid-container {
+    grid-template-columns: repeat(var(--grid-md-cols, 1), minmax(0, 1fr));
+    grid-template-rows: repeat(var(--grid-md-rows, 1), minmax(0, 1fr));
+  }
+}
