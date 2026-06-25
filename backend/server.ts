@@ -117,9 +117,9 @@ app.post('/api/livekit/token', async (req, res) => {
       identity: participantIdentity,
       name: participantName || participantIdentity,
     });
-    
+
     at.addGrant({ roomJoin: true, room: roomName, canPublish: true, canSubscribe: true });
-    
+
     const token = await at.toJwt();
     res.json({ token });
   } catch (error) {
@@ -173,7 +173,7 @@ app.post('/api/meetings', requireAuth(), async (req, res) => {
 
     // Only check for uniqueness if we are generating a random code
     if (customCode) {
-      isUnique = true; 
+      isUnique = true;
     }
 
     while (!isUnique && checkAttempts < 5) {
@@ -437,115 +437,258 @@ app.post('/api/meetings/:code/invite', requireAuth(), async (req, res) => {
 <html>
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Meeting Invitation</title>
   <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      background-color: #0c0a09;
-      color: #fafaf9;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      margin: 0;
-      padding: 0;
+      background-color: #f7f7f5;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #000000;
+      -webkit-font-smoothing: antialiased;
     }
+
     .wrapper {
-      padding: 40px 20px;
+      padding: 48px 20px;
     }
+
     .container {
-      max-width: 500px;
+      max-width: 520px;
       margin: 0 auto;
-      background-color: #1c1917;
-      border: 1px solid #2e2a24;
-      border-radius: 16px;
-      padding: 32px;
-      text-align: center;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+      background-color: #ffffff;
     }
-    .header-logo {
-      font-size: 24px;
-      font-weight: 800;
-      letter-spacing: -0.05em;
-      color: #6366f1;
-      margin-bottom: 24px;
+
+    /* Header strip — table-based for Outlook/Gmail */
+    .header-table {
+      width: 100%;
+      border-bottom: 1px solid #e6e6e6;
     }
-    .title {
-      font-size: 20px;
+
+    .header-table td {
+      padding: 20px 32px;
+      vertical-align: middle;
+    }
+
+    .wordmark {
+      font-size: 17px;
       font-weight: 700;
-      margin-bottom: 12px;
-      color: #ffffff;
-      line-height: 1.4;
+      letter-spacing: -0.03em;
+      color: #000000;
     }
-    .subtitle {
-      font-size: 14px;
-      color: #a8a29e;
-      margin-bottom: 28px;
-      line-height: 1.6;
-    }
-    .meeting-card {
-      background-color: #292524;
-      border: 1px solid #44403c;
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 32px;
-      text-align: left;
-    }
-    .meeting-label {
+
+    .eyebrow-tag {
+      font-family: 'Courier New', Courier, monospace;
       font-size: 10px;
+      font-weight: 400;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
-      font-weight: 700;
-      color: #a8a29e;
-      letter-spacing: 0.05em;
-      margin-bottom: 4px;
+      color: #000000;
+      background-color: #dceeb1;
+      padding: 3px 8px;
+      border-radius: 2px;
     }
-    .meeting-title {
+
+    /* Color block — lime */
+    .color-block {
+      background-color: #dceeb1;
+      padding: 40px 32px 36px;
+    }
+
+    .eyebrow {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #000000;
+      margin-bottom: 14px;
+    }
+
+    .headline {
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.25;
+      letter-spacing: -0.03em;
+      color: #000000;
+      margin-bottom: 12px;
+    }
+
+    .subtext {
+      font-size: 15px;
+      font-weight: 400;
+      line-height: 1.5;
+      color: #000000;
+    }
+
+    .subtext strong {
+      font-weight: 700;
+    }
+
+    /* White canvas body */
+    .body-section {
+      padding: 32px 32px 28px;
+      background-color: #ffffff;
+    }
+
+    /* Meeting detail card — table-based */
+    .meeting-card {
+      border: 1px solid #e6e6e6;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 28px;
+    }
+
+    .detail-table {
+      width: 100%;
+    }
+
+    .detail-table td {
+      vertical-align: top;
+      padding-bottom: 14px;
+    }
+
+    .detail-table tr:last-child td {
+      padding-bottom: 0;
+    }
+
+    .detail-label {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 10px;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #000000;
+      opacity: 0.5;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .detail-value {
       font-size: 15px;
       font-weight: 700;
-      color: #ffffff;
-      margin-bottom: 8px;
+      color: #000000;
+      letter-spacing: -0.01em;
+      display: block;
     }
-    .meeting-code {
-      font-family: monospace;
-      font-size: 13px;
-      color: #6366f1;
-      font-weight: 700;
-    }
-    .btn {
+
+    .detail-value.code {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 14px;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      background-color: #f7f7f5;
       display: inline-block;
-      background-color: #6366f1;
+      padding: 4px 10px;
+      border-radius: 4px;
+    }
+
+    /* CTA pill */
+    .cta-wrap {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .btn-primary {
+      display: inline-block;
+      background-color: #000000;
       color: #ffffff !important;
       text-decoration: none;
+      font-size: 15px;
       font-weight: 700;
-      font-size: 14px;
-      padding: 12px 32px;
-      border-radius: 10px;
-      box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.3);
-      margin-bottom: 24px;
+      letter-spacing: -0.01em;
+      padding: 13px 36px;
+      border-radius: 9999px;
     }
+
+    /* Hairline divider */
+    .divider {
+      height: 1px;
+      background-color: #e6e6e6;
+      margin: 0 32px;
+      font-size: 0;
+      line-height: 0;
+    }
+
+    /* Footer */
     .footer {
-      font-size: 11px;
-      color: #78716c;
-      margin-top: 16px;
+      padding: 20px 32px;
+      background-color: #ffffff;
+    }
+
+    .footer-text {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      color: #000000;
+      opacity: 0.45;
+      line-height: 1.7;
+    }
+
+    .footer-link {
+      color: #000000;
+      word-break: break-all;
+      text-decoration: underline;
     }
   </style>
 </head>
 <body>
   <div class="wrapper">
     <div class="container">
-      <div class="header-logo">Chatsie</div>
-      <div class="title">You're invited!</div>
-      <div class="subtitle"><strong>${hostName}</strong> has invited you to join a secure live video meeting.</div>
-      
-      <div class="meeting-card">
-        <div class="meeting-label">Meeting Room</div>
-        <div class="meeting-title">${meeting.title}</div>
-        <div class="meeting-label">Code</div>
-        <div class="meeting-code">${code}</div>
+
+      <!-- Header (table-based for email clients) -->
+      <table class="header-table" cellpadding="0" cellspacing="0" role="presentation">
+        <tr>
+          <td style="text-align: left;">
+            <div class="wordmark">Chatsie</div>
+          </td>
+          <td style="text-align: right;">
+            <span class="eyebrow-tag">Invitation</span>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Lime color block -->
+      <div class="color-block">
+        <div class="eyebrow">Secure video meeting</div>
+        <div class="headline">You're invited.</div>
+        <div class="subtext"><strong>${hostName}</strong> has invited you to join a live meeting.</div>
       </div>
-      
-      <a href="${joinLink}" class="btn" target="_blank">Join Meeting</a>
-      
+
+      <!-- White canvas body -->
+      <div class="body-section">
+        <div class="meeting-card">
+          <table class="detail-table" cellpadding="0" cellspacing="0" role="presentation">
+            <tr>
+              <td>
+                <span class="detail-label">Meeting Room</span>
+                <span class="detail-value">${meeting.title}</span>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <span class="detail-label">Code</span>
+                <span class="detail-value code">${code}</span>
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="cta-wrap">
+          <a href="${joinLink}" class="btn-primary" target="_blank">Join meeting</a>
+        </div>
+      </div>
+
+      <div class="divider">&nbsp;</div>
+
+      <!-- Footer -->
       <div class="footer">
-        If the button above does not work, copy and paste this URL into your browser:<br>
-        <span style="color: #6366f1; word-break: break-all;">${joinLink}</span>
+        <div class="footer-text">
+          Button not working? Paste this URL into your browser:<br>
+          <a href="${joinLink}" class="footer-link">${joinLink}</a>
+        </div>
       </div>
+
     </div>
   </div>
 </body>
@@ -651,7 +794,7 @@ app.get('/api/turn-credentials', async (req, res) => {
       try {
         const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Tokens.json`;
         const auth = Buffer.from(`${twilioSid}:${twilioAuthToken}`).toString('base64');
-        
+
         const response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Authorization': `Basic ${auth}` }
@@ -719,11 +862,11 @@ io.on('connection', (socket: Socket) => {
   // 1. Join Room
   socket.on('join-room', (data: { roomId: string; userId: string; username: string; role: 'host' | 'participant'; isWaiting: boolean }) => {
     const { roomId, userId, username, role, isWaiting } = data;
-    
+
     // Attach identifiers to socket instance
     (socket as any).userId = userId;
     (socket as any).roomId = roomId;
-    
+
     // Clear any pending disconnect timeout for this user
     const pendingTimeout = disconnectTimeouts.get(userId);
     if (pendingTimeout) {
@@ -733,7 +876,7 @@ io.on('connection', (socket: Socket) => {
     }
 
     socket.join(roomId);
-    
+
     const newParticipant: Participant = {
       socketId: socket.id,
       userId,
@@ -746,7 +889,7 @@ io.on('connection', (socket: Socket) => {
     };
 
     let roomParticipants = rooms.get(roomId) || [];
-    
+
     // Check if participant already exists and update their socketId
     const existingIndex = roomParticipants.findIndex(p => p.userId === userId);
     if (existingIndex > -1) {
@@ -761,7 +904,7 @@ io.on('connection', (socket: Socket) => {
       roomParticipants.push(newParticipant);
       console.log(`Added new participant: ${username} (${userId}) -> socket: ${socket.id}`);
     }
-    
+
     rooms.set(roomId, roomParticipants);
 
     // If joining as an active participant, notify others and send active list
@@ -785,7 +928,7 @@ io.on('connection', (socket: Socket) => {
       socket.to(roomId).emit('waiting-room-list-update', {
         participants: roomParticipants.filter(p => p.isWaiting)
       });
-      
+
       // Let the waiting client know
       socket.emit('waiting-status', { status: 'waiting' });
     }
@@ -796,12 +939,12 @@ io.on('connection', (socket: Socket) => {
     const { targetUserId, signal } = data;
     const roomId = (socket as any).roomId;
     const senderUserId = (socket as any).userId;
-    
+
     if (!roomId || !senderUserId) return;
-    
+
     const roomParticipants = rooms.get(roomId) || [];
     const target = roomParticipants.find(p => p.userId === targetUserId);
-    
+
     if (target) {
       io.to(target.socketId).emit('signal', {
         senderUserId,
@@ -821,20 +964,20 @@ io.on('connection', (socket: Socket) => {
       text,
       timestamp: Date.now()
     };
-    
+
     io.to(roomId).emit('chat-received', msg);
   });
 
   // 4. Host Waiting Room Approval
   socket.on('waiting-room-action', (data: { roomId: string; targetUserId: string; action: 'approve' | 'deny' }) => {
     const { roomId, targetUserId, action } = data;
-    
+
     let roomParticipants = rooms.get(roomId) || [];
     const participantIndex = roomParticipants.findIndex(p => p.userId === targetUserId);
 
     if (participantIndex > -1) {
       const participant = roomParticipants[participantIndex];
-      
+
       if (action === 'approve') {
         participant.isWaiting = false;
         rooms.set(roomId, roomParticipants);
@@ -845,7 +988,7 @@ io.on('connection', (socket: Socket) => {
         // Send active list to the approved user
         const activeParticipants = roomParticipants.filter(p => !p.isWaiting && p.userId !== targetUserId);
         io.to(participant.socketId).emit('room-participants', { participants: activeParticipants });
-        
+
         // Notify others that this peer joined
         io.to(roomId).emit('peer-joined', {
           socketId: participant.socketId,
@@ -860,7 +1003,7 @@ io.on('connection', (socket: Socket) => {
         // Deny entry and remove participant
         roomParticipants.splice(participantIndex, 1);
         rooms.set(roomId, roomParticipants);
-        
+
         io.to(participant.socketId).emit('waiting-status', { status: 'denied' });
       }
 
@@ -874,13 +1017,13 @@ io.on('connection', (socket: Socket) => {
   // 5. Mute Peer (Host action)
   socket.on('mute-peer', (data: { roomId: string; targetUserId: string; type: 'audio' | 'video' }) => {
     const { roomId, targetUserId, type } = data;
-    
+
     const roomParticipants = rooms.get(roomId) || [];
     const participant = roomParticipants.find(p => p.userId === targetUserId);
-    
+
     if (participant) {
       io.to(participant.socketId).emit('mute-command', { type });
-      
+
       if (type === 'audio') participant.isMutedAudio = true;
       if (type === 'video') participant.isMutedVideo = true;
       rooms.set(roomId, roomParticipants);
@@ -894,7 +1037,7 @@ io.on('connection', (socket: Socket) => {
     const { roomId, isRaised } = data;
     const userId = (socket as any).userId;
     if (!userId) return;
-    
+
     const roomParticipants = rooms.get(roomId) || [];
     const participant = roomParticipants.find(p => p.userId === userId);
     if (participant) {
@@ -913,7 +1056,7 @@ io.on('connection', (socket: Socket) => {
     const { roomId, type, isMuted } = data;
     const userId = (socket as any).userId;
     if (!userId) return;
-    
+
     const roomParticipants = rooms.get(roomId) || [];
     const participant = roomParticipants.find(p => p.userId === userId);
     if (participant) {
@@ -927,13 +1070,13 @@ io.on('connection', (socket: Socket) => {
   // 8. Kick Participant (Host action)
   socket.on('kick-peer', (data: { roomId: string; targetUserId: string }) => {
     const { roomId, targetUserId } = data;
-    
+
     const roomParticipants = rooms.get(roomId) || [];
     const participant = roomParticipants.find(p => p.userId === targetUserId);
-    
+
     if (participant) {
       io.to(participant.socketId).emit('kicked-command');
-      
+
       const updatedParticipants = roomParticipants.filter(p => p.userId !== targetUserId);
       rooms.set(roomId, updatedParticipants);
 
@@ -951,7 +1094,7 @@ io.on('connection', (socket: Socket) => {
     const { roomId, text, isFinal } = data;
     const userId = (socket as any).userId;
     if (!roomId || !userId) return;
-    
+
     const roomParticipants = rooms.get(roomId) || [];
     const participant = roomParticipants.find(p => p.userId === userId);
     if (participant) {
@@ -969,7 +1112,7 @@ io.on('connection', (socket: Socket) => {
     const { roomId, type } = data;
     const userId = (socket as any).userId;
     if (!roomId || !userId) return;
-    
+
     io.to(roomId).emit('reaction', {
       senderUserId: userId,
       type
@@ -1019,27 +1162,27 @@ io.on('connection', (socket: Socket) => {
   socket.on('disconnect', () => {
     const userId = (socket as any).userId;
     const roomId = (socket as any).roomId;
-    
+
     if (!userId || !roomId) return;
-    
+
     console.log(`User socket disconnected: ${socket.id} (User ID: ${userId}). Starting 5s grace period.`);
-    
+
     const timeout = setTimeout(() => {
       disconnectTimeouts.delete(userId);
-      
+
       let roomParticipants = rooms.get(roomId) || [];
       const participantIndex = roomParticipants.findIndex(p => p.userId === userId);
-      
+
       if (participantIndex > -1) {
         const participant = roomParticipants[participantIndex];
         const updatedParticipants = roomParticipants.filter(p => p.userId !== userId);
-        
+
         if (updatedParticipants.length === 0) {
           rooms.delete(roomId);
           console.log(`Room ${roomId} is now empty. Deleting.`);
         } else {
           rooms.set(roomId, updatedParticipants);
-          
+
           if (!participant.isWaiting) {
             // Notify others in room
             io.to(roomId).emit('peer-left', { userId, socketId: socket.id });
@@ -1053,7 +1196,7 @@ io.on('connection', (socket: Socket) => {
         console.log(`User ${participant.username} (${userId}) officially left after timeout.`);
       }
     }, 5000);
-    
+
     disconnectTimeouts.set(userId, timeout);
   });
 });
