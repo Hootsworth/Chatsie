@@ -8,7 +8,7 @@ import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 import { applyVirtualBackgroundToStream } from '../../utils/mediaProcessors';
 
 import { signalingClient } from '../../services/signaling';
-import { LiveKitRoom, useLocalParticipant } from '@livekit/components-react';
+import { LiveKitRoom, useLocalParticipant, RoomAudioRenderer } from '@livekit/components-react';
 import '@livekit/components-styles';
 import { createPortal } from 'react-dom';
 import { PasswordPrompt } from './PasswordPrompt';
@@ -853,6 +853,7 @@ export const MeetingRoom: React.FC = () => {
       className="h-screen w-screen overflow-hidden bg-surface-dark text-on-dark"
       style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column' }}
     >
+      <RoomAudioRenderer />
       <ActiveRoomContent
         code={code || ''}
         user={user}
