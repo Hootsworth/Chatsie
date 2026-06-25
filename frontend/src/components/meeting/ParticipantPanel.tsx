@@ -8,7 +8,9 @@ import { MicOff, VideoOff, Trash2, Check, X, ShieldAlert, VolumeX } from 'lucide
 export const ParticipantPanel: React.FC = () => {
   const {
     myRole,
-    waitingRoomList
+    waitingRoomList,
+    participants,
+    isLocalHandRaised
   } = useMeetingStore();
 
   const allParticipants = useParticipants();
@@ -25,8 +27,8 @@ export const ParticipantPanel: React.FC = () => {
     signalingClient.kickPeer(socketId);
   };
 
-  const handleWaitingAction = (socketId: string, action: 'approve' | 'deny') => {
-    signalingClient.waitingRoomAction(socketId, action);
+  const handleWaitingAction = (userId: string, action: 'approve' | 'deny') => {
+    signalingClient.waitingRoomAction(userId, action);
   };
 
   const isHost = myRole === 'host';
@@ -45,7 +47,7 @@ export const ParticipantPanel: React.FC = () => {
           <div className="space-y-2.5">
             {waitingRoomList.map((waiter) => (
               <div 
-                key={waiter.socketId}
+                key={waiter.userId}
                 className="flex items-center justify-between p-2.5 bg-surface-dark-soft rounded-lg border border-amber-500/20 text-xs"
               >
                 <span className="font-bold text-on-dark truncate mr-2">
@@ -53,14 +55,14 @@ export const ParticipantPanel: React.FC = () => {
                 </span>
                 <div className="flex space-x-1.5 flex-shrink-0">
                   <button
-                    onClick={() => handleWaitingAction(waiter.socketId, 'approve')}
+                    onClick={() => handleWaitingAction(waiter.userId, 'approve')}
                     className="p-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded transition-colors"
                     title="Admit"
                   >
                     <Check className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => handleWaitingAction(waiter.socketId, 'deny')}
+                    onClick={() => handleWaitingAction(waiter.userId, 'deny')}
                     className="p-1 bg-red-500 hover:bg-red-600 text-white rounded transition-colors"
                     title="Deny"
                   >
@@ -87,6 +89,9 @@ export const ParticipantPanel: React.FC = () => {
         {/* Participants (Local & Remote) */}
         {allParticipants.map((p) => {
           const isMe = p.identity === localParticipant?.identity;
+          const isHandRaised = isMe 
+            ? isLocalHandRaised 
+            : participants.find(sp => sp.userId === p.identity)?.isHandRaised;
           
           return (
             <div 
@@ -99,7 +104,10 @@ export const ParticipantPanel: React.FC = () => {
                   {p.name?.charAt(0).toUpperCase() || 'U'}
                 </div>
                 <div className="truncate">
-                  <span className="font-bold text-on-dark truncate">{isMe ? 'Me' : p.name}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-on-dark truncate">{isMe ? 'Me' : p.name}</span>
+                    {isHandRaised && <span className="text-amber-500 font-bold" title="Hand Raised">✋</span>}
+                  </div>
                   <span className="text-[10px] text-on-dark-soft font-semibold block">{isMe && isHost ? '@host' : ''}</span>
                 </div>
               </div>

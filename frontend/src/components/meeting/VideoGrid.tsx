@@ -2,9 +2,11 @@ import React from 'react';
 import { ParticipantTile, useTracks, useLocalParticipant } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { Monitor } from 'lucide-react';
+import { useMeetingStore } from '../../stores/meetingStore';
 
 export const VideoGrid: React.FC = () => {
   const { localParticipant } = useLocalParticipant();
+  const participantsList = useMeetingStore(state => state.participants);
   // Fetch all camera and screenshare tracks (both local and remote)
   const tracks = useTracks(
     [
@@ -39,6 +41,8 @@ export const VideoGrid: React.FC = () => {
   } else {
     gridClass += " grid-cols-1 md:grid-cols-2 lg:grid-cols-3 auto-rows-fr";
   }
+
+  const isLocalHandRaised = useMeetingStore(state => state.isLocalHandRaised);
 
   return (
     <div className="absolute inset-0 p-4">
@@ -77,6 +81,11 @@ export const VideoGrid: React.FC = () => {
           }
           
           const isSpeaking = track.participant.isSpeaking;
+          const isMe = track.participant.isLocal;
+          const isHandRaised = isMe 
+            ? isLocalHandRaised 
+            : participantsList.find(sp => sp.userId === track.participant.identity)?.isHandRaised;
+
           return (
             <div 
               key={`${track.participant.identity}-${track.source}`}
@@ -86,6 +95,11 @@ export const VideoGrid: React.FC = () => {
                   : 'border border-white/5'
               }`}
             >
+              {isHandRaised && (
+                <div className="absolute top-3 left-3 bg-amber-500/90 backdrop-blur-sm text-white text-[9px] font-black tracking-wider uppercase px-2.5 py-1.5 rounded-lg shadow-md flex items-center space-x-1.5 z-20 animate-pulse border border-amber-400/20">
+                  <span>✋ Hand Raised</span>
+                </div>
+              )}
               <ParticipantTile trackRef={track} />
             </div>
           );

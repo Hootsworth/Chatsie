@@ -61,6 +61,9 @@ interface MeetingState {
   // Transcription history
   transcripts: Transcript[];
   
+  // Local participant hand raised state
+  isLocalHandRaised: boolean;
+  
   // UI states
   isChatPanelOpen: boolean;
   isParticipantsPanelOpen: boolean;
@@ -77,6 +80,7 @@ interface MeetingState {
   removeParticipant: (userId: string) => void;
   updateParticipantMute: (userId: string, type: 'audio' | 'video', isMuted: boolean) => void;
   updateParticipantHand: (userId: string, isRaised: boolean) => void;
+  setLocalHandRaised: (isRaised: boolean) => void;
   setWaitingRoomList: (list: Array<{ socketId: string; userId: string; username: string }>) => void;
   setWaitingStatus: (status: 'none' | 'waiting' | 'approved' | 'denied') => void;
   setPasscodeGateRequired: (required: boolean) => void;
@@ -105,6 +109,7 @@ export const useMeetingStore = create<MeetingState>((set) => ({
   isPasscodeGatePassed: false,
   chatMessages: [],
   transcripts: [],
+  isLocalHandRaised: false,
   
   isChatPanelOpen: false,
   isParticipantsPanelOpen: false,
@@ -150,6 +155,7 @@ export const useMeetingStore = create<MeetingState>((set) => ({
     )
   })),
 
+  setLocalHandRaised: (isRaised) => set({ isLocalHandRaised: isRaised }),
   setWaitingRoomList: (list) => set({ waitingRoomList: list }),
   setWaitingStatus: (status) => set({ waitingStatus: status }),
   setPasscodeGateRequired: (required) => set({ isPasscodeGateRequired: required }),
@@ -227,6 +233,7 @@ export const useMeetingStore = create<MeetingState>((set) => ({
     isPasscodeGatePassed: false,
     chatMessages: [],
     transcripts: [],
+    isLocalHandRaised: false,
     isChatPanelOpen: false,
     isParticipantsPanelOpen: false,
     isTranscriptionPanelOpen: false,

@@ -666,95 +666,108 @@ export const MeetingRoom: React.FC = () => {
   // 4. Pre-Join Lobby View
   if (!isLobbyPassed) {
     return (
-      <div className="min-h-screen bg-canvas text-body font-sans transition-colors duration-200 flex items-center justify-center p-4">
-        <div className="max-w-4xl w-full bg-surface-card border border-hairline rounded-2xl shadow-sm p-6 md:p-10 space-y-8">
-          <div className="text-center space-y-2">
-            <h1 className="text-4xl font-serif text-ink tracking-tight font-normal leading-tight">
-              Ready to join?
-            </h1>
-            <p className="text-sm text-muted">
-              Configure your hardware and check your video preview before entering the meeting.
-            </p>
-          </div>
+      <div className="relative min-h-screen lg:h-screen lg:max-h-screen flex flex-col justify-center items-center bg-canvas dark:bg-dark-950 text-body dark:text-gray-200 transition-colors duration-200 p-4 md:p-8 lg:overflow-hidden z-10 select-none">
+        {/* Background drifting mesh glows */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+          <div className="absolute -top-[30%] -left-[20%] w-[60%] h-[60%] rounded-full bg-primary/5 dark:bg-primary/10 blur-[120px] animate-mesh-glow" />
+          <div className="absolute -bottom-[20%] -right-[10%] w-[50%] h-[50%] rounded-full bg-primary/5 dark:bg-primary/5 blur-[100px] animate-mesh-glow" style={{ animationDelay: '-10s' }} />
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-            <div className="space-y-4">
-              <div className="relative aspect-video rounded-xl bg-surface-dark overflow-hidden border border-hairline flex items-center justify-center shadow-inner">
-                {lobbyStream && !isMutedVideo ? (
-                  <video
-                    ref={lobbyVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover transform scale-x-[-1]"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center justify-center space-y-3.5 z-0 select-none text-on-dark-soft">
-                    <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center border border-primary/20 shadow-inner">
-                      <User className="w-8 h-8" />
-                    </div>
-                    <span className="text-xs font-bold bg-black/30 px-2.5 py-1 rounded-md backdrop-blur-sm">
-                      Camera is off
-                    </span>
-                  </div>
-                )}
+        <div className="relative z-10 w-full max-w-6xl flex flex-col lg:grid lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+          {/* Left Column: Typography & Preview */}
+          <div className="w-full lg:col-span-7 space-y-6 flex flex-col items-center lg:items-start text-center lg:text-left">
+            <div className="space-y-2">
+              <h1 className="text-4xl lg:text-5xl font-serif text-ink tracking-tight font-normal leading-tight">
+                Ready to join?
+              </h1>
+              <p className="text-sm text-muted max-w-md">
+                Configure your media devices and check your camera feed before connecting to the video sync.
+              </p>
+            </div>
 
-                <div className="absolute bottom-3 left-3 flex items-center space-x-2 z-10">
-                  <div className={`p-1.5 rounded-lg border text-white backdrop-blur-sm ${
-                    isMutedAudio ? 'bg-red-500/80 border-red-400/30' : 'bg-black/40 border-white/10'
-                  }`}>
-                    {isMutedAudio ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            {/* Video preview container */}
+            <div className="w-full max-w-xl aspect-video rounded-3xl bg-surface-dark-elevated overflow-hidden border border-hairline/30 flex items-center justify-center shadow-2xl relative">
+              {lobbyStream && !isMutedVideo ? (
+                <video
+                  ref={lobbyVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover transform scale-x-[-1]"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center space-y-4 select-none text-on-dark-soft animate-fade-in">
+                  <div className="w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center border border-primary/20 shadow-inner">
+                    <User className="w-10 h-10" />
                   </div>
-                  <div className={`p-1.5 rounded-lg border text-white backdrop-blur-sm ${
-                    isMutedVideo ? 'bg-red-500/80 border-red-400/30' : 'bg-black/40 border-white/10'
-                  }`}>
-                    {isMutedVideo ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
-                  </div>
+                  <span className="text-xs font-bold bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-md border border-white/5">
+                    Your camera is off
+                  </span>
                 </div>
-              </div>
+              )}
 
-              <div className="flex justify-center space-x-4">
-                <button
-                  onClick={handleToggleLobbyAudio}
-                  className={`flex items-center justify-center p-3.5 rounded-xl border transition-all duration-200 focus:outline-none cursor-pointer ${
-                    isMutedAudio
-                      ? 'bg-red-500/10 border-red-200 text-red-600 hover:bg-red-500/20 shadow-sm shadow-red-500/5'
-                      : 'bg-canvas border-hairline text-body hover:bg-surface-soft'
-                  }`}
-                  title={isMutedAudio ? 'Unmute microphone' : 'Mute microphone'}
-                >
-                  {isMutedAudio ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                </button>
-
-                <button
-                  onClick={handleToggleLobbyVideo}
-                  className={`flex items-center justify-center p-3.5 rounded-xl border transition-all duration-200 focus:outline-none cursor-pointer ${
-                    isMutedVideo
-                      ? 'bg-red-500/10 border-red-200 text-red-600 hover:bg-red-500/20 shadow-sm shadow-red-500/5'
-                      : 'bg-canvas border-hairline text-body hover:bg-surface-soft'
-                  }`}
-                  title={isMutedVideo ? 'Turn camera on' : 'Turn camera off'}
-                >
-                  {isMutedVideo ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
-                </button>
+              {/* Status badges over video */}
+              <div className="absolute bottom-4 left-4 flex items-center space-x-2 z-10">
+                <div className={`p-2 rounded-xl border text-white backdrop-blur-md transition-all duration-300 ${
+                  isMutedAudio ? 'bg-red-500/80 border-red-400/30' : 'bg-black/50 border-white/10'
+                }`}>
+                  {isMutedAudio ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                </div>
+                <div className={`p-2 rounded-xl border text-white backdrop-blur-md transition-all duration-300 ${
+                  isMutedVideo ? 'bg-red-500/80 border-red-400/30' : 'bg-black/50 border-white/10'
+                }`}>
+                  {isMutedVideo ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+                </div>
               </div>
             </div>
 
-            <div className="space-y-6 flex flex-col justify-between h-full min-h-[220px]">
-              <div className="space-y-4">
-                <div className="bg-surface-soft border border-hairline/60 rounded-xl p-4 space-y-3">
+            {/* Micro-interactive media control buttons */}
+            <div className="flex justify-center space-x-4 w-full max-w-xl">
+              <button
+                onClick={handleToggleLobbyAudio}
+                className={`flex items-center justify-center w-14 h-14 rounded-full border transition-all duration-300 focus:outline-none cursor-pointer hover:scale-105 active:scale-95 ${
+                  isMutedAudio
+                    ? 'bg-red-500/10 border-red-500/30 text-red-500 hover:bg-red-500/20 shadow-lg shadow-red-500/5'
+                    : 'bg-surface-card border-hairline text-ink hover:bg-surface-soft hover:shadow-md'
+                }`}
+                title={isMutedAudio ? 'Unmute microphone' : 'Mute microphone'}
+              >
+                {isMutedAudio ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              </button>
+
+              <button
+                onClick={handleToggleLobbyVideo}
+                className={`flex items-center justify-center w-14 h-14 rounded-full border transition-all duration-300 focus:outline-none cursor-pointer hover:scale-105 active:scale-95 ${
+                  isMutedVideo
+                    ? 'bg-red-500/10 border-red-500/30 text-red-500 hover:bg-red-500/20 shadow-lg shadow-red-500/5'
+                    : 'bg-surface-card border-hairline text-ink hover:bg-surface-soft hover:shadow-md'
+                }`}
+                title={isMutedVideo ? 'Turn camera on' : 'Turn camera off'}
+              >
+                {isMutedVideo ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Right Column: Settings Glassmorphic Card */}
+          <div className="w-full lg:col-span-5">
+            <div className="relative backdrop-blur-xl bg-surface-card/60 dark:bg-dark-900/60 border border-hairline/40 dark:border-dark-800 rounded-3xl p-6 md:p-8 shadow-2xl space-y-6 flex flex-col justify-between">
+              
+              <div className="space-y-5">
+                {/* Identity selector */}
+                <div className="bg-surface-soft/60 dark:bg-dark-950/40 border border-hairline/45 dark:border-dark-800 rounded-2xl p-4.5 space-y-3.5">
                   <span className="text-[10px] uppercase font-bold text-muted tracking-wider block">Joining As</span>
                   {user ? (
-                    <div className="flex items-center space-x-2.5">
-                      <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center text-xs font-bold">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center text-sm font-bold shadow-inner">
                         {user.fullName?.charAt(0).toUpperCase() || 'U'}
                       </div>
-                      <span className="text-sm font-bold text-ink">{user.fullName}</span>
+                      <span className="text-sm font-extrabold text-ink">{user.fullName}</span>
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center text-sm font-bold flex-shrink-0 shadow-inner">
                           {guestUsername.charAt(0).toUpperCase() || 'G'}
                         </div>
                         <input
@@ -765,32 +778,35 @@ export const MeetingRoom: React.FC = () => {
                             sessionStorage.setItem(`guest_username_${code}`, e.target.value);
                           }}
                           placeholder="Type your guest username..."
-                          className="w-full bg-canvas border border-hairline rounded-lg px-3 py-1.5 text-sm text-ink focus:outline-none focus:border-primary font-bold placeholder-muted/60"
+                          className="w-full bg-canvas dark:bg-dark-950 border border-hairline/80 dark:border-dark-800 rounded-xl px-4 py-2 text-sm text-ink focus:outline-none focus:border-primary font-bold placeholder-muted/50 transition-colors shadow-inner"
                         />
                       </div>
                     </div>
                   )}
                 </div>
 
-                <div className="border border-hairline/60 rounded-xl p-4 bg-canvas space-y-4">
-                  <h3 className="font-serif text-lg font-normal text-ink flex items-center border-b border-hairline pb-2">
+                {/* Media Hardware Settings */}
+                <div className="border border-hairline/45 dark:border-dark-800 rounded-2xl p-4.5 bg-surface-card/40 dark:bg-dark-950/20 space-y-4">
+                  <h3 className="font-serif text-base font-normal text-ink flex items-center border-b border-hairline/40 dark:border-dark-800 pb-2.5">
                     <Camera className="w-4 h-4 mr-2 text-primary" /> Audio & Video Settings
                   </h3>
                   <DeviceSelector />
                 </div>
               </div>
 
+              {/* Join call button */}
               <button
                 onClick={handleJoinCall}
                 disabled={!user && !guestUsername.trim()}
-                className={`w-full mt-4 text-sm font-bold py-3.5 px-6 rounded-xl transition-all duration-200 shadow-md active:scale-[0.98] focus:outline-none flex items-center justify-center space-x-2 cursor-pointer ${
+                className={`w-full text-sm font-bold py-4 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:scale-[1.02] active:scale-[0.98] focus:outline-none flex items-center justify-center space-x-2 cursor-pointer ${
                   (!user && !guestUsername.trim())
-                    ? 'bg-muted/40 text-muted/80 border border-hairline/60 cursor-not-allowed shadow-none'
-                    : 'bg-primary hover:bg-primary-active text-white shadow-primary/10'
+                    ? 'bg-muted/40 text-muted/80 border border-hairline/40 cursor-not-allowed shadow-none'
+                    : 'bg-primary hover:bg-primary-active text-white shadow-primary/20 hover:shadow-primary/35'
                 }`}
               >
                 <span>Join Meeting</span>
               </button>
+
             </div>
           </div>
         </div>
@@ -989,12 +1005,19 @@ const ActiveRoomContent: React.FC<{
     setSettingsOpen,
     setShortcutsOpen,
     addOrUpdateTranscript,
-    myRole
+    myRole,
+    addChatMessage,
+    updateParticipantHand,
+    setParticipants,
+    addParticipant,
+    removeParticipant,
+    updateParticipantMute
   } = useMeetingStore();
 
   const {
     isMutedAudio,
     setAudioMute,
+    setVideoMute,
     isPushToTalkEnabled,
     showCaptions,
     isNoiseSuppressionEnabled,
@@ -1198,6 +1221,78 @@ const ActiveRoomContent: React.FC<{
       signalingClient.off('reaction', handleReaction);
     };
   }, []);
+
+  // Real-time Chat, Hand Raise and Remote Mute commands listeners
+  useEffect(() => {
+    const handleChatReceived = (message: any) => {
+      addChatMessage(message);
+    };
+
+    const handleHandRaised = ({ userId, isRaised }: { userId: string; isRaised: boolean }) => {
+      updateParticipantHand(userId, isRaised);
+    };
+
+    const handleMuteCommand = ({ type }: { type: 'audio' | 'video' }) => {
+      if (type === 'audio') {
+        localParticipant?.setMicrophoneEnabled(false);
+        setAudioMute(true);
+        if (code) {
+          sessionStorage.setItem(`meeting_audio_muted_${code}`, 'true');
+        }
+      } else if (type === 'video') {
+        localParticipant?.setCameraEnabled(false);
+        setVideoMute(true);
+        if (code) {
+          sessionStorage.setItem(`meeting_video_muted_${code}`, 'true');
+        }
+      }
+    };
+
+    const handleRoomParticipants = ({ participants: peerList }: { participants: any[] }) => {
+      setParticipants(peerList);
+    };
+
+    const handlePeerJoined = (peer: any) => {
+      addParticipant(peer);
+    };
+
+    const handlePeerLeft = ({ userId }: { userId: string }) => {
+      removeParticipant(userId);
+    };
+
+    const handlePeerMutedStatus = ({ userId, type, isMuted }: { userId: string; type: 'audio' | 'video'; isMuted: boolean }) => {
+      updateParticipantMute(userId, type, isMuted);
+    };
+
+    signalingClient.on('chat-received', handleChatReceived);
+    signalingClient.on('hand-raised', handleHandRaised);
+    signalingClient.on('mute-command', handleMuteCommand);
+    signalingClient.on('room-participants', handleRoomParticipants);
+    signalingClient.on('peer-joined', handlePeerJoined);
+    signalingClient.on('peer-left', handlePeerLeft);
+    signalingClient.on('peer-muted-status', handlePeerMutedStatus);
+
+    return () => {
+      signalingClient.off('chat-received', handleChatReceived);
+      signalingClient.off('hand-raised', handleHandRaised);
+      signalingClient.off('mute-command', handleMuteCommand);
+      signalingClient.off('room-participants', handleRoomParticipants);
+      signalingClient.off('peer-joined', handlePeerJoined);
+      signalingClient.off('peer-left', handlePeerLeft);
+      signalingClient.off('peer-muted-status', handlePeerMutedStatus);
+    };
+  }, [
+    localParticipant,
+    code,
+    addChatMessage,
+    updateParticipantHand,
+    setAudioMute,
+    setVideoMute,
+    setParticipants,
+    addParticipant,
+    removeParticipant,
+    updateParticipantMute
+  ]);
 
   // Handle incoming unread chat notification
   useEffect(() => {

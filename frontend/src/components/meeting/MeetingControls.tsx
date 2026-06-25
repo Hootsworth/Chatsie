@@ -50,7 +50,9 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
     toggleTranscriptionPanel,
     toggleWhiteboard,
     setSettingsOpen,
-    currentMeeting
+    currentMeeting,
+    isLocalHandRaised,
+    setLocalHandRaised
   } = useMeetingStore();
 
   const { isRecording, startRecording, stopRecording } = useCallRecorder();
@@ -61,8 +63,6 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
   const allParticipants = useParticipants(); // LiveKit participants
   const [showCaptions, setCaptionsEnabled] = React.useState(false);
 
-  // Local state for hand raised
-  const [isHandRaised, setIsHandRaised] = React.useState(false);
   // Reaction picker popover state
   const [isReactionPickerOpen, setIsReactionPickerOpen] = React.useState(false);
   const reactionPickerRef = React.useRef<HTMLDivElement>(null);
@@ -102,8 +102,8 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
   const toggleScreenShare = () => localParticipant?.setScreenShareEnabled(!isScreenShareEnabled);
 
   const handleRaiseHand = () => {
-    const nextState = !isHandRaised;
-    setIsHandRaised(nextState);
+    const nextState = !isLocalHandRaised;
+    setLocalHandRaised(nextState);
     signalingClient.raiseHand(nextState); // Fallback to custom signaling for hand raise
   };
 
@@ -175,11 +175,11 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
         <button
           onClick={handleRaiseHand}
           className={`p-3 rounded-xl transition-all duration-200 focus:outline-none ${
-            isHandRaised 
+            isLocalHandRaised 
               ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20' 
               : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
           }`}
-          title={isHandRaised ? 'Lower Hand' : 'Raise Hand'}
+          title={isLocalHandRaised ? 'Lower Hand' : 'Raise Hand'}
         >
           <Hand className="w-5 h-5" />
         </button>
