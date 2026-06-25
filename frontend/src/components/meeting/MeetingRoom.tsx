@@ -1060,8 +1060,9 @@ const ActiveRoomContent: React.FC<{
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true';
       if (isInput) return;
 
-      // Alt + S to toggle HUD
-      if (e.altKey && (e.key === 's' || e.key === 'S')) {
+      // Option + S (Alt + S) or Ctrl + S to toggle HUD
+      const isToggleKey = (e.altKey || e.ctrlKey) && (e.key === 's' || e.key === 'S');
+      if (isToggleKey) {
         e.preventDefault();
         setIsSoundboardHUDOpen(prev => !prev);
         return;
@@ -1720,7 +1721,11 @@ const ActiveRoomContent: React.FC<{
                 <span className="text-xs font-bold text-primary uppercase tracking-wider">🔊 Live Soundboard</span>
                 <span className="text-[10px] text-on-dark-soft bg-surface-dark-soft px-1.5 py-0.5 rounded">Hotkeys Only</span>
               </div>
-              <span className="text-[10px] text-on-dark-soft">Press <kbd className="bg-surface-dark-soft px-1.5 py-0.5 rounded border border-white/10 text-white font-mono text-[9px] font-black">Alt + S</kbd> to close</span>
+              <span className="text-[10px] text-on-dark-soft">
+                Press <kbd className="bg-surface-dark-soft px-1.5 py-0.5 rounded border border-white/10 text-white font-mono text-[9px] font-black">
+                  {typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.userAgent) ? '⌥ + S' : 'Alt + S'}
+                </kbd> to close
+              </span>
             </div>
             
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
