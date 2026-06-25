@@ -397,11 +397,18 @@ export const MeetingRoom: React.FC = () => {
     };
 
     const handleRoomLockToggled = ({ isLocked }: { isLocked: boolean }) => {
-      setCurrentMeeting(
-        useMeetingStore.getState().currentMeeting
-          ? { ...useMeetingStore.getState().currentMeeting!, is_locked: isLocked }
-          : null
-      );
+      const activeMtg = useMeetingStore.getState().currentMeeting;
+      if (activeMtg) {
+        setCurrentMeeting({ ...activeMtg, is_locked: isLocked });
+        
+        if (!isLocked && !activeMtg.is_waiting_room_enabled) {
+          const currentStatus = useMeetingStore.getState().waitingStatus;
+          if (currentStatus === 'waiting') {
+            setWaitingStatus('approved');
+            sessionStorage.setItem(`waiting_status_approved_${code}`, 'true');
+          }
+        }
+      }
     };
 
     signalingClient.on('waiting-status', handleWaitingStatus);

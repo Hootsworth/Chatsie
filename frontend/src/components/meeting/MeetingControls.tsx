@@ -84,7 +84,13 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
       sessionStorage.setItem(`meeting_video_muted_${code}`, String(!nextState));
     }
   };
-  const toggleScreenShare = () => localParticipant?.setScreenShareEnabled(!isScreenShareEnabled, { audio: true });
+  const toggleScreenShare = () => localParticipant?.setScreenShareEnabled(!isScreenShareEnabled, {
+    audio: {
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false
+    }
+  });
 
   const handleRaiseHand = () => {
     const nextState = !isLocalHandRaised;
