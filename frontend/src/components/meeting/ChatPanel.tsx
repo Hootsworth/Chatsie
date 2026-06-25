@@ -106,7 +106,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, userId, username }
   const quickEmojis = ['👍', '❤️', '😂', '🎉', '😮', '😢', '👏', '🔥'];
 
   return (
-    <div className="w-full h-full flex flex-col bg-surface-dark border-l border-white/5 z-20">
+    <div className="w-full h-full flex flex-col bg-transparent z-20">
       
       {/* Header */}
       <div className="px-5 py-4 border-b border-white/5 flex items-center">

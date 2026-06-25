@@ -1059,6 +1059,7 @@ const ActiveRoomContent: React.FC<{
   // Soundboard states
   const [isSoundboardHUDOpen, setIsSoundboardHUDOpen] = useState(false);
   const [activeSoundId, setActiveSoundId] = useState<string | null>(null);
+  const [isUiControlsVisible, setIsUiControlsVisible] = useState(true);
 
   // Monitor tab visibility to suspend rendering/streaming when backgrounded
   useEffect(() => {
@@ -1110,6 +1111,46 @@ const ActiveRoomContent: React.FC<{
       window.removeEventListener('keydown', handleGlobalKeys);
     };
   }, []);
+
+  // Auto-hide UI controls on mouse inactivity
+  useEffect(() => {
+    let timeoutId: any = null;
+
+    const resetTimer = () => {
+      setIsUiControlsVisible(true);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      timeoutId = setTimeout(() => {
+        // If soundboard HUD, shortcuts modal, or settings modal is open, do not auto-hide
+        if (
+          useMeetingStore.getState().isSettingsOpen || 
+          useMeetingStore.getState().isShortcutsOpen ||
+          isBreakoutModalOpen ||
+          isInviteModalOpen
+        ) {
+          return;
+        }
+        setIsUiControlsVisible(false);
+      }, 3000);
+    };
+
+    window.addEventListener('mousemove', resetTimer);
+    window.addEventListener('click', resetTimer);
+    window.addEventListener('keydown', resetTimer);
+
+    // Initial timer trigger
+    resetTimer();
+
+    return () => {
+      window.removeEventListener('mousemove', resetTimer);
+      window.removeEventListener('click', resetTimer);
+      window.removeEventListener('keydown', resetTimer);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [isBreakoutModalOpen, isInviteModalOpen]);
 
   const handleToggleRoomLock = async () => {
     try {
@@ -1592,7 +1633,9 @@ const ActiveRoomContent: React.FC<{
       )}
       
       {/* Room Header bar */}
-      <header className="bg-surface-dark-elevated border-b border-white/5 px-6 py-3 flex items-center justify-between z-35">
+      <header className={`fixed top-4 left-6 right-6 bg-surface-dark-elevated/75 border border-white/10 px-6 py-3 flex items-center justify-between z-35 rounded-2xl shadow-2xl backdrop-blur-md transition-all duration-300 ${
+        isUiControlsVisible ? 'translate-y-0 opacity-100' : '-translate-y-24 opacity-0 pointer-events-none'
+      }`}>
         <div className="flex items-center space-x-3 truncate">
           <div className="flex items-center space-x-2 text-xs font-bold bg-primary/10 text-primary border border-primary/20 px-2 py-1 rounded-md">
             <Info className="w-3.5 h-3.5" />
@@ -1709,7 +1752,7 @@ const ActiveRoomContent: React.FC<{
 
         {/* Right Sidebar panels */}
         {isChatPanelOpen && (
-          <div className="w-full md:w-80 flex-shrink-0 animate-in slide-in-from-right duration-250 z-20">
+          <div className="absolute right-6 top-20 bottom-24 w-80 md:w-80 backdrop-blur-xl bg-surface-dark-elevated/65 border border-white/10 rounded-3xl shadow-2xl z-40 overflow-hidden animate-in slide-in-from-right duration-250 flex flex-col">
             <ChatPanel 
               roomId={code || ''} 
               userId={user?.id || ''} 
@@ -1719,13 +1762,13 @@ const ActiveRoomContent: React.FC<{
         )}
 
         {isParticipantsPanelOpen && (
-          <div className="w-full md:w-80 flex-shrink-0 animate-in slide-in-from-right duration-250 z-20">
+          <div className="absolute right-6 top-20 bottom-24 w-80 md:w-80 backdrop-blur-xl bg-surface-dark-elevated/65 border border-white/10 rounded-3xl shadow-2xl z-40 overflow-hidden animate-in slide-in-from-right duration-250 flex flex-col">
             <ParticipantPanel />
           </div>
         )}
 
         {isTranscriptionPanelOpen && (
-          <div className="w-full md:w-80 flex-shrink-0 animate-in slide-in-from-right duration-250 z-20">
+          <div className="absolute right-6 top-20 bottom-24 w-80 md:w-80 backdrop-blur-xl bg-surface-dark-elevated/65 border border-white/10 rounded-3xl shadow-2xl z-40 overflow-hidden animate-in slide-in-from-right duration-250 flex flex-col">
             <TranscriptionPanel />
           </div>
         )}
@@ -1733,7 +1776,11 @@ const ActiveRoomContent: React.FC<{
 
       {/* Soundboard HUD Overlay */}
       {isSoundboardHUDOpen && (
-        <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 z-40 w-full max-w-2xl px-4 animate-in fade-in slide-in-from-bottom-5 duration-200">
+        <div className={`absolute left-1/2 transform -translate-x-1/2 z-40 w-full max-w-2xl px-4 transition-all duration-300 ${
+          isUiControlsVisible 
+            ? 'bottom-24 opacity-100' 
+            : 'bottom-6 opacity-0 pointer-events-none'
+        }`}>
           <div className="backdrop-blur-md bg-surface-dark-elevated/90 border border-white/10 rounded-2xl p-4 shadow-2xl flex flex-col space-y-3">
             <div className="flex justify-between items-center border-b border-white/5 pb-2">
               <div className="flex items-center space-x-2">
@@ -1781,6 +1828,7 @@ const ActiveRoomContent: React.FC<{
         hasUnreadMessages={hasUnreadChat}
         markChatRead={() => setHasUnreadChat(false)}
         onTogglePip={togglePip}
+        className={isUiControlsVisible ? 'translate-y-0 opacity-100' : 'translate-y-24 opacity-0 pointer-events-none'}
       />
 
       {/* Muted typing suggestion banner */}

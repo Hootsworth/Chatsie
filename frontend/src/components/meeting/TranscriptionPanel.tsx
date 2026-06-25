@@ -180,7 +180,7 @@ Please format your response in clean Markdown. Be precise, professional, and cle
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-surface-dark border-l border-white/5 z-20 relative">
+    <div className="w-full h-full flex flex-col bg-transparent z-20 relative">
       
       {/* Header */}
       <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between">

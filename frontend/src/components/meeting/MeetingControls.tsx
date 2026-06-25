@@ -31,13 +31,15 @@ interface MeetingControlsProps {
   hasUnreadMessages: boolean;
   markChatRead: () => void;
   onTogglePip?: () => void;
+  className?: string;
 }
 
 export const MeetingControls: React.FC<MeetingControlsProps> = ({
   onLeave,
   hasUnreadMessages,
   markChatRead,
-  onTogglePip
+  onTogglePip,
+  className = ''
 }) => {
   const {
     myRole,
@@ -120,13 +122,12 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
   };
 
   return (
-    <div className="bg-surface-dark-elevated/90 border-t border-white/5 px-6 py-4 flex items-center justify-between text-white select-none z-30">
+    <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 bg-surface-dark-elevated/75 border border-white/10 px-6 py-3 flex items-center justify-between text-white select-none z-30 rounded-full shadow-2xl backdrop-blur-md transition-all duration-300 hover:scale-[1.01] hover:bg-surface-dark-elevated/85 ${className}`}>
       
       {/* Left section: Info */}
-      <div className="hidden sm:block text-xs text-on-dark-soft font-bold">
-        <span>LiveKit SFU</span>
-        <span className="mx-2">•</span>
-        <span className="text-emerald-500 font-extrabold">Connected</span>
+      <div className="hidden lg:flex items-center space-x-1 text-[10px] uppercase font-bold tracking-wider text-emerald-500 mr-2 flex-shrink-0">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse mr-1" />
+        <span>Live</span>
       </div>
 
       {/* Middle section: Action Controls */}

@@ -34,7 +34,7 @@ export const ParticipantPanel: React.FC = () => {
   const isHost = myRole === 'host';
 
   return (
-    <div className="w-full h-full flex flex-col bg-surface-dark border-l border-white/5 z-20 overflow-y-auto">
+    <div className="w-full h-full flex flex-col bg-transparent z-20 overflow-y-auto">
       
       {/* 1. WAITING ROOM QUEUE (HOST ONLY) */}
       {isHost && waitingRoomList.length > 0 && (

@@ -89,10 +89,10 @@ export const VideoGrid: React.FC = () => {
           return (
             <div 
               key={`${track.participant.identity}-${track.source}`}
-              className={`relative rounded-2xl overflow-hidden transition-all duration-300 [&_video]:object-cover [&_video]:w-full [&_video]:h-full ${
+              className={`relative rounded-3xl overflow-hidden transition-all duration-300 [&_video]:object-cover [&_video]:w-full [&_video]:h-full ${
                 isSpeaking 
-                  ? 'ring-4 ring-emerald-500 shadow-lg shadow-emerald-500/20' 
-                  : 'border border-white/5'
+                  ? 'scale-[1.015] ring-4 ring-emerald-500/80 shadow-2xl shadow-emerald-500/30 z-10' 
+                  : 'border border-white/5 shadow-md shadow-black/10'
               }`}
             >
               {isHandRaised && (
