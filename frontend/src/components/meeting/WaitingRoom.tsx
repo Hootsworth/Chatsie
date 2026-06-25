@@ -183,7 +183,7 @@ export const WaitingRoom: React.FC<WaitingRoomProps> = ({ meetingTitle }) => {
             <Loader2 className="w-8 h-8 animate-spin" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-3xl font-serif text-ink tracking-tight">
+            <h2 className="text-3xl font-display font-semibold text-ink tracking-tight">
               Waiting Room
             </h2>
             <p className="text-sm text-muted">

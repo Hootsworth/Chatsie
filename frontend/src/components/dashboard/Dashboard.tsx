@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../assets/logo.png';
+import claymationHero from '../../assets/claymation_hero.png';
 import { useUser, UserButton, useAuth } from '@clerk/clerk-react';
 import { Button, Input, Modal, Badge } from '../ui';
 import {
@@ -400,7 +401,7 @@ export const Dashboard: React.FC = () => {
             <img src={logo} alt="Chatsie Logo" className="w-9 h-9 rounded-xl object-contain shadow-sm" />
             <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-canvas dark:border-dark-950" />
           </div>
-          <span className="text-lg font-serif font-semibold tracking-tight text-ink">Chatsie</span>
+          <span className="text-lg font-display font-bold tracking-tight text-ink">Chatsie</span>
         </div>
 
         <div className="flex items-center space-x-2">
@@ -427,22 +428,38 @@ export const Dashboard: React.FC = () => {
       </header>
 
       {/* ===== HERO ===== */}
-      <section className="relative z-10 text-center pt-8 md:pt-14 pb-10 md:pb-14 px-6 animate-fade-in-up">
-        <p className="text-xs font-bold tracking-[0.2em] uppercase text-muted mb-4">{formattedDate}</p>
-        <h1 className="text-5xl md:text-7xl lg:text-[5.5rem] font-serif font-light tracking-tight leading-[0.95] text-ink">
-          {greeting},<br />
-          <span className="bg-gradient-to-r from-primary via-primary to-rose-400 dark:to-amber-400 bg-clip-text text-transparent font-normal">{user?.firstName || 'there'}</span>.
-        </h1>
-        <p className="text-sm md:text-base text-muted font-light mt-5 max-w-lg mx-auto leading-relaxed">
-          Start an instant call, schedule a sync, or jump into an active room.
-        </p>
-
-        {instantMeetingError && (
-          <div className="max-w-md mx-auto mt-5 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/40 p-3 rounded-xl text-xs font-semibold flex items-center justify-between animate-fade-in-up">
-            <span>{instantMeetingError}</span>
-            <button onClick={() => setInstantMeetingError(null)} className="text-xs underline hover:text-red-800 dark:hover:text-red-300 ml-4 font-normal">Dismiss</button>
+      <section className="relative z-10 max-w-6xl mx-auto px-4 md:px-8 pt-8 md:pt-14 pb-10 md:pb-14 animate-fade-in-up">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+          {/* Left Hero Column (7 cols) */}
+          <div className="lg:col-span-7 text-left space-y-5">
+            <p className="text-xs font-bold tracking-[0.2em] uppercase text-muted">{formattedDate}</p>
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-display font-semibold tracking-tight leading-[1.0] text-ink">
+              {greeting},<br />
+              <span className="bg-gradient-to-r from-brand-pink to-brand-peach bg-clip-text text-transparent font-semibold">{user?.firstName || 'there'}</span>.
+            </h1>
+            <p className="text-sm md:text-base text-muted font-normal max-w-lg leading-relaxed">
+              Welcome back to Chatsie. Modern, smooth video meetings with a touch of playfulness. Ready to collaborate?
+            </p>
+            {instantMeetingError && (
+              <div className="max-w-md bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/40 p-3 rounded-xl text-xs font-semibold flex items-center justify-between animate-fade-in-up">
+                <span>{instantMeetingError}</span>
+                <button onClick={() => setInstantMeetingError(null)} className="text-xs underline hover:text-red-800 dark:hover:text-red-300 ml-4 font-normal">Dismiss</button>
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Right Hero Column (5 cols) - Claymation Mascot Illustration */}
+          <div className="lg:col-span-5 hidden lg:block">
+            <div className="bg-surface-soft border border-hairline/80 rounded-3xl p-4 shadow-xl shadow-primary/5 relative overflow-hidden group hover:scale-[1.01] transition-all duration-300">
+              <div className="absolute -inset-10 bg-gradient-to-tr from-brand-peach/10 to-brand-pink/10 rounded-full blur-2xl opacity-60" />
+              <img 
+                src={claymationHero} 
+                alt="Chatsie Claymation World" 
+                className="w-full h-auto object-contain rounded-2xl relative z-10 border border-hairline/35 shadow-inner"
+              />
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* ===== BENTO GRID ===== */}
@@ -450,20 +467,20 @@ export const Dashboard: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4">
 
           {/* ── Start Call Card (spans 5 cols) ── */}
-          <div className="lg:col-span-5 group relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/90 to-primary-active dark:from-primary/80 dark:to-rose-700/70 p-6 md:p-8 text-white shadow-xl shadow-primary/10 hover:shadow-2xl hover:shadow-primary/20 transition-all duration-500 hover:-translate-y-0.5">
-            {/* Decorative circles */}
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
-            <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-white/5 rounded-full blur-xl" />
+          <div className="lg:col-span-5 group relative overflow-hidden rounded-3xl bg-brand-pink p-6 md:p-8 text-white shadow-xl shadow-brand-pink/15 hover:shadow-2xl hover:shadow-brand-pink/25 transition-all duration-500 hover:-translate-y-0.5">
+            {/* Decorative clay elements */}
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-white/5 rounded-full blur-xl pointer-events-none" />
             
             <div className="relative">
               <div className="w-12 h-12 bg-white/15 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
-                <Video className="w-6 h-6" />
+                <Video className="w-6 h-6 text-white" />
               </div>
-              <h2 className="text-2xl md:text-3xl font-serif font-normal mb-2 tracking-tight">Start an instant call</h2>
-              <p className="text-white/70 text-sm font-light mb-6 max-w-xs">Launch a new room in one click. Share the link with anyone to join.</p>
+              <h2 className="text-2xl md:text-3xl font-display font-medium mb-2 tracking-tight">Start an instant call</h2>
+              <p className="text-white/80 text-sm font-normal mb-6 max-w-xs leading-relaxed">Launch a new room in one click. Share the link with anyone to join.</p>
               <button
                 onClick={handleStartInstantMeeting}
-                className="px-6 py-3 bg-white text-primary font-bold text-sm rounded-xl hover:bg-white/90 active:scale-[0.97] transition-all duration-200 shadow-lg shadow-black/10 cursor-pointer flex items-center space-x-2"
+                className="px-6 py-3 bg-white text-brand-pink font-bold text-sm rounded-xl hover:bg-white/95 active:scale-[0.97] transition-all duration-200 shadow-lg shadow-black/10 cursor-pointer flex items-center space-x-2"
               >
                 <Plus className="w-4 h-4" />
                 <span>New Meeting</span>
@@ -474,9 +491,9 @@ export const Dashboard: React.FC = () => {
           {/* ── Join + Schedule Stack (spans 3 cols) ── */}
           <div className="lg:col-span-3 flex flex-col gap-4">
             {/* Join by Code */}
-            <div className="flex-1 bento-card group">
+            <div className="flex-1 bento-card group bg-brand-lavender/15 border-brand-lavender/30 dark:bg-dark-800/10 dark:border-white/5">
               <div className="flex items-center space-x-2 mb-3">
-                <div className="w-8 h-8 rounded-xl bg-sky-500/10 dark:bg-sky-500/15 text-sky-500 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-brand-lavender/25 text-indigo-700 dark:text-brand-lavender flex items-center justify-center font-bold">
                   <Link2 className="w-4 h-4" />
                 </div>
                 <h3 className="text-xs font-bold text-ink uppercase tracking-wider">Join by Code</h3>
@@ -487,14 +504,14 @@ export const Dashboard: React.FC = () => {
                   placeholder="abc-defg-hij"
                   value={joinCode}
                   onChange={(e) => setJoinCode(e.target.value)}
-                  className="flex-1 bg-surface-soft/50 dark:bg-dark-800/60 border border-hairline/50 dark:border-white/5 rounded-xl px-3.5 py-2.5 text-sm text-ink font-mono tracking-wider placeholder:text-muted/40 placeholder:font-sans focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all"
+                  className="flex-1 bg-white/80 dark:bg-dark-800/60 border border-hairline/80 dark:border-white/5 rounded-xl px-3.5 py-2.5 text-sm text-ink font-mono tracking-wider placeholder:text-muted/40 placeholder:font-sans focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all"
                 />
                 <button 
                   type="submit" 
                   disabled={!joinCode}
                   className={`p-2.5 rounded-xl transition-all ${
                     joinCode 
-                      ? 'bg-ink dark:bg-white text-canvas dark:text-dark-950 hover:scale-105 active:scale-95 cursor-pointer shadow-md' 
+                      ? 'bg-primary text-white dark:bg-white dark:text-dark-950 hover:scale-105 active:scale-95 cursor-pointer shadow-md' 
                       : 'bg-hairline/50 dark:bg-dark-800/50 text-muted/30 pointer-events-none'
                   }`}
                 >
@@ -505,12 +522,12 @@ export const Dashboard: React.FC = () => {
 
             {/* Schedule for Later */}
             <div 
-              className="flex-1 bento-card group cursor-pointer hover:-translate-y-0.5"
+              className="flex-1 bento-card group cursor-pointer hover:-translate-y-0.5 bg-surface-card/60 hover:bg-surface-card border-hairline/60"
               onClick={() => setIsScheduleModalOpen(true)}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 rounded-xl bg-violet-500/10 dark:bg-violet-500/15 text-violet-500 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-xl bg-brand-teal/10 text-brand-teal dark:bg-brand-mint/15 dark:text-brand-mint flex items-center justify-center font-bold">
                     <Calendar className="w-4 h-4" />
                   </div>
                   <div>
@@ -524,10 +541,10 @@ export const Dashboard: React.FC = () => {
           </div>
 
           {/* ── Personal Room Card (spans 4 cols) ── */}
-          <div className="lg:col-span-4 bento-card group">
+          <div className="lg:col-span-4 bento-card group bg-brand-peach/15 border-brand-peach/30 dark:bg-dark-800/10 dark:border-white/5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-500 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-brand-peach/25 text-brand-peach flex items-center justify-center">
                   <ExternalLink className="w-4 h-4" />
                 </div>
                 <h3 className="text-xs font-bold text-ink uppercase tracking-wider">Your Room</h3>
@@ -542,12 +559,12 @@ export const Dashboard: React.FC = () => {
                 </button>
               </div>
             </div>
-            <p className="text-[11px] font-mono text-muted truncate bg-surface-soft/50 dark:bg-dark-800/40 rounded-lg px-3 py-2 border border-hairline/30 dark:border-white/5 mb-4">
+            <p className="text-[11px] font-mono text-muted truncate bg-white/70 dark:bg-dark-800/40 rounded-lg px-3 py-2 border border-hairline/30 dark:border-white/5 mb-4">
               {window.location.host}/room/personal-{user?.id?.slice(0, 8)}…
             </p>
             <button
               onClick={handleStartPersonalRoom}
-              className="w-full px-4 py-2.5 bg-ink dark:bg-white text-canvas dark:text-dark-950 font-bold text-xs rounded-xl hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer shadow-sm flex items-center justify-center space-x-2"
+              className="w-full px-4 py-2.5 bg-primary hover:bg-primary-active text-white dark:bg-white dark:text-dark-950 font-bold text-xs rounded-xl active:scale-[0.98] transition-all cursor-pointer shadow-sm flex items-center justify-center space-x-2"
             >
               <Video className="w-3.5 h-3.5" />
               <span>Launch Personal Room</span>
@@ -555,16 +572,16 @@ export const Dashboard: React.FC = () => {
           </div>
 
           {/* ── Upcoming Rooms (spans 7 cols) ── */}
-          <div className="lg:col-span-7 bento-card">
+          <div className="lg:col-span-7 bento-card bg-surface-card/60 border-hairline/60">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded-xl bg-primary/10 dark:bg-primary/15 text-primary flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-brand-mint/20 text-brand-teal dark:text-brand-mint flex items-center justify-center">
                   <Clock className="w-4 h-4" />
                 </div>
-                <h3 className="text-xs font-bold text-ink uppercase tracking-wider">Upcoming</h3>
+                <h3 className="text-xs font-bold text-ink uppercase tracking-wider">Upcoming Syncs</h3>
               </div>
               {upcomingMeetings.length > 0 && (
-                <span className="text-[10px] font-bold px-2.5 py-1 bg-primary/10 text-primary rounded-full">
+                <span className="text-[10px] font-bold px-2.5 py-1 bg-brand-mint/30 text-brand-teal dark:bg-brand-mint/20 dark:text-brand-mint rounded-full">
                   {upcomingMeetings.length}
                 </span>
               )}
@@ -585,10 +602,10 @@ export const Dashboard: React.FC = () => {
                 upcomingMeetings.map((mtg) => (
                   <div 
                     key={mtg.id}
-                    className="flex items-center justify-between p-3 rounded-xl bg-surface-soft/30 dark:bg-dark-800/30 border border-hairline/20 dark:border-white/5 hover:border-primary/20 dark:hover:border-primary/20 group/item transition-all duration-200"
+                    className="flex items-center justify-between p-3 rounded-xl bg-canvas dark:bg-dark-800/30 border border-hairline/40 dark:border-white/5 hover:border-brand-peach/50 dark:hover:border-primary/20 group/item transition-all duration-200"
                   >
                     <div className="truncate mr-3">
-                      <p className="text-xs font-bold text-ink truncate group-hover/item:text-primary transition-colors">{mtg.title}</p>
+                      <p className="text-xs font-bold text-ink truncate group-hover/item:text-brand-pink transition-colors">{mtg.title}</p>
                       <div className="flex items-center space-x-2 mt-1">
                         <p className="text-[10px] text-muted font-medium">
                           {mtg.scheduled_start ? new Date(mtg.scheduled_start).toLocaleString('en-US', {
@@ -596,7 +613,7 @@ export const Dashboard: React.FC = () => {
                           }) : 'Instant Link'}
                         </p>
                         {mtg.passcode && (
-                          <span className="flex items-center text-[9px] text-primary font-bold">
+                          <span className="flex items-center text-[9px] text-brand-pink font-bold">
                             <Shield className="w-2.5 h-2.5 mr-0.5" /> Protected
                           </span>
                         )}
@@ -604,7 +621,7 @@ export const Dashboard: React.FC = () => {
                     </div>
                     <button 
                       onClick={() => navigate(`/room/${mtg.code}`)}
-                      className="px-3.5 py-1.5 bg-ink dark:bg-white text-canvas dark:text-dark-950 hover:bg-primary dark:hover:bg-primary dark:hover:text-white text-[10px] font-bold rounded-lg transition-all duration-200 cursor-pointer active:scale-95 flex-shrink-0"
+                      className="px-3.5 py-1.5 bg-primary hover:bg-primary-active text-white dark:bg-white dark:text-dark-950 text-[10px] font-bold rounded-lg transition-all duration-200 cursor-pointer active:scale-95 flex-shrink-0"
                     >
                       Join
                     </button>
@@ -615,9 +632,9 @@ export const Dashboard: React.FC = () => {
           </div>
 
           {/* ── History Log (spans 5 cols) ── */}
-          <div className="lg:col-span-5 bento-card">
+          <div className="lg:col-span-5 bento-card bg-brand-ochre/10 border-brand-ochre/25 dark:bg-dark-800/10 dark:border-white/5">
             <div className="flex items-center space-x-2 mb-4">
-              <div className="w-8 h-8 rounded-xl bg-muted/10 dark:bg-white/5 text-muted flex items-center justify-center">
+              <div className="w-8 h-8 rounded-xl bg-brand-ochre/20 text-brand-ochre dark:text-yellow-400 flex items-center justify-center font-bold">
                 <History className="w-4 h-4" />
               </div>
               <h3 className="text-xs font-bold text-ink uppercase tracking-wider">History</h3>
@@ -628,13 +645,13 @@ export const Dashboard: React.FC = () => {
                 <div className="text-center py-6 text-muted text-xs">Loading...</div>
               ) : pastMeetings.length === 0 ? (
                 <div className="h-24 flex items-center justify-center">
-                  <p className="text-[10px] text-muted/40 font-light">No past meetings yet</p>
+                  <p className="text-[10px] text-muted/45 font-light">No past meetings yet</p>
                 </div>
               ) : (
                 pastMeetings.map((mtg) => (
                   <div 
                     key={mtg.id}
-                    className="flex justify-between items-center p-2.5 rounded-xl bg-surface-soft/20 dark:bg-dark-800/20 border border-hairline/15 dark:border-white/5"
+                    className="flex justify-between items-center p-2.5 rounded-xl bg-white/70 dark:bg-dark-800/20 border border-hairline/20 dark:border-white/5"
                   >
                     <div className="truncate mr-2">
                       <p className="text-xs font-bold text-body-strong truncate">{mtg.title}</p>

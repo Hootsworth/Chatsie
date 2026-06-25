@@ -18,7 +18,7 @@ export const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props
 }) => {
-  const baseStyle = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:pointer-events-none font-sans active:scale-97';
+  const baseStyle = 'inline-flex items-center justify-center font-semibold rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:pointer-events-none font-sans active:scale-97';
   
   const variants = {
     primary: 'bg-primary hover:bg-primary-active text-white shadow-sm active:scale-95',
@@ -30,8 +30,8 @@ export const Button: React.FC<ButtonProps> = ({
 
   const sizes = {
     sm: 'px-3 py-1.5 text-xs',
-    md: 'px-4 py-2 text-sm',
-    lg: 'px-6 py-3 text-base'
+    md: 'px-4 py-2.5 text-sm',
+    lg: 'px-6 py-3.5 text-base'
   };
 
   return (
@@ -71,7 +71,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         <input
           type={type}
           ref={ref}
-          className={`w-full px-3.5 py-2 text-sm rounded-lg bg-canvas border border-hairline text-ink placeholder-muted-soft focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 ${
+          className={`w-full px-3.5 py-2.5 text-sm rounded-xl bg-canvas border border-hairline text-ink placeholder-muted-soft focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 ${
             error ? 'border-red-500 focus:ring-red-500' : ''
           } ${className}`}
           {...props}
@@ -95,7 +95,7 @@ export const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
 }) => {
   return (
     <div
-      className={`bg-surface-card border border-hairline rounded-xl shadow-sm overflow-hidden ${className}`}
+      className={`bg-surface-card border border-hairline rounded-2xl shadow-sm overflow-hidden ${className}`}
       {...props}
     >
       {children}
@@ -169,10 +169,10 @@ export const Modal: React.FC<ModalProps> = ({
       />
 
       {/* Modal Container */}
-      <div className={`relative w-full ${sizes[size]} bg-canvas rounded-xl shadow-2xl border border-hairline overflow-hidden transform transition-all z-10 animate-in fade-in zoom-in-95 duration-200`}>
+      <div className={`relative w-full ${sizes[size]} bg-canvas rounded-2xl shadow-2xl border border-hairline overflow-hidden transform transition-all z-10 animate-in fade-in zoom-in-95 duration-200`}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-hairline">
-          <h3 className="text-xl font-serif text-ink font-normal tracking-tight">{title}</h3>
+          <h3 className="text-xl font-display text-ink font-semibold tracking-tight">{title}</h3>
           <button
             onClick={onClose}
             className="text-muted hover:text-ink transition-colors p-1 rounded-lg hover:bg-surface-soft"

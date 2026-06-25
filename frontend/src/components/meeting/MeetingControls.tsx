@@ -121,7 +121,7 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
         {/* Toggle Audio */}
         <button
           onClick={toggleAudio}
-          className={`p-3 rounded-xl transition-all duration-200 focus:outline-none ${
+          className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
             !isMicrophoneEnabled 
               ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20' 
               : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
@@ -134,7 +134,7 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
         {/* Toggle Video */}
         <button
           onClick={toggleVideo}
-          className={`p-3 rounded-xl transition-all duration-200 focus:outline-none ${
+          className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
             !isCameraEnabled 
               ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20' 
               : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
@@ -147,7 +147,7 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
         {/* Toggle Screen Share */}
         <button
           onClick={toggleScreenShare}
-          className={`p-3 rounded-xl transition-all duration-200 focus:outline-none ${
+          className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
             isScreenShareEnabled 
               ? 'bg-primary hover:bg-primary-active text-white shadow-lg shadow-primary/20' 
               : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
@@ -160,7 +160,7 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
         {/* Toggle Raise Hand */}
         <button
           onClick={handleRaiseHand}
-          className={`p-3 rounded-xl transition-all duration-200 focus:outline-none ${
+          className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
             isLocalHandRaised 
               ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20' 
               : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
@@ -174,7 +174,7 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
         <div className="relative" ref={reactionPickerRef}>
           <button
             onClick={() => setIsReactionPickerOpen(!isReactionPickerOpen)}
-            className={`p-3 rounded-xl transition-all duration-200 focus:outline-none ${
+            className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
               isReactionPickerOpen 
                 ? 'bg-primary hover:bg-primary-active text-white shadow-lg shadow-primary/20' 
                 : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
@@ -206,7 +206,7 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
         {/* Toggle Captions */}
         <button
           onClick={() => setCaptionsEnabled(!showCaptions)}
-          className={`p-3 rounded-xl transition-all duration-200 focus:outline-none ${
+          className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
             showCaptions 
               ? 'bg-primary hover:bg-primary-active text-white shadow-lg shadow-primary/20' 
               : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
@@ -219,7 +219,7 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
         {/* Leave Meeting (Danger) */}
         <button
           onClick={onLeave}
-          className="p-3 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-lg shadow-red-600/25 transition-all duration-200 active:scale-95 focus:outline-none"
+          className="p-3 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-lg shadow-red-600/25 transition-all duration-200 active:scale-95 focus:outline-none"
           title={myRole === 'host' ? 'End Meeting for All' : 'Leave Meeting'}
         >
           <PhoneOff className="w-5 h-5" />

@@ -201,12 +201,22 @@ export const VideoGrid: React.FC = () => {
             }
 
             if (isCameraOff) {
+              const brandColors = [
+                'bg-brand-pink text-white border-brand-pink/30',
+                'bg-brand-lavender text-brand-teal border-brand-lavender/30',
+                'bg-brand-peach text-brand-teal border-brand-peach/30',
+                'bg-brand-ochre text-brand-teal border-brand-ochre/30',
+                'bg-brand-coral text-white border-brand-coral/30'
+              ];
+              const colorIndex = (track.participant.identity?.length || 0) % brandColors.length;
+              const avatarStyle = brandColors[colorIndex];
+
               return (
                 <div 
                   style={aspectRatioStyle}
                   className={`relative rounded-3xl overflow-hidden bg-surface-dark-elevated border border-white/5 shadow-md shadow-black/10 flex flex-col items-center justify-center p-4 transition-all duration-300 ${
                     isSpeaking 
-                      ? 'scale-[1.015] ring-4 ring-emerald-500/80 shadow-2xl shadow-emerald-500/30 z-10' 
+                      ? 'scale-[1.015] ring-4 ring-brand-mint shadow-2xl shadow-brand-mint/30 z-10' 
                       : ''
                   }`}
                 >
@@ -218,8 +228,8 @@ export const VideoGrid: React.FC = () => {
 
                   <div className="absolute w-32 h-32 bg-primary/10 rounded-full blur-2xl pointer-events-none" />
 
-                  <div className="relative w-20 h-20 rounded-full bg-white/5 border border-white/10 flex items-center justify-center shadow-2xl backdrop-blur-md">
-                    <span className="text-2xl font-semibold tracking-wider text-on-dark font-serif">
+                  <div className={`relative w-20 h-20 rounded-full ${avatarStyle} flex items-center justify-center shadow-2xl backdrop-blur-md transition-transform duration-300`}>
+                    <span className="text-2xl font-semibold tracking-wider font-display">
                       {getInitials(track.participant.name, track.participant.identity)}
                     </span>
                   </div>
@@ -236,7 +246,7 @@ export const VideoGrid: React.FC = () => {
                 style={aspectRatioStyle}
                 className={`relative rounded-3xl overflow-hidden transition-all duration-300 [&_video]:object-cover [&_video]:w-full [&_video]:h-full ${
                   isSpeaking 
-                    ? 'scale-[1.015] ring-4 ring-emerald-500/80 shadow-2xl shadow-emerald-500/30 z-10' 
+                    ? 'scale-[1.015] ring-4 ring-brand-mint shadow-2xl shadow-brand-mint/30 z-10' 
                     : 'border border-white/5 shadow-md shadow-black/10'
                 }`}
               >

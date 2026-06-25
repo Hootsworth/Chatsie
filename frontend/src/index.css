@@ -1,71 +1,81 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,650;1,400&family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap');
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-primary: #cc785c;
-  --color-primary-active: #a9583e;
-  --color-primary-disabled: #e6dfd8;
-  --color-ink: #141413;
-  --color-body: #3d3d3a;
-  --color-body-strong: #252523;
-  --color-muted: #6c6a64;
-  --color-muted-soft: #8e8b82;
-  --color-hairline: #e6dfd8;
-  --color-hairline-soft: #ebe6df;
-  --color-canvas: #faf9f5;
-  --color-surface-soft: #f5f0e8;
-  --color-surface-card: #efe9de;
-  --color-surface-cream-strong: #e8e0d2;
-  --color-surface-dark: #181715;
-  --color-surface-dark-elevated: #252320;
-  --color-surface-dark-soft: #1f1e1b;
+  --color-primary: #0a0a0a;
+  --color-primary-active: #1f1f1f;
+  --color-primary-disabled: #e5e5e5;
+  --color-ink: #0a0a0a;
+  --color-body: #3a3a3a;
+  --color-body-strong: #1a1a1a;
+  --color-muted: #6a6a6a;
+  --color-muted-soft: #9a9a9a;
+  --color-hairline: #e5e5e5;
+  --color-hairline-soft: #f0f0f0;
+  --color-canvas: #fffaf0;
+  --color-surface-soft: #faf5e8;
+  --color-surface-card: #f5f0e0;
+  --color-surface-cream-strong: #ebe6d6;
+  --color-surface-dark: #0a1a1a;
+  --color-surface-dark-elevated: #1a2a2a;
+  --color-surface-dark-soft: #122020;
   --color-on-primary: #ffffff;
-  --color-on-dark: #faf9f5;
-  --color-on-dark-soft: #a09d96;
+  --color-on-dark: #ffffff;
+  --color-on-dark-soft: #a0a0a0;
+
+  /* Brand Accents */
+  --color-brand-pink: #ff4d8b;
+  --color-brand-teal: #1a3a3a;
+  --color-brand-lavender: #b8a4ed;
+  --color-brand-peach: #ffb084;
+  --color-brand-ochre: #e8b94a;
+  --color-brand-mint: #a4d4c5;
+  --color-brand-coral: #ff6b5a;
   
-  /* Claude Premium Dark Palette Mappings */
-  --color-dark-50: #faf9f5;
-  --color-dark-100: #f5f0e8;
-  --color-dark-200: #efe9de;
-  --color-dark-300: #e6dfd8;
-  --color-dark-400: #8e8b82;
-  --color-dark-500: #6c6a64;
-  --color-dark-600: #3d3d3a;
-  --color-dark-700: #252320;
-  --color-dark-800: #1f1e1b;
-  --color-dark-900: #1c1a18;
-  --color-dark-950: #181715;
+  /* Claude Premium Dark Palette Mappings (compatibility) */
+  --color-dark-50: #fffaf0;
+  --color-dark-100: #faf5e8;
+  --color-dark-200: #f5f0e0;
+  --color-dark-300: #e5e5e5;
+  --color-dark-400: #9a9a9a;
+  --color-dark-500: #6a6a6a;
+  --color-dark-600: #3a3a3a;
+  --color-dark-700: #1a2a2a;
+  --color-dark-800: #122020;
+  --color-dark-900: #0e1e1e;
+  --color-dark-950: #0a1a1a;
   
-  --font-serif: 'Cormorant Garamond', 'Copernicus', 'Tiempos Headline', Garamond, 'Times New Roman', serif;
-  --font-sans: 'Inter', 'StyreneB', system-ui, sans-serif;
+  --font-serif: 'Outfit', 'Inter', system-ui, sans-serif;
+  --font-display: 'Outfit', 'Inter', system-ui, sans-serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 
 /* CSS variable overrides for dark mode */
 html.dark {
-  --color-ink: #faf9f5;
-  --color-body: #e6dfd8;
+  --color-ink: #ffffff;
+  --color-body: #a0a0a0;
   --color-body-strong: #ffffff;
-  --color-muted: #a09d96;
-  --color-muted-soft: #6c6a64;
-  --color-hairline: #252320;
-  --color-hairline-soft: #1f1e1b;
-  --color-canvas: #181715;
-  --color-surface-soft: #1f1e1b;
-  --color-surface-card: #252320;
-  --color-surface-cream-strong: #2f2d28;
+  --color-muted: #808080;
+  --color-muted-soft: #606060;
+  --color-hairline: #1a2a2a;
+  --color-hairline-soft: #122020;
+  --color-canvas: #0a1a1a;
+  --color-surface-soft: #122020;
+  --color-surface-card: #1a2a2a;
+  --color-surface-cream-strong: #203535;
 }
 
 body {
   @apply bg-canvas text-body font-sans antialiased transition-colors duration-200;
 }
 
-/* h1, h2, h3, h4 titles use Copernicus Garamond Serif with negative tracking */
-h1, h2, h3, .font-serif-display {
-  @apply font-serif text-ink tracking-tight font-normal;
-  letter-spacing: -0.02em;
+/* h1, h2, h3, h4 titles use Outfit medium with negative letter spacing */
+h1, h2, h3, .font-serif-display, .font-display {
+  @apply font-display text-ink font-medium tracking-tight;
+  letter-spacing: -0.03em;
 }
 
 /* Custom premium elements matching Claude's UI */
@@ -118,16 +128,16 @@ html.dark .bento-card:hover {
 
 /* Active Speaker visual highlight */
 .active-speaker-ring {
-  box-shadow: 0 0 0 3px #cc785c, 0 0 15px rgba(204, 120, 92, 0.5);
+  box-shadow: 0 0 0 3px #22c55e, 0 0 15px rgba(34, 197, 94, 0.5);
   animation: speaker-pulse 2.5s infinite alternate;
 }
 
 @keyframes speaker-pulse {
   0% {
-    box-shadow: 0 0 0 3px #cc785c, 0 0 5px rgba(204, 120, 92, 0.3);
+    box-shadow: 0 0 0 3px #22c55e, 0 0 5px rgba(34, 197, 94, 0.3);
   }
   100% {
-    box-shadow: 0 0 0 3px #cc785c, 0 0 18px rgba(204, 120, 92, 0.7);
+    box-shadow: 0 0 0 3px #22c55e, 0 0 18px rgba(34, 197, 94, 0.7);
   }
 }
 

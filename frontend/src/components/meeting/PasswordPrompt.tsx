@@ -84,7 +84,7 @@ export const PasswordPrompt: React.FC<PasswordPromptProps> = ({ meetingCode, onS
           <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center text-white shadow-lg shadow-primary/20">
             <ShieldAlert className="w-6 h-6" />
           </div>
-          <h2 className="mt-4 text-3xl font-serif text-ink tracking-tight text-center">
+          <h2 className="mt-4 text-3xl font-display font-semibold text-ink tracking-tight text-center">
             Passcode Required
           </h2>
           <p className="text-sm text-muted mt-1.5 text-center">

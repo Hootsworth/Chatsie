@@ -672,15 +672,15 @@ export const MeetingRoom: React.FC = () => {
       <div className="relative min-h-screen lg:h-screen lg:max-h-screen flex flex-col justify-center items-center bg-canvas dark:bg-dark-950 text-body dark:text-gray-200 transition-colors duration-200 p-4 md:p-8 lg:overflow-hidden z-10 select-none">
         {/* Background drifting mesh glows */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-          <div className="absolute -top-[30%] -left-[20%] w-[60%] h-[60%] rounded-full bg-primary/5 dark:bg-primary/10 blur-[120px] animate-mesh-glow" />
-          <div className="absolute -bottom-[20%] -right-[10%] w-[50%] h-[50%] rounded-full bg-primary/5 dark:bg-primary/5 blur-[100px] animate-mesh-glow" style={{ animationDelay: '-10s' }} />
+          <div className="absolute -top-[30%] -left-[20%] w-[60%] h-[60%] rounded-full bg-brand-pink/5 dark:bg-brand-pink/10 blur-[120px] animate-mesh-glow" />
+          <div className="absolute -bottom-[20%] -right-[10%] w-[50%] h-[50%] rounded-full bg-brand-peach/5 dark:bg-brand-peach/5 blur-[100px] animate-mesh-glow" style={{ animationDelay: '-10s' }} />
         </div>
 
         <div className="relative z-10 w-full max-w-6xl flex flex-col lg:grid lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           {/* Left Column: Typography & Preview */}
           <div className="w-full lg:col-span-7 space-y-6 flex flex-col items-center lg:items-start text-center lg:text-left">
             <div className="space-y-2">
-              <h1 className="text-4xl lg:text-5xl font-serif text-ink tracking-tight font-normal leading-tight">
+              <h1 className="text-4xl lg:text-5xl font-display text-ink tracking-tight font-semibold leading-tight">
                 Ready to join?
               </h1>
               <p className="text-sm text-muted max-w-md">
@@ -700,7 +700,7 @@ export const MeetingRoom: React.FC = () => {
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center space-y-4 select-none text-on-dark-soft animate-fade-in">
-                  <div className="w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center border border-primary/20 shadow-inner">
+                  <div className="w-20 h-20 bg-brand-pink/10 text-brand-pink rounded-full flex items-center justify-center border border-brand-pink/20 shadow-inner">
                     <User className="w-10 h-10" />
                   </div>
                   <span className="text-xs font-bold bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-md border border-white/5">
@@ -754,11 +754,11 @@ export const MeetingRoom: React.FC = () => {
 
           {/* Right Column: Settings Glassmorphic Card */}
           <div className="w-full lg:col-span-5">
-            <div className="relative backdrop-blur-xl bg-surface-card/60 dark:bg-dark-900/60 border border-hairline/40 dark:border-dark-800 rounded-3xl p-6 md:p-8 shadow-2xl space-y-6 flex flex-col justify-between">
+            <div className="relative backdrop-blur-md bg-surface-card/90 dark:bg-dark-900/60 border border-hairline dark:border-dark-800 rounded-3xl p-6 md:p-8 shadow-2xl space-y-6 flex flex-col justify-between">
               
               <div className="space-y-5">
                 {/* Identity selector */}
-                <div className="bg-surface-soft/60 dark:bg-dark-950/40 border border-hairline/45 dark:border-dark-800 rounded-2xl p-4.5 space-y-3.5">
+                <div className="bg-surface-soft dark:bg-dark-950/40 border border-hairline dark:border-dark-800 rounded-2xl p-4.5 space-y-3.5">
                   <span className="text-[10px] uppercase font-bold text-muted tracking-wider block">Joining As</span>
                   {user ? (
                     <div className="flex items-center space-x-3">
@@ -781,7 +781,7 @@ export const MeetingRoom: React.FC = () => {
                             sessionStorage.setItem(`guest_username_${code}`, e.target.value);
                           }}
                           placeholder="Type your guest username..."
-                          className="w-full bg-canvas dark:bg-dark-950 border border-hairline/80 dark:border-dark-800 rounded-xl px-4 py-2 text-sm text-ink focus:outline-none focus:border-primary font-bold placeholder-muted/50 transition-colors shadow-inner"
+                          className="w-full bg-canvas dark:bg-dark-950 border border-hairline/80 dark:border-dark-800 rounded-xl px-4 py-2.5 text-sm text-ink focus:outline-none focus:border-primary font-semibold placeholder-muted/50 transition-colors shadow-inner"
                         />
                       </div>
                     </div>
@@ -791,10 +791,10 @@ export const MeetingRoom: React.FC = () => {
                 {/* Media Hardware Settings Toggle button */}
                 <button
                   onClick={() => setIsLobbySettingsOpen(true)}
-                  className="w-full flex items-center justify-between px-4 py-3 bg-surface-soft/40 dark:bg-dark-950/20 hover:bg-surface-soft/80 dark:hover:bg-dark-950/40 border border-hairline/30 dark:border-dark-800 rounded-2xl text-xs text-on-dark-soft hover:text-on-dark font-semibold transition-all cursor-pointer"
+                  className="w-full flex items-center justify-between px-4 py-3 bg-surface-soft/60 dark:bg-dark-950/20 hover:bg-surface-soft dark:hover:bg-dark-950/40 border border-hairline-soft dark:border-dark-800 rounded-2xl text-xs text-ink hover:text-primary font-semibold transition-all cursor-pointer"
                 >
                   <div className="flex items-center space-x-2">
-                    <Camera className="w-4 h-4 text-primary" />
+                    <Camera className="w-4 h-4 text-brand-pink" />
                     <span>Check Audio & Video Devices</span>
                   </div>
                   <Settings className="w-4 h-4 opacity-75" />
@@ -805,9 +805,9 @@ export const MeetingRoom: React.FC = () => {
               <button
                 onClick={handleJoinCall}
                 disabled={!user && !guestUsername.trim()}
-                className={`w-full text-sm font-bold py-4 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:scale-[1.02] active:scale-[0.98] focus:outline-none flex items-center justify-center space-x-2 cursor-pointer ${
+                className={`w-full text-sm font-bold py-3.5 px-6 rounded-xl transition-all duration-300 shadow-md hover:scale-[1.01] active:scale-[0.99] focus:outline-none flex items-center justify-center space-x-2 cursor-pointer ${
                   (!user && !guestUsername.trim())
-                    ? 'bg-muted/40 text-muted/80 border border-hairline/40 cursor-not-allowed shadow-none'
+                    ? 'bg-primary-disabled text-muted/55 border border-hairline cursor-not-allowed shadow-none'
                     : 'bg-primary hover:bg-primary-active text-white shadow-primary/20 hover:shadow-primary/35'
                 }`}
               >
