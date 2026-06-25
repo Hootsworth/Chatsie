@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'r
 import { ClerkProvider, SignedIn, SignedOut, SignIn, SignUp } from '@clerk/clerk-react';
 import { Dashboard } from './components/dashboard/Dashboard';
 import { MeetingRoom } from './components/meeting/MeetingRoom';
+import { FutureFeatures } from './components/dashboard/FutureFeatures';
 import { Card, Button } from './components/ui';
 import { AlertTriangle, Home } from 'lucide-react';
 
@@ -100,6 +101,9 @@ const ClerkWithRoutes = () => {
 
         {/* Video Meeting Room (Public / Guest Allowed) */}
         <Route path="/room/:code" element={<MeetingRoom />} />
+
+        {/* Future Features (Coming Soon) Page */}
+        <Route path="/future-features" element={<FutureFeatures />} />
 
         {/* Fallback redirect */}
         <Route path="*" element={<Navigate to="/" replace />} />

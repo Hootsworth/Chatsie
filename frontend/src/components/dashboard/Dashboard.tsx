@@ -370,6 +370,13 @@ export const Dashboard: React.FC = () => {
             >
               Open Jobs
             </button>
+            <button 
+              type="button"
+              onClick={() => navigate('/future-features')} 
+              className="hover:text-ink cursor-pointer text-[#ff3d8b]"
+            >
+              Future Features
+            </button>
           </div>
         </div>
       </footer>
