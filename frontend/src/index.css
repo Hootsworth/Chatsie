@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,650;1,400&family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap');
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -47,7 +47,7 @@
   --color-dark-900: #0e1e1e;
   --color-dark-950: #0a1a1a;
   
-  --font-serif: 'Outfit', 'Inter', system-ui, sans-serif;
+  --font-serif: 'Cormorant Garamond', 'Copernicus', 'Tiempos Headline', Garamond, 'Times New Roman', serif;
   --font-display: 'Outfit', 'Inter', system-ui, sans-serif;
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;

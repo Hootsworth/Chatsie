@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../assets/logo.png';
-import claymationHero from '../../assets/claymation_hero.png';
 import { useUser, UserButton, useAuth } from '@clerk/clerk-react';
 import { Button, Input, Modal, Badge } from '../ui';
 import {
@@ -428,38 +427,21 @@ export const Dashboard: React.FC = () => {
       </header>
 
       {/* ===== HERO ===== */}
-      <section className="relative z-10 max-w-6xl mx-auto px-4 md:px-8 pt-8 md:pt-14 pb-10 md:pb-14 animate-fade-in-up">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-          {/* Left Hero Column (7 cols) */}
-          <div className="lg:col-span-7 text-left space-y-5">
-            <p className="text-xs font-bold tracking-[0.2em] uppercase text-muted">{formattedDate}</p>
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-display font-semibold tracking-tight leading-[1.0] text-ink">
-              {greeting},<br />
-              <span className="bg-gradient-to-r from-brand-pink to-brand-peach bg-clip-text text-transparent font-semibold">{user?.firstName || 'there'}</span>.
-            </h1>
-            <p className="text-sm md:text-base text-muted font-normal max-w-lg leading-relaxed">
-              Welcome back to Chatsie. Modern, smooth video meetings with a touch of playfulness. Ready to collaborate?
-            </p>
-            {instantMeetingError && (
-              <div className="max-w-md bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/40 p-3 rounded-xl text-xs font-semibold flex items-center justify-between animate-fade-in-up">
-                <span>{instantMeetingError}</span>
-                <button onClick={() => setInstantMeetingError(null)} className="text-xs underline hover:text-red-800 dark:hover:text-red-300 ml-4 font-normal">Dismiss</button>
-              </div>
-            )}
+      <section className="relative z-10 text-center pt-8 md:pt-14 pb-10 md:pb-14 px-6 max-w-3xl mx-auto animate-fade-in-up">
+        <p className="text-xs font-bold tracking-[0.2em] uppercase text-muted mb-4">{formattedDate}</p>
+        <h1 className="text-5xl md:text-7xl lg:text-[5.5rem] font-serif font-light tracking-tight leading-[0.95] text-ink">
+          {greeting},<br />
+          <span className="bg-gradient-to-r from-brand-pink to-brand-peach bg-clip-text text-transparent font-normal">{user?.firstName || 'there'}</span>.
+        </h1>
+        <p className="text-sm md:text-base text-muted font-normal mt-5 max-w-lg mx-auto leading-relaxed">
+          Welcome back to Chatsie. Modern, smooth video meetings with a touch of playfulness. Ready to collaborate?
+        </p>
+        {instantMeetingError && (
+          <div className="max-w-md mx-auto mt-5 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/40 p-3 rounded-xl text-xs font-semibold flex items-center justify-between animate-fade-in-up">
+            <span>{instantMeetingError}</span>
+            <button onClick={() => setInstantMeetingError(null)} className="text-xs underline hover:text-red-800 dark:hover:text-red-300 ml-4 font-normal">Dismiss</button>
           </div>
-
-          {/* Right Hero Column (5 cols) - Claymation Mascot Illustration */}
-          <div className="lg:col-span-5 hidden lg:block">
-            <div className="bg-surface-soft border border-hairline/80 rounded-3xl p-4 shadow-xl shadow-primary/5 relative overflow-hidden group hover:scale-[1.01] transition-all duration-300">
-              <div className="absolute -inset-10 bg-gradient-to-tr from-brand-peach/10 to-brand-pink/10 rounded-full blur-2xl opacity-60" />
-              <img 
-                src={claymationHero} 
-                alt="Chatsie Claymation World" 
-                className="w-full h-auto object-contain rounded-2xl relative z-10 border border-hairline/35 shadow-inner"
-              />
-            </div>
-          </div>
-        </div>
+        )}
       </section>
 
       {/* ===== BENTO GRID ===== */}
