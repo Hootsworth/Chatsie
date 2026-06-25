@@ -47,14 +47,12 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
   const { setAudioMute, setVideoMute } = useWebRTCStore();
 
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled, isScreenShareEnabled } = useLocalParticipant();
-  const allParticipants = useParticipants(); // LiveKit participants
+  const allParticipants = useParticipants();
   const [showCaptions, setCaptionsEnabled] = React.useState(false);
 
-  // Reaction picker popover state
   const [isReactionPickerOpen, setIsReactionPickerOpen] = React.useState(false);
   const reactionPickerRef = React.useRef<HTMLDivElement>(null);
 
-  // Close reaction picker on click outside
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (reactionPickerRef.current && !reactionPickerRef.current.contains(e.target as Node)) {
@@ -91,7 +89,7 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
   const handleRaiseHand = () => {
     const nextState = !isLocalHandRaised;
     setLocalHandRaised(nextState);
-    signalingClient.raiseHand(nextState); // Fallback to custom signaling for hand raise
+    signalingClient.raiseHand(nextState);
   };
 
   const handleToggleChat = () => {
@@ -102,163 +100,90 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
   };
 
   const handleSendReaction = (emoji: string) => {
-    signalingClient.sendReaction(emoji); // Fallback to custom signaling for reactions
+    signalingClient.sendReaction(emoji);
     setIsReactionPickerOpen(false);
   };
 
+  /* ── Shared pill-button style ── */
+  const basePill = 'w-11 h-11 rounded-full flex items-center justify-center transition-all duration-150 focus:outline-none cursor-pointer';
+  const defaultPill = `${basePill} bg-[#2a2d32] hover:bg-[#3a3d42] text-[#e8eaed]`;
+  const activePill  = `${basePill} bg-[#8ab4f8] hover:bg-[#aecbfa] text-[#202124]`;
+  const dangerPill  = `${basePill} bg-[#ea4335] hover:bg-[#d93025] text-white`;
+  const mutedPill   = `${basePill} bg-[#ea4335] hover:bg-[#d93025] text-white`;
+  const handPill    = `${basePill} bg-[#fbbc04] hover:bg-[#f9ab00] text-[#202124]`;
+
   return (
-    <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-3xl border border-white/10 px-6 py-3 flex items-center justify-between text-white select-none z-30 rounded-full shadow-2xl transition-all duration-300 hover:scale-[1.01] hover:bg-surface-dark-elevated/85 ${className}`}>
-      
-      {/* Left section: Info */}
-      <div className="hidden lg:flex items-center space-x-1 text-[10px] uppercase font-bold tracking-wider text-emerald-500 mr-2 flex-shrink-0">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse mr-1" />
-        <span>Live</span>
-      </div>
+    <div className={`fixed bottom-0 left-0 right-0 flex items-center justify-center py-4 px-6 z-30 transition-all duration-300 ${className}`}>
+      <div className="flex items-center gap-2 bg-[#202124] rounded-full px-3 py-2 shadow-lg border border-white/[0.06]">
 
-      {/* Middle section: Action Controls */}
-      <div className="flex items-center space-x-3.5 mx-auto">
-        
-        {/* Toggle Audio */}
-        <button
-          onClick={toggleAudio}
-          className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
-            !isMicrophoneEnabled 
-              ? 'bg-red-500 hover:bg-red-600 text-white' 
-              : 'bg-white/10 border border-white/10 text-white hover:bg-white/20'
-          }`}
-          title={!isMicrophoneEnabled ? 'Unmute Mic' : 'Mute Mic'}
-        >
-          {!isMicrophoneEnabled ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+        {/* Live indicator */}
+        <div className="hidden lg:flex items-center gap-1.5 text-[10px] font-semibold tracking-wide text-emerald-400 mr-1 px-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span>LIVE</span>
+        </div>
+
+        {/* ── Core Media ── */}
+        <button onClick={toggleAudio} className={!isMicrophoneEnabled ? mutedPill : defaultPill} title={!isMicrophoneEnabled ? 'Unmute Mic' : 'Mute Mic'}>
+          {!isMicrophoneEnabled ? <MicOff className="w-[18px] h-[18px]" /> : <Mic className="w-[18px] h-[18px]" />}
         </button>
 
-        {/* Toggle Video */}
-        <button
-          onClick={toggleVideo}
-          className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
-            !isCameraEnabled 
-              ? 'bg-red-500 hover:bg-red-600 text-white' 
-              : 'bg-white/10 border border-white/10 text-white hover:bg-white/20'
-          }`}
-          title={!isCameraEnabled ? 'Start Video' : 'Stop Video'}
-        >
-          {!isCameraEnabled ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+        <button onClick={toggleVideo} className={!isCameraEnabled ? mutedPill : defaultPill} title={!isCameraEnabled ? 'Start Video' : 'Stop Video'}>
+          {!isCameraEnabled ? <VideoOff className="w-[18px] h-[18px]" /> : <Video className="w-[18px] h-[18px]" />}
         </button>
 
-        {/* Toggle Screen Share */}
-        <button
-          onClick={toggleScreenShare}
-          className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
-            isScreenShareEnabled 
-              ? 'bg-primary hover:bg-primary-active text-white' 
-              : 'bg-white/10 border border-white/10 text-white hover:bg-white/20'
-          }`}
-          title={isScreenShareEnabled ? 'Stop Screen Sharing' : 'Share Screen'}
-        >
-          {isScreenShareEnabled ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
+        <button onClick={toggleScreenShare} className={isScreenShareEnabled ? activePill : defaultPill} title={isScreenShareEnabled ? 'Stop Sharing' : 'Share Screen'}>
+          {isScreenShareEnabled ? <MonitorOff className="w-[18px] h-[18px]" /> : <Monitor className="w-[18px] h-[18px]" />}
         </button>
 
-        {/* Toggle Raise Hand */}
-        <button
-          onClick={handleRaiseHand}
-          className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
-            isLocalHandRaised 
-              ? 'bg-amber-500 hover:bg-amber-600 text-white' 
-              : 'bg-white/10 border border-white/10 text-white hover:bg-white/20'
-          }`}
-          title={isLocalHandRaised ? 'Lower Hand' : 'Raise Hand'}
-        >
-          <Hand className="w-5 h-5" />
+        {/* Divider */}
+        <div className="w-px h-6 bg-white/10 mx-1" />
+
+        {/* ── Auxiliary ── */}
+        <button onClick={handleRaiseHand} className={isLocalHandRaised ? handPill : defaultPill} title={isLocalHandRaised ? 'Lower Hand' : 'Raise Hand'}>
+          <Hand className="w-[18px] h-[18px]" />
         </button>
 
-        {/* Reactions Picker */}
         <div className="relative" ref={reactionPickerRef}>
-          <button
-            onClick={() => setIsReactionPickerOpen(!isReactionPickerOpen)}
-            className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
-              isReactionPickerOpen 
-                ? 'bg-primary hover:bg-primary-active text-white' 
-                : 'bg-white/10 border border-white/10 text-white hover:bg-white/20'
-            }`}
-            title="Send Reaction"
-          >
-            <Smile className="w-5 h-5" />
+          <button onClick={() => setIsReactionPickerOpen(!isReactionPickerOpen)} className={isReactionPickerOpen ? activePill : defaultPill} title="Send Reaction">
+            <Smile className="w-[18px] h-[18px]" />
           </button>
-
-          {/* Popover emoji picker */}
           {isReactionPickerOpen && (
-            <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-2xl text-white p-2.5 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-200 z-50">
-              <div className="flex items-center space-x-1.5">
-                {REACTION_EMOJIS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    onClick={() => handleSendReaction(emoji)}
-                    className="text-2xl p-2 rounded-xl hover:bg-white/10 hover:scale-125 transition-all duration-150 active:scale-95 cursor-pointer"
-                    title={`Send ${emoji}`}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
+            <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 bg-[#2a2d32] border border-white/10 rounded-full px-2 py-1.5 shadow-xl flex items-center gap-0.5 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
+              {REACTION_EMOJIS.map((emoji) => (
+                <button key={emoji} onClick={() => handleSendReaction(emoji)} className="text-xl p-1.5 rounded-full hover:bg-white/10 hover:scale-125 transition-all duration-100 active:scale-95 cursor-pointer">
+                  {emoji}
+                </button>
+              ))}
             </div>
           )}
         </div>
 
-        {/* Toggle Captions */}
-        <button
-          onClick={() => setCaptionsEnabled(!showCaptions)}
-          className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
-            showCaptions 
-              ? 'bg-primary hover:bg-primary-active text-white' 
-              : 'bg-white/10 border border-white/10 text-white hover:bg-white/20'
-          }`}
-          title={showCaptions ? 'Hide Captions' : 'Show Captions'}
-        >
-          <Captions className="w-5 h-5" />
+        <button onClick={() => setCaptionsEnabled(!showCaptions)} className={showCaptions ? activePill : defaultPill} title={showCaptions ? 'Hide Captions' : 'Show Captions'}>
+          <Captions className="w-[18px] h-[18px]" />
         </button>
 
-        {/* Leave Meeting (Danger) */}
-        <button
-          onClick={onLeave}
-          className="p-3 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-lg shadow-red-600/25 transition-all duration-200 active:scale-95 focus:outline-none"
-          title={myRole === 'host' ? 'End Meeting for All' : 'Leave Meeting'}
-        >
-          <PhoneOff className="w-5 h-5" />
-        </button>
-      </div>
+        {/* Divider */}
+        <div className="w-px h-6 bg-white/10 mx-1" />
 
-      {/* Right section: Sidebar Toggles & Settings */}
-      <div className="flex items-center space-x-3.5">
-        
-        {/* Chat Toggle Button */}
-        <button
-          onClick={handleToggleChat}
-          className={`p-2.5 rounded-lg transition-all relative ${
-            isChatPanelOpen 
-              ? 'bg-white/20 border border-white/20 text-white' 
-              : 'hover:bg-white/10 text-white/80 hover:text-white'
-          }`}
-          title="Meeting Chat"
-        >
-          <MessageSquare className="w-5 h-5" />
+        {/* ── Sidebar toggles ── */}
+        <button onClick={handleToggleChat} className={`${isChatPanelOpen ? activePill : defaultPill} relative`} title="Meeting Chat">
+          <MessageSquare className="w-[18px] h-[18px]" />
           {hasUnreadMessages && !isChatPanelOpen && (
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-ping" />
+            <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-[#ea4335] rounded-full border-2 border-[#202124]" />
           )}
         </button>
 
-        {/* Participants Toggle Button */}
-        <button
-          onClick={toggleParticipantsPanel}
-          className={`p-2.5 rounded-lg transition-all flex items-center space-x-1.5 relative ${
-            isParticipantsPanelOpen 
-              ? 'bg-white/20 border border-white/20 text-white' 
-              : 'hover:bg-white/10 text-white/80 hover:text-white'
-          }`}
-          title="Participants List"
-        >
-          <Users className="w-5 h-5" />
-          <span className="text-[10px] font-bold bg-white/20 text-white px-1.5 py-0.5 rounded border border-white/10">
-            {allParticipants.length}
-          </span>
+        <button onClick={toggleParticipantsPanel} className={`${isParticipantsPanelOpen ? activePill : defaultPill} relative`} title="Participants">
+          <Users className="w-[18px] h-[18px]" />
+          <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 text-[9px] font-bold text-[#9aa0a6]">{allParticipants.length}</span>
+        </button>
+
+        {/* Divider */}
+        <div className="w-px h-6 bg-white/10 mx-1" />
+
+        {/* ── Leave ── */}
+        <button onClick={onLeave} className={dangerPill} title={myRole === 'host' ? 'End Meeting for All' : 'Leave Meeting'}>
+          <PhoneOff className="w-[18px] h-[18px]" />
         </button>
       </div>
     </div>
