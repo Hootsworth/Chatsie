@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { ClerkProvider, SignedIn, SignedOut, SignIn, SignUp } from '@clerk/clerk-react';
 import { Dashboard } from './components/dashboard/Dashboard';
@@ -112,17 +112,6 @@ const ClerkWithRoutes = () => {
 // MAIN APP ROUTING COMPONENT
 // ----------------------------------------------------
 export const App: React.FC = () => {
-  useEffect(() => {
-    // Initialize theme from local storage
-    const isDark = document.documentElement.classList.contains('dark') || 
-                   localStorage.getItem('theme') === 'dark';
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, []);
-
   return (
     <Router basename={import.meta.env.BASE_URL}>
       <ClerkWithRoutes />

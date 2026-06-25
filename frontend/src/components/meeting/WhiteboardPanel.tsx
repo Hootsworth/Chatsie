@@ -7,7 +7,7 @@ export const WhiteboardPanel: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   
   const [isDrawing, setIsDrawing] = useState(false);
-  const [color, setColor] = useState('#6366f1'); // Default indigo-500
+  const [color, setColor] = useState('#0a0a0a'); // Default ink
   const [thickness, setThickness] = useState(4);
   const [tool, setTool] = useState<'pen' | 'eraser'>('pen');
   
@@ -15,7 +15,7 @@ export const WhiteboardPanel: React.FC = () => {
 
   // Predefined palette colors
   const COLORS = [
-    { value: '#ffffff', label: 'White' },
+    { value: '#0a0a0a', label: 'Ink' },
     { value: '#f43f5e', label: 'Rose' },
     { value: '#10b981', label: 'Emerald' },
     { value: '#3b82f6', label: 'Blue' },
@@ -46,7 +46,7 @@ export const WhiteboardPanel: React.FC = () => {
       // Restore background
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.fillStyle = '#0f172a'; // Deep slate background
+        ctx.fillStyle = '#f9f9f9'; // canvas background
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         // Draw the saved drawing back
         ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
@@ -77,7 +77,7 @@ export const WhiteboardPanel: React.FC = () => {
     };
 
     const handleRemoteClear = () => {
-      ctx.fillStyle = '#0f172a';
+      ctx.fillStyle = '#f9f9f9';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     };
 
@@ -150,7 +150,7 @@ export const WhiteboardPanel: React.FC = () => {
     const currentPos = getCoordinates(e);
     
     // Choose color based on active tool (Eraser draws background color)
-    const drawColor = tool === 'eraser' ? '#0f172a' : color;
+    const drawColor = tool === 'eraser' ? '#f9f9f9' : color;
     
     drawLine(lastPos.current.x, lastPos.current.y, currentPos.x, currentPos.y, drawColor, thickness);
     lastPos.current = currentPos;
@@ -166,7 +166,7 @@ export const WhiteboardPanel: React.FC = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.fillStyle = '#0f172a';
+    ctx.fillStyle = '#f9f9f9';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     // Broadcast clear event
@@ -174,15 +174,15 @@ export const WhiteboardPanel: React.FC = () => {
   };
 
   return (
-    <div ref={containerRef} className="relative w-full h-full min-h-[350px] bg-slate-900 rounded-2xl border border-white/5 overflow-hidden flex flex-col shadow-2xl">
+    <div ref={containerRef} className="relative w-full h-full min-h-[350px] bg-canvas rounded-none border border-hairline overflow-hidden flex flex-col shadow-none">
       {/* Tool control bar overlay */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-950/80 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/10 flex items-center space-x-4 z-10 shadow-lg select-none">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-block-cream border border-hairline px-4 py-2.5 rounded-pill flex items-center space-x-4 z-10 shadow-sm select-none">
         {/* Tool Pen/Eraser Toggle */}
-        <div className="flex items-center space-x-1 border-r border-white/10 pr-4">
+        <div className="flex items-center space-x-1 border-r border-hairline pr-4">
           <button
             onClick={() => setTool('pen')}
             className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-              tool === 'pen' ? 'bg-primary text-white' : 'text-on-dark-soft hover:text-white hover:bg-white/5'
+              tool === 'pen' ? 'bg-primary text-white' : 'text-ink/70 hover:text-ink hover:bg-hairline'
             }`}
             title="Pen Tool"
           >
@@ -191,7 +191,7 @@ export const WhiteboardPanel: React.FC = () => {
           <button
             onClick={() => setTool('eraser')}
             className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-              tool === 'eraser' ? 'bg-primary text-white' : 'text-on-dark-soft hover:text-white hover:bg-white/5'
+              tool === 'eraser' ? 'bg-primary text-white' : 'text-ink/70 hover:text-ink hover:bg-hairline'
             }`}
             title="Eraser Tool"
           >
@@ -201,7 +201,7 @@ export const WhiteboardPanel: React.FC = () => {
 
         {/* Color Palette */}
         {tool === 'pen' && (
-          <div className="flex items-center space-x-1.5 border-r border-white/10 pr-4">
+          <div className="flex items-center space-x-1.5 border-r border-hairline pr-4">
             {COLORS.map((c) => (
               <button
                 key={c.value}
@@ -217,17 +217,17 @@ export const WhiteboardPanel: React.FC = () => {
         )}
 
         {/* Brush Thickness selector */}
-        <div className="flex items-center space-x-2 border-r border-white/10 pr-4">
-          <span className="text-[10px] font-bold text-on-dark-soft">SIZE</span>
+        <div className="flex items-center space-x-2 border-r border-hairline pr-4">
+          <span className="text-[10px] font-bold text-ink/70">SIZE</span>
           <select
             value={thickness}
             onChange={(e) => setThickness(Number(e.target.value))}
-            className="bg-transparent text-xs text-white border-0 focus:ring-0 focus:outline-none cursor-pointer font-bold"
+            className="bg-transparent text-xs text-ink border-0 focus:ring-0 focus:outline-none cursor-pointer font-bold"
           >
-            <option className="bg-slate-950" value={2}>Thin (2px)</option>
-            <option className="bg-slate-950" value={4}>Medium (4px)</option>
-            <option className="bg-slate-950" value={8}>Thick (8px)</option>
-            <option className="bg-slate-950" value={15}>Extra (15px)</option>
+            <option className="bg-canvas text-ink" value={2}>Thin (2px)</option>
+            <option className="bg-canvas text-ink" value={4}>Medium (4px)</option>
+            <option className="bg-canvas text-ink" value={8}>Thick (8px)</option>
+            <option className="bg-canvas text-ink" value={15}>Extra (15px)</option>
           </select>
         </div>
 

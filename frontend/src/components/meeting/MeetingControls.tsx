@@ -107,7 +107,7 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
   };
 
   return (
-    <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 bg-surface-dark-elevated/75 border border-white/10 px-6 py-3 flex items-center justify-between text-white select-none z-30 rounded-full shadow-2xl backdrop-blur-md transition-all duration-300 hover:scale-[1.01] hover:bg-surface-dark-elevated/85 ${className}`}>
+    <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 bg-canvas border border-hairline px-6 py-3 flex items-center justify-between text-ink select-none z-30 rounded-pill shadow-sm transition-all duration-300 hover:scale-[1.01] hover:bg-surface-dark-elevated/85 ${className}`}>
       
       {/* Left section: Info */}
       <div className="hidden lg:flex items-center space-x-1 text-[10px] uppercase font-bold tracking-wider text-emerald-500 mr-2 flex-shrink-0">
@@ -123,8 +123,8 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
           onClick={toggleAudio}
           className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
             !isMicrophoneEnabled 
-              ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20' 
-              : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
+              ? 'bg-red-500 hover:bg-red-600 text-white' 
+              : 'bg-canvas border border-hairline text-ink hover:bg-block-cream'
           }`}
           title={!isMicrophoneEnabled ? 'Unmute Mic' : 'Mute Mic'}
         >
@@ -136,8 +136,8 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
           onClick={toggleVideo}
           className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
             !isCameraEnabled 
-              ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20' 
-              : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
+              ? 'bg-red-500 hover:bg-red-600 text-white' 
+              : 'bg-canvas border border-hairline text-ink hover:bg-block-cream'
           }`}
           title={!isCameraEnabled ? 'Start Video' : 'Stop Video'}
         >
@@ -149,8 +149,8 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
           onClick={toggleScreenShare}
           className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
             isScreenShareEnabled 
-              ? 'bg-primary hover:bg-primary-active text-white shadow-lg shadow-primary/20' 
-              : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
+              ? 'bg-primary hover:bg-primary-active text-white' 
+              : 'bg-canvas border border-hairline text-ink hover:bg-block-cream'
           }`}
           title={isScreenShareEnabled ? 'Stop Screen Sharing' : 'Share Screen'}
         >
@@ -162,8 +162,8 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
           onClick={handleRaiseHand}
           className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
             isLocalHandRaised 
-              ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20' 
-              : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
+              ? 'bg-amber-500 hover:bg-amber-600 text-white' 
+              : 'bg-canvas border border-hairline text-ink hover:bg-block-cream'
           }`}
           title={isLocalHandRaised ? 'Lower Hand' : 'Raise Hand'}
         >
@@ -176,8 +176,8 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
             onClick={() => setIsReactionPickerOpen(!isReactionPickerOpen)}
             className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
               isReactionPickerOpen 
-                ? 'bg-primary hover:bg-primary-active text-white shadow-lg shadow-primary/20' 
-                : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
+                ? 'bg-primary hover:bg-primary-active text-white' 
+                : 'bg-canvas border border-hairline text-ink hover:bg-block-cream'
             }`}
             title="Send Reaction"
           >
@@ -186,7 +186,7 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
 
           {/* Popover emoji picker */}
           {isReactionPickerOpen && (
-            <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 bg-surface-dark-elevated border border-white/10 rounded-2xl p-2.5 shadow-2xl shadow-black/40 backdrop-blur-md animate-in fade-in slide-in-from-bottom-2 duration-200 z-50">
+            <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 bg-canvas border border-hairline rounded-lg p-2.5 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-200 z-50">
               <div className="flex items-center space-x-1.5">
                 {REACTION_EMOJIS.map((emoji) => (
                   <button
@@ -208,8 +208,8 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
           onClick={() => setCaptionsEnabled(!showCaptions)}
           className={`p-3 rounded-full transition-all duration-200 focus:outline-none ${
             showCaptions 
-              ? 'bg-primary hover:bg-primary-active text-white shadow-lg shadow-primary/20' 
-              : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
+              ? 'bg-primary hover:bg-primary-active text-white' 
+              : 'bg-canvas border border-hairline text-ink hover:bg-block-cream'
           }`}
           title={showCaptions ? 'Hide Captions' : 'Show Captions'}
         >
@@ -234,8 +234,8 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
           onClick={handleToggleChat}
           className={`p-2.5 rounded-lg transition-all relative ${
             isChatPanelOpen 
-              ? 'bg-primary/20 text-primary border border-primary/30' 
-              : 'hover:bg-surface-dark-soft text-on-dark-soft'
+              ? 'bg-block-lime border border-hairline text-ink' 
+              : 'hover:bg-block-cream text-ink'
           }`}
           title="Meeting Chat"
         >
@@ -250,13 +250,13 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
           onClick={toggleParticipantsPanel}
           className={`p-2.5 rounded-lg transition-all flex items-center space-x-1.5 relative ${
             isParticipantsPanelOpen 
-              ? 'bg-primary/20 text-primary border border-primary/30' 
-              : 'hover:bg-surface-dark-soft text-on-dark-soft'
+              ? 'bg-block-lime border border-hairline text-ink' 
+              : 'hover:bg-block-cream text-ink'
           }`}
           title="Participants List"
         >
           <Users className="w-5 h-5" />
-          <span className="text-[10px] font-bold bg-surface-dark-soft text-on-dark px-1.5 py-0.5 rounded border border-white/10">
+          <span className="text-[10px] font-bold bg-block-lilac text-ink px-1.5 py-0.5 rounded border border-hairline">
             {allParticipants.length}
           </span>
         </button>

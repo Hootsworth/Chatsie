@@ -175,7 +175,7 @@ export const VideoGrid: React.FC = () => {
             if (isLocalScreenShare) {
               return (
                 <div 
-                  className="relative w-full h-full rounded-2xl bg-surface-dark-elevated border border-white/5 flex flex-col items-center justify-center p-6 text-center text-on-dark overflow-hidden shadow-2xl"
+                  className="relative w-full h-full rounded-2xl bg-canvas border border-hairline text-ink flex flex-col items-center justify-center p-6 text-center text-ink overflow-hidden shadow-2xl"
                 >
                   <div className="absolute inset-0 bg-primary/5 animate-pulse pointer-events-none" />
                   
@@ -183,10 +183,10 @@ export const VideoGrid: React.FC = () => {
                     <Monitor className="w-7 h-7" />
                   </div>
                   
-                  <h3 className="text-sm font-bold text-on-dark mb-1">
+                  <h3 className="text-sm font-bold text-ink mb-1">
                     You are presenting your screen
                   </h3>
-                  <p className="text-[10px] text-on-dark-soft mb-5 max-w-[200px]">
+                  <p className="text-[10px] text-ink/70 mb-5 max-w-[200px]">
                     Your screen is visible to other participants in this meeting room.
                   </p>
                   
@@ -202,11 +202,10 @@ export const VideoGrid: React.FC = () => {
 
             if (isCameraOff) {
               const brandColors = [
-                'bg-brand-pink text-white border-brand-pink/30',
-                'bg-brand-lavender text-brand-teal border-brand-lavender/30',
-                'bg-brand-peach text-brand-teal border-brand-peach/30',
-                'bg-brand-ochre text-brand-teal border-brand-ochre/30',
-                'bg-brand-coral text-white border-brand-coral/30'
+                'bg-block-lime text-ink border-hairline',
+                'bg-block-lilac text-ink border-hairline',
+                'bg-block-cream text-ink border-hairline',
+                'bg-block-navy text-white border-hairline'
               ];
               const colorIndex = (track.participant.identity?.length || 0) % brandColors.length;
               const avatarStyle = brandColors[colorIndex];
@@ -214,7 +213,7 @@ export const VideoGrid: React.FC = () => {
               return (
                 <div 
                   style={aspectRatioStyle}
-                  className={`relative rounded-3xl overflow-hidden bg-surface-dark-elevated border border-white/5 shadow-md shadow-black/10 flex flex-col items-center justify-center p-4 transition-all duration-300 ${
+                  className={`relative rounded-3xl overflow-hidden bg-canvas border border-hairline text-ink shadow-sm flex flex-col items-center justify-center p-4 transition-all duration-300 ${
                     isSpeaking 
                       ? 'scale-[1.015] ring-4 ring-brand-mint shadow-2xl shadow-brand-mint/30 z-10' 
                       : ''
@@ -234,7 +233,7 @@ export const VideoGrid: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className="absolute bottom-3 left-3 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-md text-[10px] text-on-dark font-bold border border-white/5">
+                  <div className="absolute bottom-3 left-3 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-md text-[10px] text-ink font-bold border border-white/5">
                     {track.participant.name || track.participant.identity} {isMe ? '(You)' : ''}
                   </div>
                 </div>
@@ -247,7 +246,7 @@ export const VideoGrid: React.FC = () => {
                 className={`relative rounded-3xl overflow-hidden transition-all duration-300 [&_video]:object-cover [&_video]:w-full [&_video]:h-full ${
                   isSpeaking 
                     ? 'scale-[1.015] ring-4 ring-brand-mint shadow-2xl shadow-brand-mint/30 z-10' 
-                    : 'border border-white/5 shadow-md shadow-black/10'
+                    : 'border border-hairline shadow-sm'
                 }`}
               >
                 {isHandRaised && (

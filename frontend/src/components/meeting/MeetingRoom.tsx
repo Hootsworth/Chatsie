@@ -621,13 +621,13 @@ export const MeetingRoom: React.FC = () => {
   // 1. Loading State
   if (isLoadingMeeting) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-dark text-on-dark-soft">
+      <div className="min-h-screen flex items-center justify-center bg-canvas text-ink">
         <div className="flex flex-col items-center space-y-4">
           <svg className="animate-spin h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
-          <span className="text-sm font-bold tracking-wide">Connecting to room...</span>
+          <span className="text-body-sm font-bold tracking-wide">Connecting to room...</span>
         </div>
       </div>
     );
@@ -636,16 +636,13 @@ export const MeetingRoom: React.FC = () => {
   // 2. Error State
   if (meetingError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-dark text-center px-4">
-        <div className="max-w-md space-y-4">
+      <div className="min-h-screen flex items-center justify-center bg-canvas text-center px-4 text-ink">
+        <div className="max-w-md space-y-4 p-8 border border-hairline bg-block-cream rounded-lg">
           <div className="text-red-500 text-3xl">⚠️</div>
-          <h2 className="text-lg font-black text-on-dark">{meetingError}</h2>
-          <button
-            onClick={() => navigate('/')}
-            className="px-4 py-2 bg-primary hover:bg-primary-active text-white rounded-lg text-sm font-bold shadow-md transition-all"
-          >
+          <h2 className="text-headline text-ink">{meetingError}</h2>
+          <Button onClick={() => navigate('/')} variant="primary">
             Back to Dashboard
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -669,108 +666,65 @@ export const MeetingRoom: React.FC = () => {
   // 4. Pre-Join Lobby View
   if (!isLobbyPassed) {
     return (
-      <div className="relative min-h-screen lg:h-screen lg:max-h-screen flex flex-col justify-center items-center bg-canvas dark:bg-dark-950 text-body dark:text-gray-200 transition-colors duration-200 p-4 md:p-8 lg:overflow-hidden z-10 select-none">
-        {/* Background drifting mesh glows */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-          <div className="absolute -top-[30%] -left-[20%] w-[60%] h-[60%] rounded-full bg-brand-pink/5 dark:bg-brand-pink/10 blur-[120px] animate-mesh-glow" />
-          <div className="absolute -bottom-[20%] -right-[10%] w-[50%] h-[50%] rounded-full bg-brand-peach/5 dark:bg-brand-peach/5 blur-[100px] animate-mesh-glow" style={{ animationDelay: '-10s' }} />
-        </div>
-
-        <div className="relative z-10 w-full max-w-6xl flex flex-col lg:grid lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+      <div className="min-h-screen flex flex-col justify-center items-center bg-canvas text-ink p-4 md:p-8 z-10">
+        <div className="w-full max-w-6xl flex flex-col lg:flex-row gap-8 lg:gap-12 items-center bg-block-lime p-8 md:p-12 rounded-lg border border-hairline">
           {/* Left Column: Typography & Preview */}
-          <div className="w-full lg:col-span-7 space-y-6 flex flex-col items-center lg:items-start text-center lg:text-left">
+          <div className="w-full lg:w-3/5 space-y-6 flex flex-col items-center lg:items-start text-center lg:text-left">
             <div className="space-y-2">
-              <h1 className="text-4xl lg:text-5xl font-display text-ink tracking-tight font-semibold leading-tight">
-                Ready to join?
-              </h1>
-              <p className="text-sm text-muted max-w-md">
-                Configure your media devices and check your camera feed before connecting to the video sync.
-              </p>
+              <h1 className="text-display-md tracking-tight">Ready to join?</h1>
+              <p className="text-body-default max-w-md">Configure your media devices and check your camera feed before connecting.</p>
             </div>
 
-            {/* Video preview container */}
-            <div className="w-full max-w-xl aspect-video rounded-3xl bg-surface-dark-elevated overflow-hidden border border-hairline/30 flex items-center justify-center shadow-2xl relative">
+            <div className="w-full max-w-xl aspect-video rounded-lg bg-ink text-canvas overflow-hidden flex items-center justify-center relative">
               {lobbyStream && !isMutedVideo ? (
-                <video
-                  ref={lobbyVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover transform scale-x-[-1]"
-                />
+                <video ref={lobbyVideoRef} autoPlay playsInline muted className="w-full h-full object-cover transform scale-x-[-1]" />
               ) : (
-                <div className="flex flex-col items-center justify-center space-y-4 select-none text-on-dark-soft animate-fade-in">
-                  <div className="w-20 h-20 bg-brand-pink/10 text-brand-pink rounded-full flex items-center justify-center border border-brand-pink/20 shadow-inner">
+                <div className="flex flex-col items-center justify-center space-y-4 select-none">
+                  <div className="w-20 h-20 bg-canvas/10 text-canvas rounded-full flex items-center justify-center">
                     <User className="w-10 h-10" />
                   </div>
-                  <span className="text-xs font-bold bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-md border border-white/5">
-                    Your camera is off
-                  </span>
+                  <span className="text-xs font-bold">Your camera is off</span>
                 </div>
               )}
-
-              {/* Status badges over video */}
               <div className="absolute bottom-4 left-4 flex items-center space-x-2 z-10">
-                <div className={`p-2 rounded-xl border text-white backdrop-blur-md transition-all duration-300 ${
-                  isMutedAudio ? 'bg-red-500/80 border-red-400/30' : 'bg-black/50 border-white/10'
-                }`}>
-                  {isMutedAudio ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                <div className={`p-2 rounded-full border transition-all ${isMutedAudio ? 'bg-red-500 border-red-500' : 'bg-canvas/20 border-canvas'}`}>
+                  {isMutedAudio ? <MicOff className="w-4 h-4 text-white" /> : <Mic className="w-4 h-4 text-white" />}
                 </div>
-                <div className={`p-2 rounded-xl border text-white backdrop-blur-md transition-all duration-300 ${
-                  isMutedVideo ? 'bg-red-500/80 border-red-400/30' : 'bg-black/50 border-white/10'
-                }`}>
-                  {isMutedVideo ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+                <div className={`p-2 rounded-full border transition-all ${isMutedVideo ? 'bg-red-500 border-red-500' : 'bg-canvas/20 border-canvas'}`}>
+                  {isMutedVideo ? <VideoOff className="w-4 h-4 text-white" /> : <Video className="w-4 h-4 text-white" />}
                 </div>
               </div>
             </div>
 
-            {/* Micro-interactive media control buttons */}
             <div className="flex justify-center space-x-4 w-full max-w-xl">
-              <button
-                onClick={handleToggleLobbyAudio}
-                className={`flex items-center justify-center w-14 h-14 rounded-full border transition-all duration-300 focus:outline-none cursor-pointer hover:scale-105 active:scale-95 ${
-                  isMutedAudio
-                    ? 'bg-red-500/10 border-red-500/30 text-red-500 hover:bg-red-500/20 shadow-lg shadow-red-500/5'
-                    : 'bg-surface-card border-hairline text-ink hover:bg-surface-soft hover:shadow-md'
-                }`}
-                title={isMutedAudio ? 'Unmute microphone' : 'Mute microphone'}
-              >
-                {isMutedAudio ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-              </button>
-
-              <button
-                onClick={handleToggleLobbyVideo}
-                className={`flex items-center justify-center w-14 h-14 rounded-full border transition-all duration-300 focus:outline-none cursor-pointer hover:scale-105 active:scale-95 ${
-                  isMutedVideo
-                    ? 'bg-red-500/10 border-red-500/30 text-red-500 hover:bg-red-500/20 shadow-lg shadow-red-500/5'
-                    : 'bg-surface-card border-hairline text-ink hover:bg-surface-soft hover:shadow-md'
-                }`}
-                title={isMutedVideo ? 'Turn camera on' : 'Turn camera off'}
-              >
-                {isMutedVideo ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
-              </button>
+              <Button onClick={handleToggleLobbyAudio} variant={isMutedAudio ? 'primary' : 'secondary'} className={isMutedAudio ? '!bg-red-500 !border-red-500 !text-white' : ''}>
+                {isMutedAudio ? <MicOff className="w-5 h-5 mr-2" /> : <Mic className="w-5 h-5 mr-2" />}
+                {isMutedAudio ? 'Unmute' : 'Mute'}
+              </Button>
+              <Button onClick={handleToggleLobbyVideo} variant={isMutedVideo ? 'primary' : 'secondary'} className={isMutedVideo ? '!bg-red-500 !border-red-500 !text-white' : ''}>
+                {isMutedVideo ? <VideoOff className="w-5 h-5 mr-2" /> : <Video className="w-5 h-5 mr-2" />}
+                {isMutedVideo ? 'Start Video' : 'Stop Video'}
+              </Button>
             </div>
           </div>
 
-          {/* Right Column: Settings Glassmorphic Card */}
-          <div className="w-full lg:col-span-5">
-            <div className="relative backdrop-blur-md bg-surface-card/90 dark:bg-dark-900/60 border border-hairline dark:border-dark-800 rounded-3xl p-6 md:p-8 shadow-2xl space-y-6 flex flex-col justify-between">
-              
-              <div className="space-y-5">
-                {/* Identity selector */}
-                <div className="bg-surface-soft dark:bg-dark-950/40 border border-hairline dark:border-dark-800 rounded-2xl p-4.5 space-y-3.5">
-                  <span className="text-[10px] uppercase font-bold text-muted tracking-wider block">Joining As</span>
+          {/* Right Column: Settings */}
+          <div className="w-full lg:w-2/5">
+            <div className="bg-canvas border border-hairline rounded-lg p-6 md:p-8 space-y-6">
+              <div className="space-y-4">
+                <div className="bg-canvas border border-hairline rounded-lg p-4 space-y-3">
+                  <span className="text-eyebrow block">Joining As</span>
                   {user ? (
                     <div className="flex items-center space-x-3">
-                      <div className="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center text-sm font-bold shadow-inner">
+                      <div className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center font-bold">
                         {user.fullName?.charAt(0).toUpperCase() || 'U'}
                       </div>
-                      <span className="text-sm font-extrabold text-ink">{user.fullName}</span>
+                      <span className="text-body-strong">{user.fullName}</span>
                     </div>
                   ) : (
                     <div className="space-y-2">
                       <div className="flex items-center space-x-3">
-                        <div className="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center text-sm font-bold flex-shrink-0 shadow-inner">
+                        <div className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center font-bold flex-shrink-0">
                           {guestUsername.charAt(0).toUpperCase() || 'G'}
                         </div>
                         <input
@@ -781,49 +735,35 @@ export const MeetingRoom: React.FC = () => {
                             sessionStorage.setItem(`guest_username_${code}`, e.target.value);
                           }}
                           placeholder="Type your guest username..."
-                          className="w-full bg-canvas dark:bg-dark-950 border border-hairline/80 dark:border-dark-800 rounded-xl px-4 py-2.5 text-sm text-ink focus:outline-none focus:border-primary font-semibold placeholder-muted/50 transition-colors shadow-inner"
+                          className="w-full bg-canvas border border-hairline rounded-sm px-3 py-2 text-body-sm focus:border-ink outline-none transition-colors"
                         />
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* Media Hardware Settings Toggle button */}
-                <button
-                  onClick={() => setIsLobbySettingsOpen(true)}
-                  className="w-full flex items-center justify-between px-4 py-3 bg-surface-soft/60 dark:bg-dark-950/20 hover:bg-surface-soft dark:hover:bg-dark-950/40 border border-hairline-soft dark:border-dark-800 rounded-2xl text-xs text-ink hover:text-primary font-semibold transition-all cursor-pointer"
-                >
+                <Button onClick={() => setIsLobbySettingsOpen(true)} variant="secondary" className="w-full justify-between">
                   <div className="flex items-center space-x-2">
-                    <Camera className="w-4 h-4 text-brand-pink" />
-                    <span>Check Audio & Video Devices</span>
+                    <Camera className="w-4 h-4" />
+                    <span>Check Devices</span>
                   </div>
                   <Settings className="w-4 h-4 opacity-75" />
-                </button>
+                </Button>
               </div>
 
-              {/* Join call button */}
-              <button
+              <Button
                 onClick={handleJoinCall}
                 disabled={!user && !guestUsername.trim()}
-                className={`w-full text-sm font-bold py-3.5 px-6 rounded-xl transition-all duration-300 shadow-md hover:scale-[1.01] active:scale-[0.99] focus:outline-none flex items-center justify-center space-x-2 cursor-pointer ${
-                  (!user && !guestUsername.trim())
-                    ? 'bg-primary-disabled text-muted/55 border border-hairline cursor-not-allowed shadow-none'
-                    : 'bg-primary hover:bg-primary-active text-white shadow-primary/20 hover:shadow-primary/35'
-                }`}
+                variant="primary"
+                className="w-full !py-4"
               >
-                <span>Join Meeting</span>
-              </button>
-
+                Join Meeting
+              </Button>
             </div>
           </div>
         </div>
 
-        {/* Lobby Settings Modal */}
-        <Modal
-          isOpen={isLobbySettingsOpen}
-          onClose={() => setIsLobbySettingsOpen(false)}
-          title="Audio & Video Settings"
-        >
+        <Modal isOpen={isLobbySettingsOpen} onClose={() => setIsLobbySettingsOpen(false)} title="Audio & Video Settings">
           <div className="space-y-4">
             <DeviceSelector />
             <div className="mt-6 flex justify-end">
@@ -842,11 +782,11 @@ export const MeetingRoom: React.FC = () => {
 
   if (waitingStatus === 'denied') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-dark text-center px-4">
+      <div className="min-h-screen flex items-center justify-center bg-ink text-center px-4">
         <div className="max-w-md space-y-4">
           <div className="text-red-500 text-3xl">🚫</div>
-          <h2 className="text-lg font-black text-on-dark">Entry Denied</h2>
-          <p className="text-sm text-on-dark-soft">The meeting host did not approve your entry request.</p>
+          <h2 className="text-lg font-black text-canvas">Entry Denied</h2>
+          <p className="text-sm text-canvas/70">The meeting host did not approve your entry request.</p>
           <button
             onClick={() => navigate('/')}
             className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold shadow-md hover:bg-primary-active"
@@ -861,7 +801,7 @@ export const MeetingRoom: React.FC = () => {
   // 6. Active Call Room Layout
   if (shouldConnectWebRTC && !liveKitToken) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-dark text-on-dark-soft">
+      <div className="min-h-screen flex items-center justify-center bg-ink text-canvas">
         <div className="flex flex-col items-center space-y-4">
           <svg className="animate-spin h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -887,7 +827,7 @@ export const MeetingRoom: React.FC = () => {
         },
       }}
       data-lk-theme="default"
-      className="h-screen w-screen overflow-hidden bg-surface-dark text-on-dark"
+      className="h-screen w-screen overflow-hidden bg-ink text-canvas"
       style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column' }}
     >
       <RoomAudioRenderer />
@@ -953,8 +893,8 @@ const PipCallView: React.FC<{ code: string; onClose: () => void }> = ({ code, on
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col justify-between p-3 bg-surface-dark text-white overflow-hidden font-sans">
-      <div className="flex-grow flex items-center justify-center min-h-0 bg-surface-dark-elevated rounded-xl border border-white/5 overflow-hidden relative">
+    <div className="h-screen w-screen flex flex-col justify-between p-3 bg-ink text-canvas overflow-hidden font-sans">
+      <div className="flex-grow flex items-center justify-center min-h-0 bg-ink-elevated rounded-xl border border-white/5 overflow-hidden relative">
         <VideoGrid />
       </div>
 
@@ -964,7 +904,7 @@ const PipCallView: React.FC<{ code: string; onClose: () => void }> = ({ code, on
           className={`p-2.5 rounded-xl transition-all duration-200 focus:outline-none cursor-pointer ${
             localMuteAudio 
               ? 'bg-red-600 hover:bg-red-700 text-white border border-transparent' 
-              : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
+              : 'bg-ink-soft hover:bg-ink text-canvas border border-white/10'
           }`}
           title={localMuteAudio ? 'Unmute Mic' : 'Mute Mic'}
         >
@@ -976,7 +916,7 @@ const PipCallView: React.FC<{ code: string; onClose: () => void }> = ({ code, on
           className={`p-2.5 rounded-xl transition-all duration-200 focus:outline-none cursor-pointer ${
             localMuteVideo 
               ? 'bg-red-600 hover:bg-red-700 text-white border border-transparent' 
-              : 'bg-surface-dark-soft hover:bg-surface-dark text-on-dark border border-white/10'
+              : 'bg-ink-soft hover:bg-ink text-canvas border border-white/10'
           }`}
           title={localMuteVideo ? 'Start Video' : 'Stop Video'}
         >
@@ -985,7 +925,7 @@ const PipCallView: React.FC<{ code: string; onClose: () => void }> = ({ code, on
         
         <button
           onClick={onClose}
-          className="p-2.5 bg-surface-dark-soft hover:bg-surface-dark text-on-dark-soft border border-white/10 rounded-xl cursor-pointer"
+          className="p-2.5 bg-ink-soft hover:bg-ink text-canvas border border-white/10 rounded-xl cursor-pointer"
           title="Return to Tab"
         >
           <ExternalLink className="w-4 h-4" />
@@ -1559,7 +1499,7 @@ const ActiveRoomContent: React.FC<{
       // Theme setting
       if (document.documentElement.classList.contains('dark')) {
         w.document.documentElement.classList.add('dark');
-        w.document.body.classList.add('dark', 'bg-surface-dark');
+        w.document.body.classList.add('dark', 'bg-ink');
       } else {
         w.document.body.classList.add('bg-canvas');
       }
@@ -1638,15 +1578,13 @@ const ActiveRoomContent: React.FC<{
       )}
       
       {/* Room Header bar */}
-      <header className={`fixed top-4 left-6 right-6 bg-surface-dark-elevated/75 border border-white/10 px-6 py-3 flex items-center justify-between z-35 rounded-2xl shadow-2xl backdrop-blur-md transition-all duration-300 ${
-        isUiControlsVisible ? 'translate-y-0 opacity-100' : '-translate-y-24 opacity-0 pointer-events-none'
-      }`}>
+      <header className={`fixed top-4 left-6 right-6 bg-canvas text-ink border border-hairline px-6 py-3 flex items-center justify-between z-35 rounded-pill shadow-sm transition-all duration-300 ${isUiControlsVisible ? 'translate-y-0 opacity-100' : '-translate-y-24 opacity-0 pointer-events-none'}`}>
         <div className="flex items-center space-x-3 truncate">
           <div className="flex items-center space-x-2 text-xs font-bold bg-primary/10 text-primary border border-primary/20 px-2 py-1 rounded-md">
             <Info className="w-3.5 h-3.5" />
             <span className="truncate max-w-[200px]">{currentMeeting?.title}</span>
           </div>
-          <div className="hidden md:flex items-center space-x-1.5 text-xs text-on-dark-soft font-bold bg-surface-dark-soft px-2 py-1 rounded-md">
+          <div className="hidden md:flex items-center space-x-1.5 text-xs text-canvas/70 font-bold bg-ink-soft px-2 py-1 rounded-md">
             <span>{code}</span>
             <button
               onClick={handleCopyRoomLink}
@@ -1667,12 +1605,12 @@ const ActiveRoomContent: React.FC<{
           </div>
         </div>
 
-        <div className="flex items-center space-x-3.5 text-xs font-bold text-on-dark-soft">
+        <div className="flex items-center space-x-3.5 text-xs font-bold text-canvas/70">
           {myRole === 'host' && (
             <>
               <button
                 onClick={handleToggleRoomLock}
-                className={`flex items-center space-x-1.5 p-1 hover:bg-surface-dark-soft rounded-md transition-all cursor-pointer ${
+                className={`flex items-center space-x-1.5 p-1 hover:bg-ink-soft rounded-md transition-all cursor-pointer ${
                   currentMeeting?.is_locked
                     ? 'text-red-500 hover:text-red-400'
                     : 'text-emerald-500 hover:text-emerald-400'
@@ -1684,7 +1622,7 @@ const ActiveRoomContent: React.FC<{
               </button>
               <button
                 onClick={() => setIsBreakoutModalOpen(true)}
-                className="flex items-center space-x-1 hover:text-on-dark p-1 rounded-md hover:bg-surface-dark-soft transition-all cursor-pointer text-primary"
+                className="flex items-center space-x-1 hover:text-canvas p-1 rounded-md hover:bg-ink-soft transition-all cursor-pointer text-primary"
                 title="Breakout Rooms Control"
               >
                 <Users className="w-4 h-4" />
@@ -1693,7 +1631,7 @@ const ActiveRoomContent: React.FC<{
             </>
           )}
           {myRole !== 'host' && (
-            <div className="flex items-center space-x-1 text-on-dark-soft p-1">
+            <div className="flex items-center space-x-1 text-canvas/70 p-1">
               {currentMeeting?.is_locked ? <Lock className="w-3.5 h-3.5 text-red-500" /> : <Unlock className="w-3.5 h-3.5 text-emerald-500" />}
               <span className="hidden sm:inline">{currentMeeting?.is_locked ? 'Locked' : 'Unlocked'}</span>
             </div>
@@ -1702,8 +1640,8 @@ const ActiveRoomContent: React.FC<{
           {/* Call Recording */}
           <button
             onClick={isRecording ? stopRecording : startRecording}
-            className={`flex items-center space-x-1.5 p-1 rounded-md hover:bg-surface-dark-soft transition-all cursor-pointer ${
-              isRecording ? 'text-red-500 hover:text-red-400 font-extrabold' : 'hover:text-on-dark text-on-dark-soft'
+            className={`flex items-center space-x-1.5 p-1 rounded-md hover:bg-ink-soft transition-all cursor-pointer ${
+              isRecording ? 'text-red-500 hover:text-red-400 font-extrabold' : 'hover:text-canvas text-canvas/70'
             }`}
             title={isRecording ? 'Stop Recording' : 'Record Call'}
           >
@@ -1714,8 +1652,8 @@ const ActiveRoomContent: React.FC<{
           {/* Interactive Whiteboard */}
           <button
             onClick={toggleWhiteboard}
-            className={`flex items-center space-x-1.5 p-1 rounded-md hover:bg-surface-dark-soft transition-all cursor-pointer ${
-              isWhiteboardOpen ? 'text-primary' : 'hover:text-on-dark text-on-dark-soft'
+            className={`flex items-center space-x-1.5 p-1 rounded-md hover:bg-ink-soft transition-all cursor-pointer ${
+              isWhiteboardOpen ? 'text-primary' : 'hover:text-canvas text-canvas/70'
             }`}
             title="Interactive Whiteboard"
           >
@@ -1726,8 +1664,8 @@ const ActiveRoomContent: React.FC<{
           {/* Live Transcription */}
           <button
             onClick={toggleTranscriptionPanel}
-            className={`flex items-center space-x-1.5 p-1 rounded-md hover:bg-surface-dark-soft transition-all cursor-pointer ${
-              isTranscriptionPanelOpen ? 'text-primary' : 'hover:text-on-dark text-on-dark-soft'
+            className={`flex items-center space-x-1.5 p-1 rounded-md hover:bg-ink-soft transition-all cursor-pointer ${
+              isTranscriptionPanelOpen ? 'text-primary' : 'hover:text-canvas text-canvas/70'
             }`}
             title="Live Transcription"
           >
@@ -1739,7 +1677,7 @@ const ActiveRoomContent: React.FC<{
           {'documentPictureInPicture' in window && (
             <button
               onClick={togglePip}
-              className="flex items-center space-x-1.5 hover:text-on-dark p-1 rounded-md hover:bg-surface-dark-soft transition-all cursor-pointer text-on-dark-soft"
+              className="flex items-center space-x-1.5 hover:text-canvas p-1 rounded-md hover:bg-ink-soft transition-all cursor-pointer text-canvas/70"
               title="Picture-in-Picture Mode"
             >
               <PictureInPicture className="w-4 h-4" />
@@ -1750,7 +1688,7 @@ const ActiveRoomContent: React.FC<{
           {/* Keyboard Shortcuts */}
           <button
             onClick={() => setShortcutsOpen(true)}
-            className="flex items-center space-x-1.5 hover:text-on-dark p-1 rounded-md hover:bg-surface-dark-soft transition-all cursor-pointer text-on-dark-soft"
+            className="flex items-center space-x-1.5 hover:text-canvas p-1 rounded-md hover:bg-ink-soft transition-all cursor-pointer text-canvas/70"
             title="Keyboard Shortcuts"
           >
             <Keyboard className="w-4 h-4" />
@@ -1760,14 +1698,14 @@ const ActiveRoomContent: React.FC<{
           {/* Device Settings */}
           <button
             onClick={() => setSettingsOpen(true)}
-            className="flex items-center space-x-1.5 hover:text-on-dark p-1 rounded-md hover:bg-surface-dark-soft transition-all cursor-pointer text-on-dark-soft"
+            className="flex items-center space-x-1.5 hover:text-canvas p-1 rounded-md hover:bg-ink-soft transition-all cursor-pointer text-canvas/70"
             title="Device Settings"
           >
             <Settings className="w-4 h-4" />
             <span className="hidden sm:inline">Settings</span>
           </button>
 
-          <div className="flex items-center space-x-1 bg-surface-dark-soft px-2.5 py-1 rounded-md text-on-dark-soft">
+          <div className="flex items-center space-x-1 bg-ink-soft px-2.5 py-1 rounded-md text-canvas/70">
             <Users className="w-3.5 h-3.5" />
             <span>{participants.length + 1} active</span>
           </div>
@@ -1775,7 +1713,7 @@ const ActiveRoomContent: React.FC<{
       </header>
 
       {/* Main conference body (grid + sidebars) */}
-      <div className="flex-grow flex relative min-h-0 bg-surface-dark">
+      <div className="flex-grow flex relative min-h-0 bg-ink">
         
         {/* Central area: Video grid or Whiteboard */}
         <div className="flex-grow flex flex-col min-h-0 overflow-y-auto no-scrollbar relative">
@@ -1786,14 +1724,14 @@ const ActiveRoomContent: React.FC<{
           ) : isTabVisible ? (
             <VideoGrid />
           ) : (
-            <div className="flex-grow flex flex-col items-center justify-center bg-surface-dark-elevated text-on-dark-soft border border-white/5 rounded-2xl m-4 p-8 select-none">
+            <div className="flex-grow flex flex-col items-center justify-center bg-ink-elevated text-canvas/70 border border-white/5 rounded-2xl m-4 p-8 select-none">
               <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-3.5 border border-primary/20 animate-pulse">
                 <Users className="w-5 h-5" />
               </div>
-              <h3 className="text-xs font-bold text-on-dark mb-1">
+              <h3 className="text-xs font-bold text-canvas mb-1">
                 Background Tab Suspend
               </h3>
-              <p className="text-[10px] text-on-dark-soft text-center max-w-[240px]">
+              <p className="text-[10px] text-canvas/70 text-center max-w-[240px]">
                 Video streams are temporarily paused to conserve power and CPU while you are in another tab.
               </p>
             </div>
@@ -1817,7 +1755,7 @@ const ActiveRoomContent: React.FC<{
 
         {/* Right Sidebar panels */}
         {isChatPanelOpen && (
-          <div className="absolute right-6 top-20 bottom-24 w-80 md:w-80 backdrop-blur-xl bg-surface-dark-elevated/65 border border-white/10 rounded-3xl shadow-2xl z-40 overflow-hidden animate-in slide-in-from-right duration-250 flex flex-col">
+          <div className="absolute right-6 top-20 bottom-24 w-80 md:w-80 bg-canvas text-ink border border-hairline rounded-3xl shadow-2xl z-40 overflow-hidden animate-in slide-in-from-right duration-250 flex flex-col">
             <ChatPanel 
               roomId={code || ''} 
               userId={user?.id || ''} 
@@ -1827,13 +1765,13 @@ const ActiveRoomContent: React.FC<{
         )}
 
         {isParticipantsPanelOpen && (
-          <div className="absolute right-6 top-20 bottom-24 w-80 md:w-80 backdrop-blur-xl bg-surface-dark-elevated/65 border border-white/10 rounded-3xl shadow-2xl z-40 overflow-hidden animate-in slide-in-from-right duration-250 flex flex-col">
+          <div className="absolute right-6 top-20 bottom-24 w-80 md:w-80 bg-canvas text-ink border border-hairline rounded-3xl shadow-2xl z-40 overflow-hidden animate-in slide-in-from-right duration-250 flex flex-col">
             <ParticipantPanel />
           </div>
         )}
 
         {isTranscriptionPanelOpen && (
-          <div className="absolute right-6 top-20 bottom-24 w-80 md:w-80 backdrop-blur-xl bg-surface-dark-elevated/65 border border-white/10 rounded-3xl shadow-2xl z-40 overflow-hidden animate-in slide-in-from-right duration-250 flex flex-col">
+          <div className="absolute right-6 top-20 bottom-24 w-80 md:w-80 bg-canvas text-ink border border-hairline rounded-3xl shadow-2xl z-40 overflow-hidden animate-in slide-in-from-right duration-250 flex flex-col">
             <TranscriptionPanel />
           </div>
         )}
@@ -1846,14 +1784,14 @@ const ActiveRoomContent: React.FC<{
             ? 'bottom-24 opacity-100' 
             : 'bottom-6 opacity-0 pointer-events-none'
         }`}>
-          <div className="backdrop-blur-md bg-surface-dark-elevated/90 border border-white/10 rounded-2xl p-4 shadow-2xl flex flex-col space-y-3">
+          <div className="backdrop-blur-md bg-ink-elevated/90 border border-white/10 rounded-2xl p-4 shadow-2xl flex flex-col space-y-3">
             <div className="flex justify-between items-center border-b border-white/5 pb-2">
               <div className="flex items-center space-x-2">
                 <span className="text-xs font-bold text-primary uppercase tracking-wider">🔊 Live Soundboard</span>
-                <span className="text-[10px] text-on-dark-soft bg-surface-dark-soft px-1.5 py-0.5 rounded">Hotkeys Only</span>
+                <span className="text-[10px] text-canvas/70 bg-ink-soft px-1.5 py-0.5 rounded">Hotkeys Only</span>
               </div>
-              <span className="text-[10px] text-on-dark-soft">
-                Press <kbd className="bg-surface-dark-soft px-1.5 py-0.5 rounded border border-white/10 text-white font-mono text-[9px] font-black">
+              <span className="text-[10px] text-canvas/70">
+                Press <kbd className="bg-ink-soft px-1.5 py-0.5 rounded border border-white/10 text-white font-mono text-[9px] font-black">
                   {typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.userAgent) ? '⌥ + S' : 'Alt + S'}
                 </kbd> to close
               </span>
@@ -1868,14 +1806,14 @@ const ActiveRoomContent: React.FC<{
                     className={`flex items-center justify-between p-2.5 rounded-xl border text-[11px] transition-all duration-200 ${
                       isActive
                         ? 'bg-primary border-primary-active scale-95 shadow-lg shadow-primary/20 text-white'
-                        : 'bg-surface-dark-soft/50 border-white/5 text-on-dark-soft hover:bg-surface-dark-soft hover:text-on-dark'
+                        : 'bg-ink-soft/50 border-white/5 text-canvas/70 hover:bg-ink-soft hover:text-canvas'
                     }`}
                   >
                     <span className="truncate font-bold">{sound.name}</span>
                     <kbd className={`px-2 py-0.5 rounded font-mono text-[10px] font-black ${
                       isActive 
                         ? 'bg-white/20 text-white' 
-                        : 'bg-surface-dark border border-white/10 text-on-dark-soft'
+                        : 'bg-ink border border-white/10 text-canvas/70'
                     }`}>
                       {sound.key}
                     </kbd>
@@ -2135,7 +2073,7 @@ const InviteModalContent: React.FC<{ code: string; onClose: () => void }> = ({ c
               <img
                 src={lookupResult.imageUrl}
                 alt={lookupResult.name}
-                className="w-10 h-10 rounded-full border border-hairline bg-surface-dark flex-shrink-0 object-cover"
+                className="w-10 h-10 rounded-full border border-hairline bg-ink flex-shrink-0 object-cover"
               />
               <div className="truncate">
                 <span className="text-xs font-bold text-ink block truncate">{lookupResult.name}</span>

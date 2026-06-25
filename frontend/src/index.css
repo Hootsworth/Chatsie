@@ -4,104 +4,100 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-primary: #0a0a0a;
-  --color-primary-active: #1f1f1f;
-  --color-primary-disabled: #e5e5e5;
-  --color-ink: #0a0a0a;
-  --color-body: #3a3a3a;
-  --color-body-strong: #1a1a1a;
-  --color-muted: #6a6a6a;
-  --color-muted-soft: #9a9a9a;
-  --color-hairline: #e5e5e5;
-  --color-hairline-soft: #f0f0f0;
-  --color-canvas: #fffaf0;
-  --color-surface-soft: #faf5e8;
-  --color-surface-card: #f5f0e0;
-  --color-surface-cream-strong: #ebe6d6;
-  --color-surface-dark: #0a1a1a;
-  --color-surface-dark-elevated: #1a2a2a;
-  --color-surface-dark-soft: #122020;
+  --color-primary: #000000;
   --color-on-primary: #ffffff;
-  --color-on-dark: #ffffff;
-  --color-on-dark-soft: #a0a0a0;
-
-  /* Brand Accents */
-  --color-brand-pink: #ff4d8b;
-  --color-brand-teal: #1a3a3a;
-  --color-brand-lavender: #b8a4ed;
-  --color-brand-peach: #ffb084;
-  --color-brand-ochre: #e8b94a;
-  --color-brand-mint: #a4d4c5;
-  --color-brand-coral: #ff6b5a;
+  --color-ink: #000000;
+  --color-inverse-ink: #ffffff;
+  --color-canvas: #ffffff;
+  --color-inverse-canvas: #000000;
+  --color-on-inverse-soft: #ffffff;
+  --color-hairline: #e6e6e6;
+  --color-hairline-soft: #f1f1f1;
+  --color-surface-soft: #f7f7f5;
   
-  /* Claude Premium Dark Palette Mappings (compatibility) */
-  --color-dark-50: #fffaf0;
-  --color-dark-100: #faf5e8;
-  --color-dark-200: #f5f0e0;
-  --color-dark-300: #e5e5e5;
-  --color-dark-400: #9a9a9a;
-  --color-dark-500: #6a6a6a;
-  --color-dark-600: #3a3a3a;
-  --color-dark-700: #1a2a2a;
-  --color-dark-800: #122020;
-  --color-dark-900: #0e1e1e;
-  --color-dark-950: #0a1a1a;
+  /* Color Blocks */
+  --color-block-lime: #dceeb1;
+  --color-block-lilac: #c5b0f4;
+  --color-block-cream: #f4ecd6;
+  --color-block-pink: #efd4d4;
+  --color-block-mint: #c8e6cd;
+  --color-block-coral: #f3c9b6;
+  --color-block-navy: #1f1d3d;
   
-  --font-serif: 'Cormorant Garamond', 'Copernicus', 'Tiempos Headline', Garamond, 'Times New Roman', serif;
-  --font-display: 'Outfit', 'Inter', system-ui, sans-serif;
+  --color-accent-magenta: #ff3d8b;
+  --color-semantic-success: #1ea64a;
+  --color-overlay-scrim: #000000;
+  
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 
-/* CSS variable overrides for dark mode */
-html.dark {
-  --color-ink: #ffffff;
-  --color-body: #a0a0a0;
-  --color-body-strong: #ffffff;
-  --color-muted: #808080;
-  --color-muted-soft: #606060;
-  --color-hairline: #1a2a2a;
-  --color-hairline-soft: #122020;
-  --color-canvas: #0a1a1a;
-  --color-surface-soft: #122020;
-  --color-surface-card: #1a2a2a;
-  --color-surface-cream-strong: #203535;
-}
-
 body {
-  @apply bg-canvas text-body font-sans antialiased transition-colors duration-200;
+  @apply bg-canvas text-ink font-sans antialiased;
 }
 
-/* h1, h2, h3, h4 titles use Outfit medium with negative letter spacing */
-h1, h2, h3, .font-serif-display, .font-display {
-  @apply font-display text-ink font-medium tracking-tight;
-  letter-spacing: -0.03em;
+/* Figma typography overrides */
+.text-display-xl {
+  font-size: 86px;
+  font-weight: 340;
+  line-height: 1.0;
+  letter-spacing: -1.72px;
 }
-
-/* Custom premium elements matching Claude's UI */
-.glass {
-  @apply bg-surface-card/85 backdrop-blur-md border border-hairline/40;
+.text-display-lg {
+  font-size: 64px;
+  font-weight: 340;
+  line-height: 1.10;
+  letter-spacing: -0.96px;
 }
-
-.glass-dark {
-  @apply bg-surface-dark/90 backdrop-blur-md border border-white/5;
+.text-headline {
+  font-size: 26px;
+  font-weight: 540;
+  line-height: 1.35;
+  letter-spacing: -0.26px;
 }
-
-/* Bento grid card base */
-.bento-card {
-  @apply bg-surface-soft/40 backdrop-blur-sm border border-hairline/40 rounded-3xl p-5 transition-all duration-300;
+.text-subhead {
+  font-size: 26px;
+  font-weight: 340;
+  line-height: 1.35;
+  letter-spacing: -0.26px;
 }
-
-html.dark .bento-card {
-  @apply bg-dark-800/30 border-white/5;
+.text-card-title {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.45;
+  letter-spacing: 0;
 }
-
-.bento-card:hover {
-  @apply shadow-xl shadow-black/[0.03] border-hairline/60;
+.text-body-lg {
+  font-size: 20px;
+  font-weight: 330;
+  line-height: 1.40;
+  letter-spacing: -0.14px;
 }
-
-html.dark .bento-card:hover {
-  @apply shadow-xl shadow-black/20 border-white/10;
+.text-body-default {
+  font-size: 18px;
+  font-weight: 320;
+  line-height: 1.45;
+  letter-spacing: -0.26px;
+}
+.text-body-sm {
+  font-size: 16px;
+  font-weight: 330;
+  line-height: 1.45;
+  letter-spacing: -0.14px;
+}
+.text-eyebrow {
+  @apply font-mono uppercase;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.30;
+  letter-spacing: 0.54px;
+}
+.text-caption {
+  @apply font-mono uppercase;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.00;
+  letter-spacing: 0.60px;
 }
 
 /* Custom scrollbars matching the warm theme */
@@ -115,7 +111,7 @@ html.dark .bento-card:hover {
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-surface-cream-strong/80 rounded-full hover:bg-hairline;
+  @apply bg-block-cream/80 rounded-full hover:bg-hairline;
 }
 
 .no-scrollbar::-webkit-scrollbar {

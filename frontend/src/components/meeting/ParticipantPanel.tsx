@@ -38,7 +38,7 @@ export const ParticipantPanel: React.FC = () => {
       
       {/* 1. WAITING ROOM QUEUE (HOST ONLY) */}
       {isHost && waitingRoomList.length > 0 && (
-        <div className="border-b border-white/5 p-4 bg-amber-500/5">
+        <div className="border-b border-hairline p-4 bg-amber-500/5">
           <h3 className="font-bold text-[11px] text-amber-500 uppercase tracking-widest flex items-center mb-3">
             <ShieldAlert className="w-4 h-4 mr-1.5" />
             Waiting Room ({waitingRoomList.length})
@@ -48,22 +48,22 @@ export const ParticipantPanel: React.FC = () => {
             {waitingRoomList.map((waiter) => (
               <div 
                 key={waiter.userId}
-                className="flex items-center justify-between p-2.5 bg-surface-dark-soft rounded-lg border border-amber-500/20 text-xs"
+                className="flex items-center justify-between p-2.5 bg-canvas rounded-lg border border-amber-500/20 text-xs"
               >
-                <span className="font-bold text-on-dark truncate mr-2">
+                <span className="font-bold text-ink truncate mr-2">
                   {waiter.username}
                 </span>
                 <div className="flex space-x-1.5 flex-shrink-0">
                   <button
                     onClick={() => handleWaitingAction(waiter.userId, 'approve')}
-                    className="p-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded transition-colors"
+                    className="p-1 bg-emerald-500 hover:bg-emerald-600 text-ink rounded transition-colors"
                     title="Admit"
                   >
                     <Check className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleWaitingAction(waiter.userId, 'deny')}
-                    className="p-1 bg-red-500 hover:bg-red-600 text-white rounded transition-colors"
+                    className="p-1 bg-red-500 hover:bg-red-600 text-ink rounded transition-colors"
                     title="Deny"
                   >
                     <X className="w-4 h-4" />
@@ -76,8 +76,8 @@ export const ParticipantPanel: React.FC = () => {
       )}
 
       {/* 2. ACTIVE PARTICIPANTS HEADER */}
-      <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between">
-        <h3 className="font-bold text-sm text-on-dark uppercase tracking-wider">
+      <div className="px-5 py-4 border-b border-hairline flex items-center justify-between">
+        <h3 className="font-bold text-sm text-ink uppercase tracking-wider">
           Participants
         </h3>
         <Badge>{allParticipants.length}</Badge>
@@ -100,15 +100,15 @@ export const ParticipantPanel: React.FC = () => {
             >
               {/* Meta */}
               <div className="flex items-center space-x-2.5 min-w-0">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold ${isMe ? 'bg-primary/20 text-primary' : 'bg-surface-dark-soft text-on-dark'}`}>
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold ${isMe ? 'bg-primary/20 text-primary' : 'bg-canvas text-ink'}`}>
                   {p.name?.charAt(0).toUpperCase() || 'U'}
                 </div>
                 <div className="truncate">
                   <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-on-dark truncate">{isMe ? 'Me' : p.name}</span>
+                    <span className="font-bold text-ink truncate">{isMe ? 'Me' : p.name}</span>
                     {isHandRaised && <span className="text-amber-500 font-bold" title="Hand Raised">✋</span>}
                   </div>
-                  <span className="text-[10px] text-on-dark-soft font-semibold block">{isMe && isHost ? '@host' : ''}</span>
+                  <span className="text-[10px] text-ink/70 font-semibold block">{isMe && isHost ? '@host' : ''}</span>
                 </div>
               </div>
 
@@ -121,12 +121,12 @@ export const ParticipantPanel: React.FC = () => {
 
                 {/* Host Control Actions (visible on hover/mobile for host only) */}
                 {isHost && !isMe && (
-                  <div className="hidden group-hover:flex items-center space-x-1 pl-1 bg-surface-dark">
+                  <div className="hidden group-hover:flex items-center space-x-1 pl-1 bg-canvas text-ink">
                     {/* Remote Mute Audio */}
                     {p.isMicrophoneEnabled && (
                       <button
                         onClick={() => handleMutePeer(p.identity, 'audio')}
-                        className="p-1 text-on-dark-soft hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"
+                        className="p-1 text-ink/70 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"
                         title="Mute Audio"
                       >
                         <VolumeX className="w-3.5 h-3.5" />
@@ -136,7 +136,7 @@ export const ParticipantPanel: React.FC = () => {
                     {p.isCameraEnabled && (
                       <button
                         onClick={() => handleMutePeer(p.identity, 'video')}
-                        className="p-1 text-on-dark-soft hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"
+                        className="p-1 text-ink/70 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"
                         title="Mute Video"
                       >
                         <VideoOff className="w-3.5 h-3.5" />
@@ -145,7 +145,7 @@ export const ParticipantPanel: React.FC = () => {
                     {/* Kick Peer */}
                     <button
                       onClick={() => handleKickPeer(p.identity)}
-                      className="p-1 text-on-dark-soft hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"
+                      className="p-1 text-ink/70 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"
                       title="Remove from meeting"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

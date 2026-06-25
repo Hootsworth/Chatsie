@@ -109,8 +109,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, userId, username }
     <div className="w-full h-full flex flex-col bg-transparent z-20">
       
       {/* Header */}
-      <div className="px-5 py-4 border-b border-white/5 flex items-center">
-        <h3 className="font-bold text-xs text-on-dark uppercase tracking-wider">
+      <div className="px-5 py-4 border-b border-hairline flex items-center">
+        <h3 className="font-bold text-xs text-ink uppercase tracking-wider">
           Meeting Chat
         </h3>
       </div>
@@ -118,7 +118,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, userId, username }
       {/* Messages List */}
       <div className="flex-grow overflow-y-auto p-4 space-y-4">
         {chatMessages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center text-xs text-on-dark-soft font-semibold p-4">
+          <div className="h-full flex flex-col items-center justify-center text-center text-xs text-ink/70 font-semibold p-4">
             <Smile className="w-8 h-8 mb-2 opacity-50 text-primary" />
             No messages yet. Send a message to get started!
           </div>
@@ -131,7 +131,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, userId, username }
                 key={msg.id} 
                 className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
               >
-                <div className="flex items-center space-x-1.5 mb-1 text-[10px] font-semibold text-on-dark-soft">
+                <div className="flex items-center space-x-1.5 mb-1 text-[10px] font-semibold text-ink/70">
                   <span className="truncate max-w-[120px]">{msg.username}</span>
                   <span>•</span>
                   <span>
@@ -144,7 +144,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, userId, username }
                 <div className={`px-3.5 py-2 text-xs rounded-2xl max-w-[85%] break-words border shadow-sm ${
                   isMe 
                     ? 'bg-primary border-primary text-white rounded-tr-none' 
-                    : 'bg-surface-dark-soft border-white/5 text-on-dark rounded-tl-none'
+                    : 'bg-canvas border border-hairline text-ink rounded-tl-none'
                 }`}>
                   {msg.text}
                 </div>
@@ -156,7 +156,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, userId, username }
       </div>
 
       {/* Quick Emojis Selection Bar */}
-      <div className="px-4 py-2 border-t border-white/5 flex items-center justify-between bg-surface-dark-soft/50">
+      <div className="px-4 py-2 border-t border-hairline flex items-center justify-between bg-block-cream">
         {quickEmojis.map(emoji => (
           <button
             key={emoji}
@@ -169,12 +169,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, userId, username }
       </div>
 
       {/* Input Form */}
-      <form onSubmit={handleSend} className="p-4 border-t border-white/5 flex items-center gap-2 bg-surface-dark-elevated">
+      <form onSubmit={handleSend} className="p-4 border-t border-hairline flex items-center gap-2 bg-canvas text-ink">
         <Input
           placeholder="Send message to everyone..."
           value={text}
           onChange={(e) => setText(e.target.value)}
-          className="bg-surface-dark border-white/5 text-on-dark placeholder-on-dark-soft focus:ring-primary"
+          className="bg-canvas text-ink border-hairline text-ink placeholder-on-dark-soft focus:ring-primary"
         />
         <Button 
           type="submit" 
