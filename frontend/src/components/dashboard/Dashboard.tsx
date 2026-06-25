@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../assets/logo.png';
 import { useUser, UserButton, useAuth } from '@clerk/clerk-react';
@@ -15,8 +15,99 @@ import {
   Sun,
   Moon,
   ArrowRight,
-  Loader2
+  Loader2,
+  Zap,
+  Gamepad2,
+  AudioLines,
+  Layers,
+  Captions,
+  PenTool,
+  PictureInPicture,
+  Smile,
+  Circle,
+  Users,
+  Sparkles
 } from 'lucide-react';
+
+const FEATURES = [
+  {
+    icon: Gamepad2,
+    title: 'Retro Soundboard',
+    description: 'Trigger 8 synthesized retro game & meme sounds via keyboard hotkeys. No audio files — pure Web Audio magic.',
+    accent: 'from-violet-500 to-fuchsia-500',
+    iconBg: 'bg-violet-500/15 text-violet-400'
+  },
+  {
+    icon: AudioLines,
+    title: 'Speaker Glows',
+    description: 'Breathing emerald outlines pulse around whoever is speaking, with subtle scale-up depth transitions.',
+    accent: 'from-emerald-500 to-teal-500',
+    iconBg: 'bg-emerald-500/15 text-emerald-400'
+  },
+  {
+    icon: Layers,
+    title: 'Smart Video Grid',
+    description: 'Dynamic aspect ratios shift from landscape to portrait as participants join. Auto-filters to 6 active feeds.',
+    accent: 'from-sky-500 to-blue-500',
+    iconBg: 'bg-sky-500/15 text-sky-400'
+  },
+  {
+    icon: Zap,
+    title: 'Auto-Hide UI',
+    description: 'Controls vanish after 3 seconds of inactivity and reappear instantly on any movement.',
+    accent: 'from-amber-500 to-orange-500',
+    iconBg: 'bg-amber-500/15 text-amber-400'
+  },
+  {
+    icon: Captions,
+    title: 'Live Transcription',
+    description: 'Real-time speech-to-text transcription with AI-powered meeting summaries at your fingertips.',
+    accent: 'from-cyan-500 to-sky-500',
+    iconBg: 'bg-cyan-500/15 text-cyan-400'
+  },
+  {
+    icon: PenTool,
+    title: 'Whiteboard',
+    description: 'Collaborative drawing canvas right inside the call — sketch ideas in real time with your team.',
+    accent: 'from-pink-500 to-rose-500',
+    iconBg: 'bg-pink-500/15 text-pink-400'
+  },
+  {
+    icon: Users,
+    title: 'Breakout Rooms',
+    description: 'Split into smaller groups mid-call with timed sessions and automatic reunification.',
+    accent: 'from-indigo-500 to-violet-500',
+    iconBg: 'bg-indigo-500/15 text-indigo-400'
+  },
+  {
+    icon: Circle,
+    title: 'Call Recording',
+    description: 'Record your meeting with mixed WebRTC audio — captures all participants and screen shares.',
+    accent: 'from-red-500 to-rose-500',
+    iconBg: 'bg-red-500/15 text-red-400'
+  },
+  {
+    icon: Smile,
+    title: 'Emoji Reactions',
+    description: 'Send floating emoji reactions that animate across everyone\'s screen in real time.',
+    accent: 'from-yellow-500 to-amber-500',
+    iconBg: 'bg-yellow-500/15 text-yellow-400'
+  },
+  {
+    icon: PictureInPicture,
+    title: 'Picture-in-Picture',
+    description: 'Pop the call into a floating mini-window and multitask across your desktop seamlessly.',
+    accent: 'from-teal-500 to-emerald-500',
+    iconBg: 'bg-teal-500/15 text-teal-400'
+  },
+  {
+    icon: Sparkles,
+    title: 'Glass Aesthetics',
+    description: 'Premium glassmorphic panels, floating control docks, and immersive mesh gradient backgrounds.',
+    accent: 'from-fuchsia-500 to-pink-500',
+    iconBg: 'bg-fuchsia-500/15 text-fuchsia-400'
+  }
+];
 
 interface ScheduledMeeting {
   id: string;
@@ -260,6 +351,32 @@ export const Dashboard: React.FC = () => {
     year: 'numeric'
   });
 
+  // Carousel drag-to-scroll
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeftPos] = useState(0);
+  const [isCarouselPaused, setIsCarouselPaused] = useState(false);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!carouselRef.current) return;
+    setIsDragging(true);
+    setStartX(e.pageX - carouselRef.current.offsetLeft);
+    setScrollLeftPos(carouselRef.current.scrollLeft);
+  }, []);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging || !carouselRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - carouselRef.current.offsetLeft;
+    const walk = (x - startX) * 1.5;
+    carouselRef.current.scrollLeft = scrollLeft - walk;
+  }, [isDragging, startX, scrollLeft]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
   return (
     <div className="relative min-h-screen lg:h-screen lg:max-h-screen flex flex-col justify-between bg-canvas dark:bg-dark-950 text-body dark:text-gray-200 transition-colors duration-200 lg:overflow-hidden z-10">
       
@@ -496,8 +613,55 @@ export const Dashboard: React.FC = () => {
 
       </main>
 
+      {/* Features Carousel */}
+      <div 
+        className="relative z-20 flex-shrink-0 border-t border-hairline/20 dark:border-white/5 animate-fade-in-up delay-200"
+        onMouseEnter={() => setIsCarouselPaused(true)}
+        onMouseLeave={() => { setIsCarouselPaused(false); setIsDragging(false); }}
+      >
+        <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-canvas dark:from-dark-950 to-transparent z-10 pointer-events-none" />
+        <div className="absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-canvas dark:from-dark-950 to-transparent z-10 pointer-events-none" />
+        
+        <div
+          ref={carouselRef}
+          className="overflow-x-hidden no-scrollbar cursor-grab active:cursor-grabbing select-none"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+        >
+          <div 
+            className={`flex gap-4 py-4 px-6 w-max ${
+              isCarouselPaused ? '' : 'animate-carousel-scroll'
+            }`}
+          >
+            {/* Duplicate for infinite scroll illusion */}
+            {[...FEATURES, ...FEATURES].map((feature, idx) => {
+              const Icon = feature.icon;
+              return (
+                <div
+                  key={`${feature.title}-${idx}`}
+                  className="group relative w-64 flex-shrink-0 bg-surface-soft/50 dark:bg-dark-800/40 border border-hairline/40 dark:border-white/5 rounded-2xl p-4 hover:border-primary/30 dark:hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5"
+                >
+                  <div className="flex items-start space-x-3">
+                    <div className={`w-9 h-9 rounded-xl ${feature.iconBg} flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110`}>
+                      <Icon className="w-4.5 h-4.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-xs font-bold text-ink leading-tight">{feature.title}</h3>
+                      <p className="text-[10px] text-muted font-light leading-relaxed mt-1 line-clamp-2">{feature.description}</p>
+                    </div>
+                  </div>
+                  <div className={`absolute bottom-0 left-4 right-4 h-[2px] bg-gradient-to-r ${feature.accent} rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       {/* Sleek Minimalist Footer */}
-      <footer className="relative z-40 bg-transparent px-8 py-4 flex items-center justify-between flex-shrink-0 text-[10px] text-muted tracking-widest uppercase font-light border-t border-hairline/30 animate-fade-in-up delay-200">
+      <footer className="relative z-40 bg-transparent px-8 py-3 flex items-center justify-between flex-shrink-0 text-[10px] text-muted tracking-widest uppercase font-light border-t border-hairline/30">
         <div>Chatsie • Immersive Screenings</div>
         <div>{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })}</div>
       </footer>

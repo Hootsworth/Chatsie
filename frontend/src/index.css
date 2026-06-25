@@ -187,3 +187,16 @@ h1, h2, h3, .font-serif-display {
   animation-delay: 300ms;
 }
 
+/* Infinite carousel scroll animation */
+@keyframes carousel-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-carousel-scroll {
+  animation: carousel-scroll 40s linear infinite;
+}
