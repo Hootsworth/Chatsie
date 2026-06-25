@@ -41,6 +41,8 @@ export interface SignalingEventMap {
   'waiting-doodle-draw': (data: { x1: number; y1: number; x2: number; y2: number; color: string; thickness: number }) => void;
   'waiting-doodle-clear': () => void;
   'soundboard-play': (data: { userId: string; soundId: string }) => void;
+  'multiplayer-cursors-toggled': (data: { enabled: boolean }) => void;
+  'screenshare-cursor-moved': (data: { userId: string; username: string; x: number; y: number }) => void;
   
   // Interactive Polls & Q&A
   'polls-history': (data: { polls: Poll[] }) => void;
@@ -78,6 +80,8 @@ export interface ISignalingClient {
   sendWaitingDoodleDraw(x1: number, y1: number, x2: number, y2: number, color: string, thickness: number): void;
   sendWaitingDoodleClear(): void;
   sendSoundboardPlay(soundId: string): void;
+  sendMultiplayerCursorsToggle(enabled: boolean): void;
+  sendScreenshareCursorMove(x: number, y: number): void;
   
   // Interactive Polls & Q&A
   sendCreatePoll(question: string, options: string[]): void;
@@ -152,6 +156,8 @@ class SocketIOSignalingClient implements ISignalingClient {
     this.socket.on('waiting-doodle-draw', (data) => this.emit('waiting-doodle-draw', data));
     this.socket.on('waiting-doodle-clear', () => this.emit('waiting-doodle-clear'));
     this.socket.on('soundboard-play', (data) => this.emit('soundboard-play', data));
+    this.socket.on('multiplayer-cursors-toggled', (data) => this.emit('multiplayer-cursors-toggled', data));
+    this.socket.on('screenshare-cursor-moved', (data) => this.emit('screenshare-cursor-moved', data));
     
     // Polls & Q&A
     this.socket.on('polls-history', (data) => this.emit('polls-history', data));
@@ -257,6 +263,24 @@ class SocketIOSignalingClient implements ISignalingClient {
   sendRoomLockToggle(isLocked: boolean): void {
     if (this.socket) {
       this.socket.emit('toggle-room-lock', { roomId: this.roomId, isLocked });
+    }
+  }
+
+  sendMultiplayerCursorsToggle(enabled: boolean): void {
+    if (this.socket) {
+      this.socket.emit('toggle-multiplayer-cursors', { roomId: this.roomId, enabled });
+    }
+  }
+
+  sendScreenshareCursorMove(x: number, y: number): void {
+    if (this.socket && this.user) {
+      this.socket.emit('screenshare-cursor-move', {
+        roomId: this.roomId,
+        userId: this.user.userId,
+        username: this.user.username,
+        x,
+        y
+      });
     }
   }
 
@@ -449,6 +473,12 @@ class SupabaseSignalingClient implements ISignalingClient {
       })
       .on('broadcast', { event: 'soundboard-play' }, (payload) => {
         this.emit('soundboard-play', payload.payload);
+      })
+      .on('broadcast', { event: 'multiplayer-cursors-toggled' }, (payload) => {
+        this.emit('multiplayer-cursors-toggled', payload.payload);
+      })
+      .on('broadcast', { event: 'screenshare-cursor-moved' }, (payload) => {
+        this.emit('screenshare-cursor-moved', payload.payload);
       })
       .on('broadcast', { event: 'poll-created' }, (payload) => {
         this.emit('poll-created', payload.payload);
@@ -738,6 +768,30 @@ class SupabaseSignalingClient implements ISignalingClient {
       event: 'room-lock-toggled',
       payload: { isLocked }
     });
+  }
+
+  sendMultiplayerCursorsToggle(enabled: boolean): void {
+    this.channel?.send({
+      type: 'broadcast',
+      event: 'multiplayer-cursors-toggled',
+      payload: { enabled }
+    });
+    this.emit('multiplayer-cursors-toggled', { enabled });
+  }
+
+  sendScreenshareCursorMove(x: number, y: number): void {
+    if (this.channel && this.user) {
+      this.channel.send({
+        type: 'broadcast',
+        event: 'screenshare-cursor-moved',
+        payload: {
+          userId: this.user.userId,
+          username: this.user.username,
+          x,
+          y
+        }
+      });
+    }
   }
 
   sendWaitingDoodleDraw(x1: number, y1: number, x2: number, y2: number, color: string, thickness: number): void {

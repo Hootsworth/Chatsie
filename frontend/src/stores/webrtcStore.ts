@@ -38,6 +38,8 @@ interface WebRTCState {
   setE2eeEnabled: (enabled: boolean) => void;
   isLowBandwidthMode: boolean;
   setLowBandwidthMode: (enabled: boolean) => void;
+  isGestureReactionsEnabled: boolean;
+  setGestureReactionsEnabled: (enabled: boolean) => void;
 
   // Actions
   setAudioMute: (isMuted: boolean) => void;
@@ -79,6 +81,7 @@ export const useWebRTCStore = create<WebRTCState>((set) => ({
   virtualBackgroundMode: (localStorage.getItem('virtual_background_mode') as any) || 'none',
   isE2eeEnabled: localStorage.getItem('e2ee_enabled') === 'true',
   isLowBandwidthMode: localStorage.getItem('low_bandwidth_mode') === 'true',
+  isGestureReactionsEnabled: false,
   
   audioDevices: [],
   videoDevices: [],
@@ -113,6 +116,10 @@ export const useWebRTCStore = create<WebRTCState>((set) => ({
     set({ isLowBandwidthMode: enabled });
   },
 
+  setGestureReactionsEnabled: (enabled) => {
+    set({ isGestureReactionsEnabled: enabled });
+  },
+
   setAudioMute: (isMuted) => set({ isMutedAudio: isMuted }),
   setVideoMute: (isMuted) => set({ isMutedVideo: isMuted }),
   setCaptionsEnabled: (enabled) => set({ showCaptions: enabled }),
@@ -137,7 +144,8 @@ export const useWebRTCStore = create<WebRTCState>((set) => ({
     isNoiseSuppressionEnabled: false,
     virtualBackgroundMode: 'none',
     isE2eeEnabled: false,
-    isLowBandwidthMode: false
+    isLowBandwidthMode: false,
+    isGestureReactionsEnabled: false
   })
 }));
 export default useWebRTCStore;

@@ -1042,6 +1042,16 @@ io.on('connection', (socket) => {
         const { roomId, isLocked } = data;
         socket.to(roomId).emit('room-lock-toggled', { isLocked });
     });
+    // Toggle Multiplayer Cursors
+    socket.on('toggle-multiplayer-cursors', (data) => {
+        const { roomId, enabled } = data;
+        socket.to(roomId).emit('multiplayer-cursors-toggled', { enabled });
+    });
+    // Screenshare Cursor Move
+    socket.on('screenshare-cursor-move', (data) => {
+        const { roomId, userId, username, x, y } = data;
+        socket.to(roomId).emit('screenshare-cursor-moved', { userId, username, x, y });
+    });
     // Breakout rooms socket handlers
     socket.on('start-breakout', (data) => {
         const { roomId, assignments, durationSeconds } = data;

@@ -101,6 +101,7 @@ interface MeetingState {
   isWhiteboardOpen: boolean;
   isSettingsOpen: boolean;
   isShortcutsOpen: boolean;
+  isMultiplayerCursorEnabled: boolean;
   
   // Actions
   setCurrentMeeting: (meeting: Meeting | null) => void;
@@ -138,6 +139,7 @@ interface MeetingState {
   toggleWhiteboard: () => void;
   setSettingsOpen: (isOpen: boolean) => void;
   setShortcutsOpen: (isOpen: boolean) => void;
+  setMultiplayerCursorEnabled: (enabled: boolean) => void;
   resetMeetingState: () => void;
 }
 
@@ -161,6 +163,7 @@ export const useMeetingStore = create<MeetingState>((set) => ({
   isWhiteboardOpen: false,
   isSettingsOpen: false,
   isShortcutsOpen: false,
+  isMultiplayerCursorEnabled: false,
 
   setCurrentMeeting: (meeting) => set({ currentMeeting: meeting }),
   setMyRole: (role) => set({ myRole: role }),
@@ -204,6 +207,7 @@ export const useMeetingStore = create<MeetingState>((set) => ({
   setWaitingStatus: (status) => set({ waitingStatus: status }),
   setPasscodeGateRequired: (required) => set({ isPasscodeGateRequired: required }),
   setPasscodeGatePassed: (passed) => set({ isPasscodeGatePassed: passed }),
+  setMultiplayerCursorEnabled: (enabled) => set({ isMultiplayerCursorEnabled: enabled }),
   
   addChatMessage: (message) => set((state) => ({
     chatMessages: [...state.chatMessages, message]
@@ -325,6 +329,7 @@ export const useMeetingStore = create<MeetingState>((set) => ({
     isTranscriptionPanelOpen: false,
     isWhiteboardOpen: false,
     isSettingsOpen: false,
-    isShortcutsOpen: false
+    isShortcutsOpen: false,
+    isMultiplayerCursorEnabled: false
   })
 }));

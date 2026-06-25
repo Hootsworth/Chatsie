@@ -5,6 +5,8 @@ import { Monitor } from 'lucide-react';
 import { useMeetingStore } from '../../stores/meetingStore';
 import { useWebRTCStore } from '../../stores/webrtcStore';
 import { signalingClient } from '../../services/signaling';
+import { ScreenshareCursorOverlay } from './ScreenshareCursorOverlay';
+import { ParticleBurst } from './ParticleBurst';
 
 /* ── Soft avatar palette for camera-off tiles ── */
 const AVATAR_COLORS = [
@@ -30,11 +32,18 @@ export const VideoGrid: React.FC = () => {
     { onlySubscribed: false }
   );
 
-  const [recentReactors, setRecentReactors] = React.useState<Record<string, number>>({});
+  const [activeReactions, setActiveReactions] = React.useState<Record<string, { type: string; timestamp: number; id: string }>>({});
 
   React.useEffect(() => {
-    const handleReaction = ({ senderUserId }: { senderUserId: string }) => {
-      setRecentReactors(prev => ({ ...prev, [senderUserId]: Date.now() }));
+    const handleReaction = ({ senderUserId, type }: { senderUserId: string; type: string }) => {
+      setActiveReactions(prev => ({
+        ...prev,
+        [senderUserId]: {
+          type,
+          timestamp: Date.now(),
+          id: `${senderUserId}-${Date.now()}-${Math.random()}`
+        }
+      }));
     };
     signalingClient.on('reaction', handleReaction);
     return () => { signalingClient.off('reaction', handleReaction); };
@@ -66,7 +75,7 @@ export const VideoGrid: React.FC = () => {
     const isHandRaised = identity === localParticipant?.identity
       ? isLocalHandRaised
       : participantsList.find(sp => sp.userId === identity)?.isHandRaised;
-    const lastReacted = recentReactors[identity] || 0;
+    const lastReacted = activeReactions[identity]?.timestamp || 0;
     const isReacting = Date.now() - lastReacted < 5000;
     return !!(isSpeaking || isHandRaised || isReacting);
   };
@@ -149,10 +158,22 @@ export const VideoGrid: React.FC = () => {
           const speakingRing = isSpeaking ? 'ring-2 ring-[#8ab4f8] ring-offset-2 ring-offset-[#202124]' : '';
           const displayName = track.participant.name || track.participant.identity;
 
+          // Reaction evaluation
+          const reaction = activeReactions[track.participant.identity];
+          const hasActiveReaction = reaction && (Date.now() - reaction.timestamp < 1800);
+
           if (isLocalScreen) {
             return (
               <div key={`${track.participant.identity}-${track.source}`} className="w-full h-full flex items-center justify-center">
                 <div className={`relative w-full h-full rounded-xl bg-[#292b2f] border border-white/[0.06] flex flex-col items-center justify-center transition-all ${speakingRing}`}>
+                  {/* Cursor Overlay for Local Presenter */}
+                  <ScreenshareCursorOverlay isLocalPresenter={true} roomId="" participant={track.participant} />
+                  
+                  {/* Particle Burst Overlay */}
+                  {hasActiveReaction && (
+                    <ParticleBurst type={reaction.type} key={reaction.id} />
+                  )}
+
                   <div className="w-12 h-12 rounded-full bg-[#8ab4f8]/20 flex items-center justify-center mb-3">
                     <Monitor className="w-6 h-6 text-[#8ab4f8]" />
                   </div>
@@ -180,6 +201,12 @@ export const VideoGrid: React.FC = () => {
                       ✋ Raised
                     </div>
                   )}
+                  
+                  {/* Particle Burst Overlay */}
+                  {hasActiveReaction && (
+                    <ParticleBurst type={reaction.type} key={reaction.id} />
+                  )}
+
                   <div
                     className="w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center text-xl md:text-2xl font-semibold select-none animate-in fade-in duration-300"
                     style={{ backgroundColor: palette.bg, color: palette.text }}
@@ -203,6 +230,17 @@ export const VideoGrid: React.FC = () => {
                   </div>
                 )}
                 <ParticipantTile trackRef={track} />
+                
+                {/* Cursor Overlay for Remote Viewer Screenshare */}
+                {track.source === Track.Source.ScreenShare && (
+                  <ScreenshareCursorOverlay isLocalPresenter={false} roomId="" participant={track.participant} />
+                )}
+
+                {/* Particle Burst Overlay */}
+                {hasActiveReaction && (
+                  <ParticleBurst type={reaction.type} key={reaction.id} />
+                )}
+
                 <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-md text-[11px] text-[#e8eaed] font-medium z-10">
                   {displayName} {isMe ? '(You)' : ''}
                 </div>

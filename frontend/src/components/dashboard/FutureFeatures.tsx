@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../assets/logo.png';
+import cursorArrow from '../../assets/arrow_2x.png';
 import { Button } from '../ui';
-import { ArrowLeft, Mic, Sparkles } from 'lucide-react';
+import { ArrowLeft, Mic, Sparkles, Smile, MousePointer } from 'lucide-react';
 
 /* ────────────────────────────────────────────────────────
    1. INTENT-TO-SPEAK SIMULATION WIDGET
@@ -233,6 +234,197 @@ const VibeCheckDemo: React.FC = () => {
 };
 
 /* ────────────────────────────────────────────────────────
+   3.5 GESTURE TRIGGERS SIMULATION WIDGET
+   ──────────────────────────────────────────────────────── */
+const GestureTriggersDemo: React.FC = () => {
+  const [activeGesture, setActiveGesture] = useState<string | null>(null);
+  const [particles, setParticles] = useState<Array<{ id: number; x: number; y: number; vx: number; vy: number; color: string; size: number; alpha: number }>>([]);
+
+  const triggerBurst = (type: string) => {
+    setActiveGesture(type);
+    
+    const colors = type === 'nod' ? ['#00e5ff', '#00f5d4', '#ffffff'] : ['#ffc700', '#ffa200', '#ffeb3b'];
+    const newParticles = Array.from({ length: 25 }).map((_, idx) => ({
+      id: Math.random() + idx,
+      x: 50, // center (percentage)
+      y: 50,
+      vx: (Math.random() - 0.5) * 4,
+      vy: (Math.random() - 0.7) * 4,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      size: 4 + Math.random() * 5,
+      alpha: 1.0
+    }));
+    
+    setParticles(newParticles);
+    
+    setTimeout(() => {
+      setActiveGesture(null);
+    }, 1500);
+  };
+
+  useEffect(() => {
+    if (particles.length === 0) return;
+    
+    const interval = setInterval(() => {
+      setParticles(prev => {
+        return prev.map(p => ({
+          ...p,
+          x: p.x + p.vx,
+          y: p.y + p.vy,
+          vy: p.vy + 0.08, // gravity
+          alpha: p.alpha - 0.025
+        })).filter(p => p.alpha > 0);
+      });
+    }, 30);
+    
+    return () => clearInterval(interval);
+  }, [particles.length]);
+
+  return (
+    <div className="bg-canvas border border-hairline rounded-xl p-5 shadow-sm flex flex-col justify-between space-y-4 overflow-hidden h-72 w-full relative">
+      <div className="relative aspect-[16/10] bg-[#202124] border border-white/5 rounded-lg overflow-hidden flex items-center justify-center">
+        {/* Avatar */}
+        <div className={`w-16 h-16 rounded-full bg-[#fa7b17]/25 border-2 flex items-center justify-center font-bold text-lg text-[#e8eaed] transition-all duration-300 relative z-10 ${activeGesture ? 'border-[#ffc700] scale-105 shadow-[0_0_15px_rgba(255,199,0,0.5)]' : 'border-white/10'}`}>
+          GT
+        </div>
+
+        {/* Particles */}
+        {particles.map(p => (
+          <div
+            key={p.id}
+            className="absolute rounded-full pointer-events-none"
+            style={{
+              left: `${p.x}%`,
+              top: `${p.y}%`,
+              width: `${p.size}px`,
+              height: `${p.size}px`,
+              backgroundColor: p.color,
+              opacity: p.alpha,
+              boxShadow: `0 0 6px ${p.color}`
+            }}
+          />
+        ))}
+
+        {/* Floating text reaction indicator */}
+        {activeGesture && (
+          <div className="absolute top-2 bg-black/75 text-[#ffc700] border border-white/10 text-[9px] uppercase font-black tracking-wider px-2 py-0.5 rounded shadow z-20 animate-pulse">
+            {activeGesture === 'nod' ? 'NOD DETECTED 👤' : 'THUMBS UP 👍'}
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-2 w-full">
+        <button
+          onClick={() => triggerBurst('nod')}
+          className="flex-1 text-center py-1.5 px-2 bg-block-mint border border-hairline rounded-full text-[10px] font-bold text-ink hover:scale-105 active:scale-95 transition-all cursor-pointer"
+        >
+          Simulate Nod
+        </button>
+        <button
+          onClick={() => triggerBurst('thumbsup')}
+          className="flex-1 text-center py-1.5 px-2 bg-block-cream border border-hairline rounded-full text-[10px] font-bold text-ink hover:scale-105 active:scale-95 transition-all cursor-pointer"
+        >
+          Simulate 👍
+        </button>
+      </div>
+    </div>
+  );
+};
+
+/* ────────────────────────────────────────────────────────
+   3.6 MULTIPLAYER CURSORS SIMULATION WIDGET
+   ──────────────────────────────────────────────────────── */
+const MultiplayerCursorsDemo: React.FC = () => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [localPos, setLocalPos] = useState({ x: 50, y: 50 });
+  const [remotePos1, setRemotePos1] = useState({ x: 25, y: 30 });
+  const [remotePos2, setRemotePos2] = useState({ x: 75, y: 65 });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRemotePos1(prev => ({
+        x: Math.max(10, Math.min(90, prev.x + (Math.random() - 0.5) * 10)),
+        y: Math.max(10, Math.min(90, prev.y + (Math.random() - 0.5) * 10))
+      }));
+      setRemotePos2(prev => ({
+        x: Math.max(10, Math.min(90, prev.x + (Math.random() - 0.5) * 10)),
+        y: Math.max(10, Math.min(90, prev.y + (Math.random() - 0.5) * 10))
+      }));
+    }, 400);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setLocalPos({ x, y });
+  };
+
+  return (
+    <div 
+      ref={containerRef}
+      onMouseMove={handleMouseMove}
+      className="bg-canvas border border-hairline rounded-xl p-4 shadow-sm flex flex-col justify-between space-y-4 overflow-hidden h-72 w-full cursor-none relative"
+    >
+      <div className="relative aspect-[16/10] bg-[#1e1e1e] border border-white/5 rounded-lg overflow-hidden flex flex-col items-center justify-center select-none">
+        
+        {/* Mock content panel */}
+        <div className="absolute top-2 left-2 right-2 flex justify-between items-center text-[8px] text-white/40 border-b border-white/5 pb-1">
+          <span>📁 interactive_whiteboard.svg</span>
+          <span className="bg-emerald-500/20 text-emerald-400 px-1 py-0.2 rounded font-black text-[7px]">LIVE CANVAS</span>
+        </div>
+        
+        <div className="text-center p-3">
+          <div className="w-10 h-1 bg-[#ff3d8b] rounded mb-1 mx-auto" />
+          <h5 className="text-[10px] text-white font-bold tracking-tight">Screenshare Canvas</h5>
+          <p className="text-[7px] text-white/30 mt-0.5">Move mouse to check coordinates</p>
+        </div>
+
+        {/* Local user cursor */}
+        <div 
+          className="absolute pointer-events-none transition-all duration-75 flex items-center space-x-0.5"
+          style={{ left: `${localPos.x}%`, top: `${localPos.y}%`, transform: 'translate(-2px, -2px)' }}
+        >
+          <img src={cursorArrow} alt="Cursor" className="w-4 h-4 object-contain drop-shadow" />
+          <div className="bg-primary text-white text-[7px] font-black px-1.5 py-0.5 rounded-full border border-white/20 shadow-md">
+            ME
+          </div>
+        </div>
+
+        {/* Remote cursor 1 */}
+        <div 
+          className="absolute pointer-events-none transition-all duration-300 ease-out flex items-center space-x-0.5"
+          style={{ left: `${remotePos1.x}%`, top: `${remotePos1.y}%`, transform: 'translate(-2px, -2px)' }}
+        >
+          <img src={cursorArrow} alt="Cursor" className="w-4 h-4 object-contain drop-shadow" />
+          <div className="bg-emerald-500 text-white text-[7px] font-black px-1.5 py-0.5 rounded-full border border-white/20 shadow-md">
+            JD
+          </div>
+        </div>
+
+        {/* Remote cursor 2 */}
+        <div 
+          className="absolute pointer-events-none transition-all duration-300 ease-out flex items-center space-x-0.5"
+          style={{ left: `${remotePos2.x}%`, top: `${remotePos2.y}%`, transform: 'translate(-2px, -2px)' }}
+        >
+          <img src={cursorArrow} alt="Cursor" className="w-4 h-4 object-contain drop-shadow" />
+          <div className="bg-purple-500 text-white text-[7px] font-black px-1.5 py-0.5 rounded-full border border-white/20 shadow-md">
+            AM
+          </div>
+        </div>
+      </div>
+
+      <div className="text-center text-[9px] text-muted font-black uppercase tracking-wider">
+        Move inside widget to trace
+      </div>
+    </div>
+  );
+};
+
+/* ────────────────────────────────────────────────────────
    4. MAIN FUTURE FEATURES SCREEN COMPONENT
    ──────────────────────────────────────────────────────── */
 export const FutureFeatures: React.FC = () => {
@@ -344,6 +536,38 @@ export const FutureFeatures: React.FC = () => {
             </div>
             <div className="w-full md:w-[320px] flex-shrink-0 flex justify-center">
               <VibeCheckDemo />
+            </div>
+          </section>
+
+          {/* FEATURE 4: Silky Gesture Triggers */}
+          <section className="bg-block-mint rounded-2xl p-8 md:p-12 flex flex-col md:flex-row-reverse gap-10 items-center border border-hairline shadow-sm">
+            <div className="flex-1 space-y-4">
+              <span className="text-eyebrow text-ink/60">Coming Soon • Feature 04</span>
+              <h2 className="text-headline text-ink font-bold leading-tight flex items-center">
+                <Smile className="w-6 h-6 mr-2 text-primary" /> Silky Gesture Triggers
+              </h2>
+              <p className="text-body-default text-ink/80 leading-relaxed">
+                Reactions shouldn't feel like a chore. Rather than forcing you to look down, hunt for, and click tiny emoji reaction buttons, Chatsie uses local on-device computer vision to detect real-world physical gestures—like a subtle nod of agreement or a physical thumbs up—and instantly maps them to premium, high-fidelity canvas particle bursts overlaid on your video card.
+              </p>
+            </div>
+            <div className="w-full md:w-[320px] flex-shrink-0 flex justify-center">
+              <GestureTriggersDemo />
+            </div>
+          </section>
+
+          {/* FEATURE 5: Multiplayer Screenshare Cursors */}
+          <section className="bg-block-pink rounded-2xl p-8 md:p-12 flex flex-col md:flex-row gap-10 items-center border border-hairline shadow-sm">
+            <div className="flex-1 space-y-4">
+              <span className="text-eyebrow text-ink/60">Coming Soon • Feature 05</span>
+              <h2 className="text-headline text-ink font-bold leading-tight flex items-center">
+                <MousePointer className="w-6 h-6 mr-2 text-primary" /> Multiplayer Screenshare Canvas
+              </h2>
+              <p className="text-body-default text-ink/80 leading-relaxed">
+                Screen sharing is traditionally a clunky, passive broadcast where you have to direct viewers verbally. Instead, Chatsie overlays a transparent multiplayer canvas. When opted in by the host, viewers can move their own localized cursors on top of the shared screen. Rendered as glowing orbs with initials, it turns any broadcast into an interactive collaborative whiteboard.
+              </p>
+            </div>
+            <div className="w-full md:w-[320px] flex-shrink-0 flex justify-center">
+              <MultiplayerCursorsDemo />
             </div>
           </section>
 

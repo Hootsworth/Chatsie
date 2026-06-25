@@ -26,7 +26,8 @@ import { WhiteboardPanel } from './WhiteboardPanel';
 import { BreakoutModal } from './BreakoutModal';
 import { Modal, Button } from '../ui';
 import { DeviceSelector } from './DeviceSelector';
-import { Copy, Check, Users, Keyboard, Mic, MicOff, Video, VideoOff, Camera, User, ExternalLink, Lock, Unlock, Mail, Loader2, Settings, Palette, FileText, PictureInPicture, Circle } from 'lucide-react';
+import { Copy, Check, Users, Keyboard, Mic, MicOff, Video, VideoOff, Camera, User, ExternalLink, Lock, Unlock, Mail, Loader2, Settings, Palette, FileText, PictureInPicture, Circle, MousePointer } from 'lucide-react';
+import { useGestureDetector } from '../../hooks/useGestureDetector';
 
 export const MeetingRoom: React.FC = () => {
   const { code: rawCode } = useParams<{ code: string }>();
@@ -1014,7 +1015,9 @@ const ActiveRoomContent: React.FC<{
     addQuestion,
     updateQuestionUpvotes,
     setQuestionAnswered,
-    deleteQuestion
+    deleteQuestion,
+    isMultiplayerCursorEnabled,
+    setMultiplayerCursorEnabled
   } = useMeetingStore();
 
   const {
@@ -1025,8 +1028,11 @@ const ActiveRoomContent: React.FC<{
     showCaptions,
     isNoiseSuppressionEnabled,
     virtualBackgroundMode,
-    isLowBandwidthMode
+    isLowBandwidthMode,
+    isGestureReactionsEnabled
   } = useWebRTCStore();
+
+  useGestureDetector(isGestureReactionsEnabled);
 
   const room = useRoomContext();
 
@@ -1440,6 +1446,10 @@ const ActiveRoomContent: React.FC<{
       deleteQuestion(questionId);
     };
 
+    const handleMultiplayerCursorsToggled = ({ enabled }: { enabled: boolean }) => {
+      setMultiplayerCursorEnabled(enabled);
+    };
+
     signalingClient.on('chat-received', handleChatReceived);
     signalingClient.on('hand-raised', handleHandRaised);
     signalingClient.on('mute-command', handleMuteCommand);
@@ -1458,6 +1468,7 @@ const ActiveRoomContent: React.FC<{
     signalingClient.on('question-upvoted', handleQuestionUpvoted);
     signalingClient.on('question-answered', handleQuestionAnswered);
     signalingClient.on('question-deleted', handleQuestionDeleted);
+    signalingClient.on('multiplayer-cursors-toggled', handleMultiplayerCursorsToggled);
 
     return () => {
       signalingClient.off('chat-received', handleChatReceived);
@@ -1478,6 +1489,7 @@ const ActiveRoomContent: React.FC<{
       signalingClient.off('question-upvoted', handleQuestionUpvoted);
       signalingClient.off('question-answered', handleQuestionAnswered);
       signalingClient.off('question-deleted', handleQuestionDeleted);
+      signalingClient.off('multiplayer-cursors-toggled', handleMultiplayerCursorsToggled);
     };
   }, [
     localParticipant,
@@ -1502,7 +1514,8 @@ const ActiveRoomContent: React.FC<{
     setQuestionAnswered,
     deleteQuestion,
     setChatToasts,
-    user?.id
+    user?.id,
+    setMultiplayerCursorEnabled
   ]);
 
   // Handle incoming unread chat notification
@@ -1758,6 +1771,13 @@ const ActiveRoomContent: React.FC<{
               </button>
               <button onClick={() => setIsBreakoutModalOpen(true)} className="p-2 rounded-full hover:bg-white/10 text-[#8ab4f8] transition-colors cursor-pointer" title="Breakout Rooms">
                 <Users className="w-4 h-4" />
+              </button>
+              <button 
+                onClick={() => signalingClient.sendMultiplayerCursorsToggle(!isMultiplayerCursorEnabled)} 
+                className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${isMultiplayerCursorEnabled ? 'text-pink-500' : 'text-[#9aa0a6] hover:text-[#e8eaed]'}`} 
+                title={isMultiplayerCursorEnabled ? 'Disable Multiplayer Cursors' : 'Enable Multiplayer Cursors'}
+              >
+                <MousePointer className="w-4 h-4" />
               </button>
             </>
           )}

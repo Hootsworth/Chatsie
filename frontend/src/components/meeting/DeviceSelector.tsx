@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useWebRTCStore } from '../../stores/webrtcStore';
-import { Camera, Mic, Volume2, Key, Sparkles } from 'lucide-react';
+import { Camera, Mic, Volume2, Key, Sparkles, Smile } from 'lucide-react';
+import { useGestureDetector } from '../../hooks/useGestureDetector';
 
 export const DeviceSelector: React.FC = () => {
   const {
@@ -22,8 +23,13 @@ export const DeviceSelector: React.FC = () => {
     isE2eeEnabled,
     setE2eeEnabled,
     isLowBandwidthMode,
-    setLowBandwidthMode
+    setLowBandwidthMode,
+    isGestureReactionsEnabled,
+    setGestureReactionsEnabled
   } = useWebRTCStore();
+
+  const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  useGestureDetector(isGestureReactionsEnabled, previewCanvasRef);
 
   const [geminiApiKey, setGeminiApiKey] = useState('');
 
@@ -73,7 +79,7 @@ export const DeviceSelector: React.FC = () => {
               : 'text-ink/65 hover:bg-ink/5'
           }`}
         >
-          Gemini AI
+          AI & Gestures
         </button>
       </div>
 
@@ -258,6 +264,44 @@ export const DeviceSelector: React.FC = () => {
               <p className="text-[10px] text-ink/60 leading-relaxed pt-1">
                 Required to use the "Summarize with AI" transcription feature. Saved locally in your browser's private memory.
               </p>
+            </div>
+
+            <div className="border-t border-hairline pt-4 mt-4 space-y-4">
+              <div className="flex items-start space-x-3 p-3 rounded-lg border border-hairline bg-ink/[0.02]">
+                <input
+                  type="checkbox"
+                  id="gesture-reactions"
+                  checked={isGestureReactionsEnabled}
+                  onChange={(e) => setGestureReactionsEnabled(e.target.checked)}
+                  className="rounded border-hairline text-ink focus:ring-ink w-4 h-4 mt-0.5 accent-ink cursor-pointer"
+                />
+                <div className="flex-1">
+                  <label htmlFor="gesture-reactions" className="text-xs text-ink font-bold select-none cursor-pointer flex items-center">
+                    <Smile className="w-3.5 h-3.5 mr-1.5 text-ink/70" />
+                    Enable On-Device Gesture Controls (Opt-in)
+                  </label>
+                  <p className="text-[10px] text-ink/60 leading-normal mt-0.5">
+                    Detect physical gestures (subtle head nod, thumbs up) locally on your device to trigger meeting reactions.
+                  </p>
+                </div>
+              </div>
+
+              {isGestureReactionsEnabled && (
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-black text-ink/50 uppercase tracking-widest block text-center">
+                    Gesture CV Monitor
+                  </span>
+                  <div className="relative aspect-[4/3] max-w-[280px] bg-black rounded-lg overflow-hidden border border-hairline shadow-inner mx-auto">
+                    <canvas 
+                      ref={previewCanvasRef} 
+                      className="w-full h-full object-cover scale-x-[-1]" 
+                    />
+                    <div className="absolute bottom-2 left-2 bg-black/60 px-2 py-0.5 rounded text-[8px] font-mono text-emerald-400 border border-emerald-400/20">
+                      ON-DEVICE CV RUNNING
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
