@@ -60,6 +60,7 @@ export const SchedulePage: React.FC = () => {
   const [isWaitingRoomEnabled, setIsWaitingRoomEnabled] = useState(false);
   const [blockEarlyJoin, setBlockEarlyJoin] = useState(false);
   const [inviteOnly, setInviteOnly] = useState(false);
+  const [theme, setTheme] = useState('lime');
 
   // Guests State
   const [guestEmailInput, setGuestEmailInput] = useState('');
@@ -324,7 +325,8 @@ export const SchedulePage: React.FC = () => {
           duration: finalDuration,
           blockEarlyJoin,
           inviteOnly,
-          invitedEmails
+          invitedEmails,
+          theme
         })
       });
 
@@ -969,6 +971,35 @@ export const SchedulePage: React.FC = () => {
                       }`}
                     />
                   </button>
+                </div>
+
+                {/* 4. Color Theme Selector */}
+                <div className="py-3 border-t border-hairline mt-3">
+                  <label className="text-body-sm font-bold text-ink block mb-2">Email Invitation Theme</label>
+                  <div className="flex gap-3">
+                    {[
+                      { key: 'lime', hex: '#dceeb1', name: 'Lime' },
+                      { key: 'lilac', hex: '#c5b0f4', name: 'Lilac' },
+                      { key: 'cream', hex: '#f4ecd6', name: 'Cream' },
+                      { key: 'pink', hex: '#efd4d4', name: 'Pink' },
+                      { key: 'mint', hex: '#c8e6cd', name: 'Mint' },
+                      { key: 'coral', hex: '#f3c9b6', name: 'Coral' }
+                    ].map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => setTheme(item.key)}
+                        title={item.name}
+                        className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-105 active:scale-95 cursor-pointer ${
+                          theme === item.key ? 'border-primary scale-110 shadow-sm' : 'border-transparent'
+                        }`}
+                        style={{ backgroundColor: item.hex }}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-ink/50 leading-normal mt-1.5">
+                    Select the highlight aesthetic for invite emails and calendar templates.
+                  </p>
                 </div>
 
               </div>

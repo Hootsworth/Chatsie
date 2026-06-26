@@ -135,6 +135,7 @@ function parseMeetingDetails(meeting: any) {
   let blockEarlyJoin = false;
   let inviteOnly = false;
   let invitedEmails: string[] = [];
+  let theme = 'lime';
 
   if (meeting.passcode && meeting.passcode.startsWith('{')) {
     try {
@@ -143,6 +144,7 @@ function parseMeetingDetails(meeting: any) {
       blockEarlyJoin = !!parsed.blockEarlyJoin;
       inviteOnly = !!parsed.inviteOnly;
       invitedEmails = parsed.invitedEmails || [];
+      theme = parsed.theme || 'lime';
     } catch (e) {
       console.error('Error parsing meeting metadata json from passcode column:', e);
     }
@@ -153,7 +155,8 @@ function parseMeetingDetails(meeting: any) {
     passcode,
     blockEarlyJoin,
     inviteOnly,
-    invitedEmails
+    invitedEmails,
+    theme
   };
 }
 
@@ -170,6 +173,58 @@ async function sendScheduledMeetingEmails(hostId: string, meeting: any, invitedE
     const hostName = hostUser.fullName || hostUser.username || `${hostUser.firstName || ''} ${hostUser.lastName || ''}`.trim() || 'A Chatsie Host';
 
     const joinLink = `https://chatsie.singulr.tech/room/${meeting.code}`;
+
+    // Calendar & ICS invite generation
+    const startDate = meeting.scheduled_start ? new Date(meeting.scheduled_start) : new Date();
+    const duration = meeting.duration ? parseInt(meeting.duration, 10) : 30;
+    const endDate = new Date(startDate.getTime() + duration * 60 * 1000);
+
+    const formatIcsDate = (date: Date) => {
+      return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    };
+
+    // Stable event UID based on meeting room code
+    const eventUid = `meeting-${meeting.code}@chatsie.singulr.tech`;
+
+    const icsLines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Chatsie//Meeting Schedule//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'BEGIN:VEVENT',
+      `UID:${eventUid}`,
+      `DTSTAMP:${formatIcsDate(new Date())}`,
+      `DTSTART:${formatIcsDate(startDate)}`,
+      `DTEND:${formatIcsDate(endDate)}`,
+      `SUMMARY:${meeting.title || 'Chatsie Sync'}`,
+      `DESCRIPTION:Join Chatsie Meeting at: ${joinLink}${rawPasscode ? `\\nPasscode: ${rawPasscode}` : ''}`,
+      `LOCATION:${joinLink}`,
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ];
+
+    const icsString = icsLines.join('\r\n');
+    const icsBase64 = Buffer.from(icsString).toString('base64');
+    const icsFilename = `${(meeting.title || 'chatsie-sync').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.ics`;
+
+    // Map theme colors
+    const themeBgColors: Record<string, string> = {
+      lime: '#dceeb1',
+      lilac: '#c5b0f4',
+      cream: '#f4ecd6',
+      pink: '#efd4d4',
+      mint: '#c8e6cd',
+      coral: '#f3c9b6'
+    };
+    const themeBgColor = themeBgColors[meeting.theme] || '#dceeb1';
+
+    // Calendar URLs
+    const googleUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(meeting.title || 'Chatsie Sync')}&dates=${formatIcsDate(startDate)}/${formatIcsDate(endDate)}&details=${encodeURIComponent(`Join Chatsie Meeting:\n${joinLink}${rawPasscode ? `\nPasscode: ${rawPasscode}` : ''}`)}&location=${encodeURIComponent(joinLink)}`;
+
+    const outlookLiveUrl = `https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${encodeURIComponent(meeting.title || 'Chatsie Sync')}&startdt=${startDate.toISOString()}&enddt=${endDate.toISOString()}&body=${encodeURIComponent(`Join Chatsie Meeting:\n${joinLink}${rawPasscode ? `\nPasscode: ${rawPasscode}` : ''}`)}&location=${encodeURIComponent(joinLink)}`;
+    
+    const outlookOfficeUrl = `https://outlook.office.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${encodeURIComponent(meeting.title || 'Chatsie Sync')}&startdt=${startDate.toISOString()}&enddt=${endDate.toISOString()}&body=${encodeURIComponent(`Join Chatsie Meeting:\n${joinLink}${rawPasscode ? `\nPasscode: ${rawPasscode}` : ''}`)}&location=${encodeURIComponent(joinLink)}`;
 
     // Format Scheduled Time
     let timeRow = '';
@@ -259,14 +314,14 @@ async function sendScheduledMeetingEmails(hostId: string, meeting: any, invitedE
       letter-spacing: 0.06em;
       text-transform: uppercase;
       color: #000000;
-      background-color: #dceeb1;
+      background-color: ${themeBgColor};
       padding: 3px 8px;
       border-radius: 2px;
     }
 
-    /* Color block — lime */
+    /* Color block */
     .color-block {
-      background-color: #dceeb1;
+      background-color: ${themeBgColor};
       padding: 40px 32px 36px;
     }
 
@@ -451,6 +506,25 @@ async function sendScheduledMeetingEmails(hostId: string, meeting: any, invitedE
           </table>
         </div>
 
+        <!-- Add to Calendar Section -->
+        <div style="margin-bottom: 28px; text-align: center;">
+          <div style="font-family: 'Courier New', Courier, monospace; font-size: 10px; font-weight: 400; letter-spacing: 0.06em; text-transform: uppercase; color: #000000; opacity: 0.5; margin-bottom: 10px; text-align: center;">Save to Calendar</div>
+          <table cellpadding="0" cellspacing="0" role="presentation" style="margin: 0 auto 12px auto;">
+            <tr>
+              <td style="padding: 0 4px;">
+                <a href="${googleUrl}" target="_blank" style="display: inline-block; font-size: 12px; font-weight: 700; color: #000000; background-color: #ffffff; border: 1px solid #e6e6e6; text-decoration: none; padding: 8px 16px; border-radius: 9999px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Google</a>
+              </td>
+              <td style="padding: 0 4px;">
+                <a href="${outlookLiveUrl}" target="_blank" style="display: inline-block; font-size: 12px; font-weight: 700; color: #000000; background-color: #ffffff; border: 1px solid #e6e6e6; text-decoration: none; padding: 8px 16px; border-radius: 9999px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Outlook Live</a>
+              </td>
+              <td style="padding: 0 4px;">
+                <a href="${outlookOfficeUrl}" target="_blank" style="display: inline-block; font-size: 12px; font-weight: 700; color: #000000; background-color: #ffffff; border: 1px solid #e6e6e6; text-decoration: none; padding: 8px 16px; border-radius: 9999px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Office 365</a>
+              </td>
+            </tr>
+          </table>
+          <div style="font-size: 11px; color: #6a6a6a; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; opacity: 0.7;">An <code>.ics</code> invite is attached for Apple Calendar / Outlook App.</div>
+        </div>
+
         <div class="cta-wrap">
           <a href="${joinLink}" class="btn-primary" target="_blank">Join meeting</a>
         </div>
@@ -493,7 +567,13 @@ async function sendScheduledMeetingEmails(hostId: string, meeting: any, invitedE
               }
             ],
             subject: `Invitation: ${meeting.title} by ${hostName}`,
-            htmlContent: htmlContent
+            htmlContent: htmlContent,
+            attachment: [
+              {
+                name: icsFilename,
+                content: icsBase64
+              }
+            ]
           })
         });
 
@@ -509,6 +589,364 @@ async function sendScheduledMeetingEmails(hostId: string, meeting: any, invitedE
     }
   } catch (err) {
     console.error('Error in sendScheduledMeetingEmails helper:', err);
+  }
+}
+
+async function sendCancelledMeetingEmails(hostId: string, meeting: any, invitedEmails: string[]) {
+  try {
+    const brevoApiKey = process.env.BREVO_API_KEY;
+    if (!brevoApiKey) {
+      console.error('Brevo API key is not configured on the server');
+      return;
+    }
+
+    // Fetch the host's details from Clerk
+    const hostUser = await clerkClient.users.getUser(hostId);
+    const hostName = hostUser.fullName || hostUser.username || `${hostUser.firstName || ''} ${hostUser.lastName || ''}`.trim() || 'A Chatsie Host';
+
+    const joinLink = `https://chatsie.singulr.tech/room/${meeting.code}`;
+
+    // Calendar & ICS cancel generation
+    const startDate = meeting.scheduled_start ? new Date(meeting.scheduled_start) : new Date();
+    const duration = meeting.duration ? parseInt(meeting.duration, 10) : 30;
+    const endDate = new Date(startDate.getTime() + duration * 60 * 1000);
+
+    const formatIcsDate = (date: Date) => {
+      return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    };
+
+    // Stable event UID based on meeting room code
+    const eventUid = `meeting-${meeting.code}@chatsie.singulr.tech`;
+
+    const icsLines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Chatsie//Meeting Schedule//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:CANCEL',
+      'BEGIN:VEVENT',
+      `UID:${eventUid}`,
+      `DTSTAMP:${formatIcsDate(new Date())}`,
+      `DTSTART:${formatIcsDate(startDate)}`,
+      `DTEND:${formatIcsDate(endDate)}`,
+      `SUMMARY:CANCELLED: ${meeting.title || 'Chatsie Sync'}`,
+      `DESCRIPTION:The scheduled meeting "${meeting.title}" has been cancelled.`,
+      `LOCATION:${joinLink}`,
+      'SEQUENCE:1',
+      'STATUS:CANCELLED',
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ];
+
+    const icsString = icsLines.join('\r\n');
+    const icsBase64 = Buffer.from(icsString).toString('base64');
+    const icsFilename = `cancelled-${(meeting.title || 'chatsie-sync').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.ics`;
+
+    // Map theme background (using dynamic or cancellation alert theme)
+    const themeBgColors: Record<string, string> = {
+      lime: '#dceeb1',
+      lilac: '#c5b0f4',
+      cream: '#f4ecd6',
+      pink: '#efd4d4',
+      mint: '#c8e6cd',
+      coral: '#f3c9b6'
+    };
+    const themeBgColor = themeBgColors[meeting.theme] || '#efd4d4'; // default to pink on cancel alert
+
+    // Format Scheduled Time
+    let timeRow = '';
+    if (meeting.scheduled_start) {
+      const formattedTime = new Date(meeting.scheduled_start).toLocaleString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZoneName: 'short'
+      });
+      timeRow = `
+        <tr>
+          <td style="padding-bottom: 14px;">
+            <span class="detail-label">Original Scheduled Time</span>
+            <span class="detail-value">${formattedTime}</span>
+          </td>
+        </tr>
+      `;
+    }
+
+    // Craft cancellation HTML email
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meeting Cancelled</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: #f7f7f5;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #000000;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .wrapper {
+      padding: 48px 20px;
+    }
+
+    .container {
+      max-width: 520px;
+      margin: 0 auto;
+      background-color: #ffffff;
+    }
+
+    .header-table {
+      width: 100%;
+      border-bottom: 1px solid #e6e6e6;
+    }
+
+    .header-table td {
+      padding: 20px 32px;
+      vertical-align: middle;
+    }
+
+    .wordmark {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: #000000;
+    }
+
+    .eyebrow-tag {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 10px;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #000000;
+      background-color: ${themeBgColor};
+      padding: 3px 8px;
+      border-radius: 2px;
+    }
+
+    .color-block {
+      background-color: ${themeBgColor};
+      padding: 40px 32px 36px;
+    }
+
+    .eyebrow {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #000000;
+      margin-bottom: 14px;
+    }
+
+    .headline {
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.25;
+      letter-spacing: -0.03em;
+      color: #000000;
+      margin-bottom: 12px;
+    }
+
+    .subtext {
+      font-size: 15px;
+      font-weight: 400;
+      line-height: 1.5;
+      color: #000000;
+    }
+
+    .subtext strong {
+      font-weight: 700;
+    }
+
+    .body-section {
+      padding: 32px 32px 28px;
+      background-color: #ffffff;
+    }
+
+    .meeting-card {
+      border: 1px solid #e6e6e6;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 28px;
+    }
+
+    .detail-table {
+      width: 100%;
+    }
+
+    .detail-table td {
+      vertical-align: top;
+      padding-bottom: 14px;
+    }
+
+    .detail-table tr:last-child td {
+      padding-bottom: 0;
+    }
+
+    .detail-label {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 10px;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #000000;
+      opacity: 0.5;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .detail-value {
+      font-size: 15px;
+      font-weight: 700;
+      color: #000000;
+      letter-spacing: -0.01em;
+      display: block;
+    }
+
+    .detail-value.code {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 14px;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      background-color: #f7f7f5;
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 4px;
+    }
+
+    .divider {
+      height: 1px;
+      background-color: #e6e6e6;
+      margin: 0 32px;
+      font-size: 0;
+      line-height: 0;
+    }
+
+    .footer {
+      padding: 20px 32px;
+      background-color: #ffffff;
+    }
+
+    .footer-text {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      color: #000000;
+      opacity: 0.45;
+      line-height: 1.7;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="container">
+
+      <table class="header-table" cellpadding="0" cellspacing="0" role="presentation">
+        <tr>
+          <td style="text-align: left;">
+            <div class="wordmark">Chatsie</div>
+          </td>
+          <td style="text-align: right;">
+            <span class="eyebrow-tag">Cancellation</span>
+          </td>
+        </tr>
+      </table>
+
+      <div class="color-block">
+        <div class="eyebrow">Meeting Cancelled</div>
+        <div class="headline">Sync Cancelled.</div>
+        <div class="subtext"><strong>${hostName}</strong> has cancelled the following scheduled meeting.</div>
+      </div>
+
+      <div class="body-section">
+        <div class="meeting-card">
+          <table class="detail-table" cellpadding="0" cellspacing="0" role="presentation">
+            <tr>
+              <td style="padding-bottom: 14px;">
+                <span class="detail-label">Meeting Room</span>
+                <span class="detail-value">${meeting.title}</span>
+              </td>
+            </tr>
+            ${timeRow}
+            <tr>
+              <td style="padding-bottom: 14px;">
+                <span class="detail-label">Code</span>
+                <span class="detail-value code">${meeting.code}</span>
+              </td>
+            </tr>
+          </table>
+        </div>
+        <div style="font-size: 12px; color: #ea4335; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align: center; font-weight: bold;">
+          This event has been cancelled and will be removed from your calendar client automatically.
+        </div>
+      </div>
+
+      <div class="divider">&nbsp;</div>
+
+      <div class="footer">
+        <div class="footer-text">
+          Sent via Chatsie Meetings.
+        </div>
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    // Send emails in parallel
+    for (const email of invitedEmails) {
+      try {
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'api-key': brevoApiKey,
+            'content-type': 'application/json',
+            'accept': 'application/json'
+          },
+          body: JSON.stringify({
+            sender: {
+              name: 'Chatsie Meetings',
+              email: 'info@singulr.tech'
+            },
+            to: [
+              {
+                email: email
+              }
+            ],
+            subject: `Cancelled: ${meeting.title} by ${hostName}`,
+            htmlContent: htmlContent,
+            attachment: [
+              {
+                name: icsFilename,
+                content: icsBase64
+              }
+            ]
+          })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Failed to send cancellation email to ${email}:`, errorText);
+        } else {
+          console.log(`Cancellation email successfully sent to ${email}`);
+        }
+      } catch (err) {
+        console.error(`Error sending cancellation email to ${email}:`, err);
+      }
+    }
+  } catch (err) {
+    console.error('Error in sendCancelledMeetingEmails helper:', err);
   }
 }
 
@@ -546,7 +984,7 @@ app.get('/api/meetings', requireAuth(), async (req, res) => {
 app.post('/api/meetings', requireAuth(), async (req, res) => {
   try {
     const userId = getAuth(req).userId;
-    const { title, passcode, isWaitingRoomEnabled, scheduledStart, duration, code: customCode, blockEarlyJoin, inviteOnly, invitedEmails } = req.body;
+    const { title, passcode, isWaitingRoomEnabled, scheduledStart, duration, code: customCode, blockEarlyJoin, inviteOnly, invitedEmails, theme } = req.body;
 
     if (!title) {
       return res.status(400).json({ error: 'Title is required' });
@@ -577,12 +1015,13 @@ app.post('/api/meetings', requireAuth(), async (req, res) => {
     }
 
     let passcodePayload: string | null = passcode || null;
-    if (passcode || blockEarlyJoin || inviteOnly || (invitedEmails && invitedEmails.length > 0)) {
+    if (passcode || blockEarlyJoin || inviteOnly || (invitedEmails && invitedEmails.length > 0) || theme) {
       passcodePayload = JSON.stringify({
         passcode: passcode || null,
         blockEarlyJoin: !!blockEarlyJoin,
         inviteOnly: !!inviteOnly,
-        invitedEmails: invitedEmails || []
+        invitedEmails: invitedEmails || [],
+        theme: theme || 'lime'
       });
     }
 
@@ -612,6 +1051,54 @@ app.post('/api/meetings', requireAuth(), async (req, res) => {
     }
 
     res.status(201).json({ meeting: parsedMeeting });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Internal Server Error', details: error.message });
+  }
+});
+
+// DELETE: Cancel/Delete a Meeting
+app.delete('/api/meetings/:code', requireAuth(), async (req, res) => {
+  try {
+    const userId = getAuth(req).userId;
+    const { code } = req.params;
+
+    // Fetch meeting details before deleting
+    const { data: meeting, error: fetchError } = await supabase
+      .from('meetings')
+      .select('*')
+      .eq('code', code)
+      .maybeSingle();
+
+    if (fetchError) {
+      return res.status(500).json({ error: 'Database error', details: fetchError.message });
+    }
+
+    if (!meeting) {
+      return res.status(404).json({ error: 'Meeting not found' });
+    }
+
+    if (meeting.host_id !== userId) {
+      return res.status(403).json({ error: 'Only the meeting host can cancel this meeting' });
+    }
+
+    const parsedMeeting = parseMeetingDetails(meeting);
+
+    // Perform deletion
+    const { error: deleteError } = await supabase
+      .from('meetings')
+      .delete()
+      .eq('code', code);
+
+    if (deleteError) {
+      return res.status(500).json({ error: 'Failed to delete meeting', details: deleteError.message });
+    }
+
+    // Send cancellation emails in the background if there were invited emails
+    if (parsedMeeting.invitedEmails && parsedMeeting.invitedEmails.length > 0) {
+      sendCancelledMeetingEmails(userId, parsedMeeting, parsedMeeting.invitedEmails);
+    }
+
+    res.json({ message: 'Meeting successfully cancelled' });
   } catch (error: any) {
     res.status(500).json({ error: 'Internal Server Error', details: error.message });
   }

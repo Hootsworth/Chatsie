@@ -364,7 +364,7 @@ export const Dashboard: React.FC = () => {
                 <div className="space-y-4">
                   {isLoadingMeetings ? <p className="text-body-sm">Loading...</p> : 
                    upcomingMeetings.length === 0 ? <p className="text-body-sm">No upcoming meetings.</p> :
-                   upcomingMeetings.slice(0, 1).map((mtg) => (
+                   upcomingMeetings.slice(0, 5).map((mtg) => (
                      <div key={mtg.id} className="bg-canvas rounded-lg p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
                        <div>
                          <h3 className="text-card-title">{mtg.title}</h3>
@@ -392,6 +392,36 @@ export const Dashboard: React.FC = () => {
                          >
                            Outlook (.ics)
                          </Button>
+                         <Button 
+                            onClick={async () => {
+                              if (window.confirm(`Are you sure you want to cancel the meeting "${mtg.title}"? This will notify all invited participants via email.`)) {
+                                try {
+                                  const headers = {
+                                    'Content-Type': 'application/json',
+                                    ...(await getAuthHeader())
+                                  };
+                                  const apiUrl = import.meta.env.VITE_API_URL;
+                                  const res = await fetch(`${apiUrl}/api/meetings/${mtg.code}`, {
+                                    method: 'DELETE',
+                                    headers
+                                  });
+                                  if (res.ok) {
+                                    await fetchMeetings();
+                                  } else {
+                                    const errorData = await res.json();
+                                    alert(errorData.error || 'Failed to cancel meeting');
+                                  }
+                                } catch (err) {
+                                  console.error(err);
+                                  alert('Error cancelling meeting');
+                                }
+                              }
+                            }}
+                            variant="tertiary-text"
+                            className="text-xs py-1 px-2 text-red-600 hover:text-red-800"
+                          >
+                            Cancel
+                          </Button>
                          <Button onClick={() => navigate(`/room/${mtg.code}`)} variant="primary">Join</Button>
                        </div>
                      </div>
