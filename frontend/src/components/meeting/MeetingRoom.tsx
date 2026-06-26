@@ -706,26 +706,20 @@ export const MeetingRoom: React.FC = () => {
   if (!isLobbyPassed) {
     return (
       <div className="min-h-screen flex flex-col justify-center items-center bg-canvas text-ink p-4 md:p-8 z-10 relative overflow-hidden">
-        {/* Colorful Wavy/Curly Background Lines */}
+        {/* Colorful Wavy/Curly Background Lines (Continuous) */}
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-          {/* Orange Wave */}
-          <svg className="absolute -top-12 -left-12 w-96 h-96 opacity-[0.14] text-[#fa7b17]" viewBox="0 0 100 100" fill="none">
-            <path d="M-10,30 C30,10 20,80 110,60" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-          
-          {/* Pink Loop */}
-          <svg className="absolute -bottom-16 -right-16 w-[450px] h-[450px] opacity-[0.14] text-[#ff3d8b]" viewBox="0 0 100 100" fill="none">
-            <path d="M10,80 C40,20 60,90 90,30" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-          </svg>
+          <svg className="absolute inset-0 w-full h-full opacity-[0.13]" viewBox="0 0 1440 900" preserveAspectRatio="none">
+            {/* Curve 1: Orange Wave */}
+            <path d="M -100 150 C 400 30, 800 380, 1540 200" stroke="#fa7b17" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+            
+            {/* Curve 2: Pink Loop */}
+            <path d="M 300 -100 C 600 500, 900 150, 1200 1000" stroke="#ff3d8b" strokeWidth="2.0" strokeLinecap="round" fill="none" />
 
-          {/* Cyan Sweep */}
-          <svg className="absolute top-1/4 -right-12 w-80 h-80 opacity-[0.14] text-[#00e5ff]" viewBox="0 0 100 100" fill="none">
-            <path d="M0,20 C40,40 10,70 100,50" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-          </svg>
+            {/* Curve 3: Cyan Sweep */}
+            <path d="M -100 700 C 450 480, 950 880, 1540 600" stroke="#00e5ff" strokeWidth="2.8" strokeLinecap="round" fill="none" />
 
-          {/* Yellow Curve */}
-          <svg className="absolute bottom-1/4 -left-12 w-72 h-72 opacity-[0.14] text-[#ffc700]" viewBox="0 0 100 100" fill="none">
-            <path d="M10,10 Q60,50 90,90" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            {/* Curve 4: Yellow Curve */}
+            <path d="M 1000 -100 C 1120 450, 1320 280, 1540 1000" stroke="#ffc700" strokeWidth="2.0" strokeLinecap="round" fill="none" />
           </svg>
         </div>
 

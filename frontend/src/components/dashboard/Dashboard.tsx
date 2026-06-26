@@ -190,7 +190,24 @@ export const Dashboard: React.FC = () => {
   const greeting = new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening';
 
   return (
-    <div className="min-h-screen bg-canvas text-ink flex flex-col">
+    <div className="min-h-screen bg-canvas text-ink flex flex-col relative overflow-hidden">
+      {/* Decorative Wavy/Curly Background Lines (Continuous) */}
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        <svg className="absolute inset-0 w-full h-full opacity-[0.11]" viewBox="0 0 1440 900" preserveAspectRatio="none">
+          {/* Curve 1: Orange Wave */}
+          <path d="M -100 150 C 400 30, 800 380, 1540 200" stroke="#fa7b17" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+          
+          {/* Curve 2: Pink Loop */}
+          <path d="M 300 -100 C 600 500, 900 150, 1200 1000" stroke="#ff3d8b" strokeWidth="2.0" strokeLinecap="round" fill="none" />
+
+          {/* Curve 3: Cyan Sweep */}
+          <path d="M -100 700 C 450 480, 950 880, 1540 600" stroke="#00e5ff" strokeWidth="2.8" strokeLinecap="round" fill="none" />
+
+          {/* Curve 4: Yellow Curve */}
+          <path d="M 1000 -100 C 1120 450, 1320 280, 1540 1000" stroke="#ffc700" strokeWidth="2.0" strokeLinecap="round" fill="none" />
+        </svg>
+      </div>
+
       {/* NAVBAR */}
       <header className="h-[56px] px-6 flex items-center justify-between border-b border-hairline sticky top-0 bg-canvas z-40">
         <div className="flex items-center space-x-3">
@@ -203,7 +220,7 @@ export const Dashboard: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-[1280px] mx-auto px-6 py-24 space-y-[96px]">
+      <main className="flex-1 w-full max-w-[1280px] mx-auto px-6 py-24 space-y-[96px] relative z-10">
         {/* HERO (Monochrome) */}
         <section className="text-center">
           <h1 className="text-display-xl tracking-tight leading-none mb-6">
