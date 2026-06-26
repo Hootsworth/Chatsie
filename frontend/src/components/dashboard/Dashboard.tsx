@@ -37,6 +37,20 @@ export const Dashboard: React.FC = () => {
   const [meetingDuration, setMeetingDuration] = useState('30');
   const [meetingPasscode, setMeetingPasscode] = useState('');
   const [isWaitingRoomEnabled, setIsWaitingRoomEnabled] = useState(false);
+  const [guestEmails, setGuestEmails] = useState('');
+  const [blockEarlyJoin, setBlockEarlyJoin] = useState(false);
+  const [inviteOnly, setInviteOnly] = useState(false);
+  const [activeTab, setActiveTab] = useState<'meetings' | 'chats'>('meetings');
+  const [chatThreads, setChatThreads] = useState<any[]>([]);
+  const [activeThreadCode, setActiveThreadCode] = useState<string | null>(null);
+  const [activeThreadMessages, setActiveThreadMessages] = useState<any[]>([]);
+  const [isLoadingChats, setIsLoadingChats] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [newChatRecipient, setNewChatRecipient] = useState('');
+  const [newChatMessage, setNewChatMessage] = useState('');
+  const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
+  const [activeChatInput, setActiveChatInput] = useState('');
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
   const [createMeetingError, setCreateMeetingError] = useState<string | null>(null);
   const [instantMeetingError, setInstantMeetingError] = useState<string | null>(null);
@@ -132,6 +146,11 @@ export const Dashboard: React.FC = () => {
       }
       if (!apiUrl) throw new Error("API URL not configured.");
       const headers = await getAuthHeader();
+      const invitedEmailsList = guestEmails
+        .split(',')
+        .map(email => email.trim())
+        .filter(email => email.length > 0 && email.includes('@'));
+
       const response = await fetch(`${apiUrl}/api/meetings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...headers },
@@ -140,7 +159,10 @@ export const Dashboard: React.FC = () => {
           passcode: meetingPasscode || null,
           isWaitingRoomEnabled,
           scheduledStart: scheduledStartISO,
-          duration: meetingDuration ? parseInt(meetingDuration, 10) : null
+          duration: meetingDuration ? parseInt(meetingDuration, 10) : null,
+          blockEarlyJoin,
+          inviteOnly,
+          invitedEmails: invitedEmailsList
         })
       });
       if (!response.ok) throw new Error('Failed to schedule meeting');
@@ -159,6 +181,9 @@ export const Dashboard: React.FC = () => {
     setScheduledDate('');
     setScheduledTime('');
     setMeetingPasscode('');
+    setGuestEmails('');
+    setBlockEarlyJoin(false);
+    setInviteOnly(false);
     setScheduledMeetingResult(null);
     setIsScheduleModalOpen(false);
   };
@@ -168,6 +193,9 @@ export const Dashboard: React.FC = () => {
     setScheduledDate('');
     setScheduledTime('');
     setMeetingPasscode('');
+    setGuestEmails('');
+    setBlockEarlyJoin(false);
+    setInviteOnly(false);
     setScheduledMeetingResult(null);
     setIsScheduleModalOpen(false);
   };
@@ -186,6 +214,131 @@ export const Dashboard: React.FC = () => {
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
   };
+
+  const fetchChatThreads = async () => {
+    setIsLoadingChats(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      if (!apiUrl) return;
+      const headers = await getAuthHeader();
+      const res = await fetch(`${apiUrl}/api/chats`, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setChatThreads(data.threads || []);
+      }
+    } catch (err) {
+      console.error('Error fetching chat threads:', err);
+    } finally {
+      setIsLoadingChats(false);
+    }
+  };
+
+  const fetchThreadMessages = async (threadCode: string) => {
+    setIsLoadingMessages(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      if (!apiUrl) return;
+      const headers = await getAuthHeader();
+      const res = await fetch(`${apiUrl}/api/chats/${threadCode}`, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setActiveThreadMessages(data.messages || []);
+      }
+    } catch (err) {
+      console.error('Error fetching thread messages:', err);
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  };
+
+  const handleSendChatMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeChatInput.trim() || !activeThreadCode || isSendingMessage) return;
+    setIsSendingMessage(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      if (!apiUrl) return;
+      const headers = await getAuthHeader();
+      
+      const thread = chatThreads.find(t => t.code === activeThreadCode);
+      if (!thread) return;
+
+      const response = await fetch(`${apiUrl}/api/chats/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({
+          recipientEmail: thread.otherParticipantEmail,
+          message: activeChatInput
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setActiveThreadMessages(prev => [...prev, {
+          id: data.message.id,
+          senderId: user?.id,
+          senderName: user?.fullName || 'Me',
+          message: activeChatInput,
+          created_at: new Date().toISOString()
+        }]);
+        setActiveChatInput('');
+      }
+    } catch (err) {
+      console.error('Error sending message:', err);
+    } finally {
+      setIsSendingMessage(false);
+    }
+  };
+
+  const handleStartNewChat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newChatRecipient.trim() || !newChatMessage.trim() || isSendingMessage) return;
+    setIsSendingMessage(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      if (!apiUrl) return;
+      const headers = await getAuthHeader();
+      
+      const response = await fetch(`${apiUrl}/api/chats/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({
+          recipientEmail: newChatRecipient,
+          message: newChatMessage
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setNewChatRecipient('');
+        setNewChatMessage('');
+        setIsNewChatModalOpen(false);
+        await fetchChatThreads();
+        setActiveThreadCode(data.threadCode);
+        await fetchThreadMessages(data.threadCode);
+      }
+    } catch (err) {
+      console.error('Error starting new chat:', err);
+    } finally {
+      setIsSendingMessage(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'chats') {
+      fetchChatThreads();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== 'chats' || !activeThreadCode) return;
+    
+    const interval = setInterval(() => {
+      fetchThreadMessages(activeThreadCode);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [activeTab, activeThreadCode]);
 
   const greeting = new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening';
 
@@ -221,126 +374,292 @@ export const Dashboard: React.FC = () => {
       </header>
 
       <main className="flex-1 w-full max-w-[1280px] mx-auto px-6 py-24 space-y-[96px] relative z-10">
-        {/* HERO (Monochrome) */}
-        <section className="text-center">
-          <h1 className="text-display-xl tracking-tight leading-none mb-6">
-            {greeting},<br /> {user?.firstName}.
-          </h1>
-          <p className="text-subhead max-w-2xl mx-auto">
-            Welcome to the new standard for video collaboration. Clean, fast, and entirely focused on your team's flow.
-          </p>
-          {instantMeetingError && (
-            <div className="mt-4 text-red-600 bg-red-50 p-4 rounded-md inline-block">{instantMeetingError}</div>
-          )}
-        </section>
-
-        {/* LIME BLOCK: START & JOIN */}
-        <section className="bg-block-lime rounded-lg p-[48px] flex flex-col md:flex-row gap-[48px]">
-          <div className="flex-1">
-            <h2 className="text-headline mb-4">Start an instant call</h2>
-            <p className="text-body-default mb-8 max-w-sm">Launch a new room in one click. Share the link with anyone to join immediately.</p>
-            <div className="flex items-center gap-4">
-              <Button onClick={handleStartInstantMeeting} variant="primary">New Meeting</Button>
-              <Button onClick={() => setIsScheduleModalOpen(true)} variant="secondary">Schedule</Button>
-            </div>
+        <div className="flex justify-center mb-8">
+          <div className="bg-canvas border border-hairline p-1 rounded-full flex space-x-1 shadow-sm backdrop-blur-md">
+            <button
+              onClick={() => setActiveTab('meetings')}
+              className={`px-6 py-2 rounded-full text-body-sm font-bold transition-all duration-200 ${
+                activeTab === 'meetings'
+                  ? 'bg-ink text-canvas shadow-sm'
+                  : 'text-ink/65 hover:text-ink hover:bg-ink/5'
+              }`}
+            >
+              Meetings
+            </button>
+            <button
+              onClick={() => setActiveTab('chats')}
+              className={`px-6 py-2 rounded-full text-body-sm font-bold transition-all duration-200 ${
+                activeTab === 'chats'
+                  ? 'bg-ink text-canvas shadow-sm'
+                  : 'text-ink/65 hover:text-ink hover:bg-ink/5'
+              }`}
+            >
+              Chats
+            </button>
           </div>
-          
-          <div className="w-px bg-ink/10 hidden md:block" />
+        </div>
 
-          <div className="flex-1 flex flex-col justify-center">
-            <h2 className="text-headline mb-4">Join by Code</h2>
-            <form onSubmit={handleJoinByCode} className="flex gap-4">
-              <Input
-                placeholder="abc-defg-hij"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value)}
-                className="max-w-xs"
-              />
-              <Button type="submit" variant="primary" disabled={!joinCode}>Join</Button>
-            </form>
-          </div>
-        </section>
+        {activeTab === 'meetings' ? (
+          <>
+            {/* HERO (Monochrome) */}
+            <section className="text-center">
+              <h1 className="text-display-xl tracking-tight leading-none mb-6">
+                {greeting},<br /> {user?.firstName}.
+              </h1>
+              <p className="text-subhead max-w-2xl mx-auto">
+                Welcome to the new standard for video collaboration. Clean, fast, and entirely focused on your team's flow.
+              </p>
+              {instantMeetingError && (
+                <div className="mt-4 text-red-600 bg-red-50 p-4 rounded-md inline-block">{instantMeetingError}</div>
+              )}
+            </section>
 
-        {/* LILAC BLOCK: YOUR MEETINGS */}
-        <section className="bg-block-lilac rounded-lg p-[48px] flex flex-col md:flex-row gap-[48px]">
-          {/* Upcoming */}
-          <div className="flex-1">
-            <h2 className="text-headline mb-6">Upcoming Syncs</h2>
-            <div className="space-y-4">
-              {isLoadingMeetings ? <p className="text-body-sm">Loading...</p> : 
-               upcomingMeetings.length === 0 ? <p className="text-body-sm">No upcoming meetings.</p> :
-               upcomingMeetings.slice(0, 1).map((mtg) => (
-                 <div key={mtg.id} className="bg-canvas rounded-lg p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
-                   <div>
-                     <h3 className="text-card-title">{mtg.title}</h3>
-                     <p className="text-body-sm text-ink/70">
-                       {mtg.scheduled_start ? new Date(mtg.scheduled_start).toLocaleString('en-US', {
-                         month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                       }) : 'Instant Link'}
-                     </p>
-                   </div>
-                   <div className="flex items-center gap-2">
-                     <Button 
-                       onClick={() => {
-                         const url = generateGoogleCalendarUrl(mtg.title, mtg.scheduled_start, mtg.duration, mtg.code);
-                         window.open(url, '_blank');
-                       }} 
-                       variant="tertiary-text"
-                       className="text-xs py-1 px-2"
-                     >
-                       Google Cal
-                     </Button>
-                     <Button 
-                       onClick={() => downloadIcsFile(mtg.title, mtg.scheduled_start, mtg.duration, mtg.code)} 
-                       variant="tertiary-text"
-                       className="text-xs py-1 px-2"
-                     >
-                       Outlook (.ics)
-                     </Button>
-                     <Button onClick={() => navigate(`/room/${mtg.code}`)} variant="primary">Join</Button>
-                   </div>
-                 </div>
-               ))
-              }
-            </div>
-          </div>
-
-          <div className="w-px bg-ink/10 hidden md:block" />
-
-          {/* Personal Room & History */}
-          <div className="flex-1 space-y-[48px]">
-            <div>
-              <h2 className="text-headline mb-4">Your Personal Room</h2>
-              <div className="bg-canvas rounded-lg p-6 shadow-sm">
-                <p className="text-eyebrow mb-2">Room Link</p>
-                <div className="flex items-center gap-2 mb-6">
-                  <span className="text-body-sm font-mono truncate">{window.location.host}/room/personal-{user?.id?.slice(0, 8)}…</span>
-                  <Button variant="tertiary-text" onClick={handleCopyPersonalLink}>
-                    {isCopied ? 'Copied!' : 'Copy'}
-                  </Button>
+            {/* LIME BLOCK: START & JOIN */}
+            <section className="bg-block-lime rounded-lg p-[48px] flex flex-col md:flex-row gap-[48px]">
+              <div className="flex-1">
+                <h2 className="text-headline mb-4">Start an instant call</h2>
+                <p className="text-body-default mb-8 max-w-sm">Launch a new room in one click. Share the link with anyone to join immediately.</p>
+                <div className="flex items-center gap-4">
+                  <Button onClick={handleStartInstantMeeting} variant="primary">New Meeting</Button>
+                  <Button onClick={() => setIsScheduleModalOpen(true)} variant="secondary">Schedule</Button>
                 </div>
-                <Button onClick={() => navigate(`/room/personal-${user?.id}`)} variant="secondary" className="w-full">
-                  Launch Room
+              </div>
+              
+              <div className="w-px bg-ink/10 hidden md:block" />
+
+              <div className="flex-1 flex flex-col justify-center">
+                <h2 className="text-headline mb-4">Join by Code</h2>
+                <form onSubmit={handleJoinByCode} className="flex gap-4">
+                  <Input
+                    placeholder="abc-defg-hij"
+                    value={joinCode}
+                    onChange={(e) => setJoinCode(e.target.value)}
+                    className="max-w-xs"
+                  />
+                  <Button type="submit" variant="primary" disabled={!joinCode}>Join</Button>
+                </form>
+              </div>
+            </section>
+
+            {/* LILAC BLOCK: YOUR MEETINGS */}
+            <section className="bg-block-lilac rounded-lg p-[48px] flex flex-col md:flex-row gap-[48px]">
+              {/* Upcoming */}
+              <div className="flex-1">
+                <h2 className="text-headline mb-6">Upcoming Syncs</h2>
+                <div className="space-y-4">
+                  {isLoadingMeetings ? <p className="text-body-sm">Loading...</p> : 
+                   upcomingMeetings.length === 0 ? <p className="text-body-sm">No upcoming meetings.</p> :
+                   upcomingMeetings.slice(0, 1).map((mtg) => (
+                     <div key={mtg.id} className="bg-canvas rounded-lg p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+                       <div>
+                         <h3 className="text-card-title">{mtg.title}</h3>
+                         <p className="text-body-sm text-ink/70">
+                           {mtg.scheduled_start ? new Date(mtg.scheduled_start).toLocaleString('en-US', {
+                             month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                           }) : 'Instant Link'}
+                         </p>
+                       </div>
+                       <div className="flex items-center gap-2">
+                         <Button 
+                           onClick={() => {
+                             const url = generateGoogleCalendarUrl(mtg.title, mtg.scheduled_start, mtg.duration, mtg.code);
+                             window.open(url, '_blank');
+                           }} 
+                           variant="tertiary-text"
+                           className="text-xs py-1 px-2"
+                         >
+                           Google Cal
+                         </Button>
+                         <Button 
+                           onClick={() => downloadIcsFile(mtg.title, mtg.scheduled_start, mtg.duration, mtg.code)} 
+                           variant="tertiary-text"
+                           className="text-xs py-1 px-2"
+                         >
+                           Outlook (.ics)
+                         </Button>
+                         <Button onClick={() => navigate(`/room/${mtg.code}`)} variant="primary">Join</Button>
+                       </div>
+                     </div>
+                   ))
+                  }
+                </div>
+              </div>
+
+              <div className="w-px bg-ink/10 hidden md:block" />
+
+              {/* Personal Room & History */}
+              <div className="flex-1 space-y-[48px]">
+                <div>
+                  <h2 className="text-headline mb-4">Your Personal Room</h2>
+                  <div className="bg-canvas rounded-lg p-6 shadow-sm">
+                    <p className="text-eyebrow mb-2">Room Link</p>
+                    <div className="flex items-center gap-2 mb-6">
+                      <span className="text-body-sm font-mono truncate">{window.location.host}/room/personal-{user?.id?.slice(0, 8)}…</span>
+                      <Button variant="tertiary-text" onClick={handleCopyPersonalLink}>
+                        {isCopied ? 'Copied!' : 'Copy'}
+                      </Button>
+                    </div>
+                    <Button onClick={() => navigate(`/room/personal-${user?.id}`)} variant="secondary" className="w-full">
+                      Launch Room
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <h2 className="text-headline mb-4">History</h2>
+                  <div className="space-y-2">
+                    {isLoadingMeetings ? <p className="text-body-sm">Loading...</p> :
+                     pastMeetings.length === 0 ? <p className="text-body-sm">No past meetings.</p> :
+                     pastMeetings.slice(0, 3).map((mtg) => (
+                       <div key={mtg.id} className="flex justify-between items-center py-2 border-b border-hairline last:border-0">
+                         <span className="text-body-sm font-bold truncate pr-4">{mtg.title}</span>
+                         <Badge color="brand">Ended</Badge>
+                       </div>
+                     ))
+                    }
+                  </div>
+                </div>
+              </div>
+            </section>
+          </>
+        ) : (
+          /* CHATS TAB */
+          <section className="bg-canvas border border-hairline rounded-xl shadow-lg overflow-hidden flex flex-col md:flex-row h-[600px] backdrop-blur-md relative z-10">
+            {/* Thread list sidebar */}
+            <div className="w-full md:w-[320px] border-r border-hairline flex flex-col bg-[#fafaf9]">
+              <div className="p-4 border-b border-hairline flex justify-between items-center bg-canvas">
+                <h2 className="text-body-sm font-bold text-ink">Conversations</h2>
+                <Button onClick={() => setIsNewChatModalOpen(true)} variant="primary" className="!py-1 px-3 text-xs">
+                  + New Chat
                 </Button>
               </div>
-            </div>
-
-            <div>
-              <h2 className="text-headline mb-4">History</h2>
-              <div className="space-y-2">
-                {isLoadingMeetings ? <p className="text-body-sm">Loading...</p> :
-                 pastMeetings.length === 0 ? <p className="text-body-sm">No past meetings.</p> :
-                 pastMeetings.slice(0, 3).map((mtg) => (
-                   <div key={mtg.id} className="flex justify-between items-center py-2 border-b border-hairline last:border-0">
-                     <span className="text-body-sm font-bold truncate pr-4">{mtg.title}</span>
-                     <Badge color="brand">Ended</Badge>
-                   </div>
-                 ))
-                }
+              <div className="flex-1 overflow-y-auto divide-y divide-hairline">
+                {isLoadingChats && chatThreads.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-muted-soft">Loading conversations...</div>
+                ) : chatThreads.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-muted-soft">No active conversations. Click "+ New Chat" to notify someone via Gmail.</div>
+                ) : (
+                  chatThreads.map((thread) => {
+                    const isSelected = activeThreadCode === thread.code;
+                    const initial = thread.otherParticipantName.charAt(0).toUpperCase() || '@';
+                    return (
+                      <button
+                        key={thread.code}
+                        onClick={() => {
+                          setActiveThreadCode(thread.code);
+                          fetchThreadMessages(thread.code);
+                        }}
+                        className={`w-full text-left p-4 flex items-center gap-3 transition-colors duration-150 ${
+                          isSelected ? 'bg-ink/5' : 'hover:bg-ink/[0.02]'
+                        }`}
+                      >
+                        <div className="w-8 h-8 rounded-full bg-ink/10 flex items-center justify-center text-ink font-bold text-xs">
+                          {initial}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-baseline mb-0.5">
+                            <span className="text-body-xs font-bold text-ink truncate pr-2">
+                              {thread.otherParticipantName}
+                            </span>
+                            <span className="text-[10px] text-muted-soft">
+                              {new Date(thread.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted truncate">
+                            {thread.otherParticipantEmail}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
               </div>
             </div>
-          </div>
-        </section>
+
+            {/* Conversation canvas */}
+            <div className="flex-1 flex flex-col bg-canvas">
+              {activeThreadCode ? (
+                <>
+                  {/* Active thread header */}
+                  {(() => {
+                    const activeThread = chatThreads.find(t => t.code === activeThreadCode);
+                    if (!activeThread) return null;
+                    return (
+                      <div className="p-4 border-b border-hairline flex items-center justify-between bg-canvas">
+                        <div>
+                          <h3 className="text-body-sm font-bold text-ink">
+                            {activeThread.otherParticipantName}
+                          </h3>
+                          <p className="text-[11px] text-muted">
+                            {activeThread.otherParticipantEmail} (Gmail delivery active)
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Message logs */}
+                  <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-[#fafaf9]/30">
+                    {isLoadingMessages && activeThreadMessages.length === 0 ? (
+                      <div className="text-center text-xs text-muted-soft py-4">Loading messages...</div>
+                    ) : activeThreadMessages.length === 0 ? (
+                      <div className="text-center text-xs text-muted-soft py-4">No messages yet. Send a message to start the conversation.</div>
+                    ) : (
+                      activeThreadMessages.map((msg) => {
+                        const isMe = msg.senderId === user?.id;
+                        return (
+                        <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                          <div
+                            className={`max-w-[70%] rounded-2xl px-4 py-2.5 text-body-sm shadow-sm ${
+                              isMe
+                                ? 'bg-ink text-canvas rounded-br-none'
+                                : 'bg-[#e2e1df] text-ink rounded-bl-none'
+                            }`}
+                          >
+                            {!isMe && (
+                              <div className="text-[10px] font-bold opacity-60 mb-0.5">
+                                {msg.senderName}
+                              </div>
+                            )}
+                            <p className="whitespace-pre-wrap leading-relaxed">{msg.message}</p>
+                            <span className="block text-[9px] text-right mt-1 opacity-50">
+                              {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                  </div>
+
+                  {/* Chat input */}
+                  <form onSubmit={handleSendChatMessage} className="p-4 border-t border-hairline bg-canvas flex gap-3">
+                    <Input
+                      placeholder="Type your message (delivers to Gmail instant reply)..."
+                      value={activeChatInput}
+                      onChange={(e) => setActiveChatInput(e.target.value)}
+                      className="flex-1 bg-[#fafaf9]"
+                      disabled={isSendingMessage}
+                    />
+                    <Button type="submit" variant="primary" disabled={!activeChatInput.trim() || isSendingMessage}>
+                      Send
+                    </Button>
+                  </form>
+                </>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-muted-soft">
+                  <div className="w-16 h-16 rounded-full bg-[#f4ebd0] flex items-center justify-center mb-4">
+                    <span className="text-2xl">💬</span>
+                  </div>
+                  <h3 className="text-body-sm font-bold text-ink mb-1">Gmail-Integrated Messaging</h3>
+                  <p className="text-body-xs max-w-sm">
+                    Enter any email address to initiate a conversation. The recipient will be notified in Gmail immediately with instructions to reply.
+                  </p>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
       </main>
 
       {/* FOOTER */}
@@ -482,9 +801,21 @@ export const Dashboard: React.FC = () => {
               <Input label="Duration (min)" type="number" value={meetingDuration} onChange={(e) => setMeetingDuration(e.target.value)} />
               <Input label="Passcode (Optional)" value={meetingPasscode} onChange={(e) => setMeetingPasscode(e.target.value)} />
             </div>
-            <div className="flex items-center gap-3 py-2">
-              <input type="checkbox" checked={isWaitingRoomEnabled} onChange={(e) => setIsWaitingRoomEnabled(e.target.checked)} className="w-4 h-4 accent-primary" />
-              <label className="text-body-sm font-bold">Enable Waiting Room</label>
+            <Input label="Invited Guest Emails (Optional, comma-separated)" placeholder="e.g. alice@example.com, bob@example.com" value={guestEmails} onChange={(e) => setGuestEmails(e.target.value)} />
+            
+            <div className="flex flex-col gap-2 py-2">
+              <div className="flex items-center gap-3">
+                <input type="checkbox" checked={isWaitingRoomEnabled} onChange={(e) => setIsWaitingRoomEnabled(e.target.checked)} className="w-4 h-4 accent-primary" />
+                <label className="text-body-sm font-bold">Enable Waiting Room</label>
+              </div>
+              <div className="flex items-center gap-3">
+                <input type="checkbox" checked={blockEarlyJoin} onChange={(e) => setBlockEarlyJoin(e.target.checked)} className="w-4 h-4 accent-primary" />
+                <label className="text-body-sm font-bold">Prevent Early Join (route to waiting room before scheduled time)</label>
+              </div>
+              <div className="flex items-center gap-3">
+                <input type="checkbox" checked={inviteOnly} onChange={(e) => setInviteOnly(e.target.checked)} className="w-4 h-4 accent-primary" />
+                <label className="text-body-sm font-bold">Lock scheduled meeting to invited participants only</label>
+              </div>
             </div>
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="secondary" type="button" onClick={handleCloseScheduleModal}>Cancel</Button>
@@ -587,6 +918,38 @@ export const Dashboard: React.FC = () => {
             <Button onClick={() => setIsJobsModalOpen(false)} variant="primary">Close</Button>
           </div>
         </div>
+      </Modal>
+
+      {/* NEW CHAT MODAL */}
+      <Modal isOpen={isNewChatModalOpen} onClose={() => setIsNewChatModalOpen(false)} title="Start New Conversation">
+        <form onSubmit={handleStartNewChat} className="space-y-4 py-2">
+          <Input
+            label="Recipient Gmail / Email Address"
+            type="email"
+            placeholder="recipient@example.com"
+            value={newChatRecipient}
+            onChange={(e) => setNewChatRecipient(e.target.value)}
+            required
+          />
+          <div className="flex flex-col space-y-1.5">
+            <label className="text-xs font-bold text-ink">Initial Message</label>
+            <textarea
+              placeholder="Type your initial message..."
+              value={newChatMessage}
+              onChange={(e) => setNewChatMessage(e.target.value)}
+              required
+              className="w-full min-h-[100px] p-3 rounded-lg border border-hairline bg-canvas text-body-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-4 border-t border-hairline">
+            <Button variant="secondary" type="button" onClick={() => setIsNewChatModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" isLoading={isSendingMessage} disabled={!newChatRecipient.trim() || !newChatMessage.trim()}>
+              Send Message
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );

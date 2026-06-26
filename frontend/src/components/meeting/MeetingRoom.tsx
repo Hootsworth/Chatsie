@@ -74,6 +74,7 @@ export const MeetingRoom: React.FC = () => {
 
   const [isLoadingMeeting, setIsLoadingMeeting] = useState(true);
   const [meetingError, setMeetingError] = useState<string | null>(null);
+  const [denialReason, setDenialReason] = useState<string | null>(null);
 
   const [guestUsername, setGuestUsername] = useState(() => {
     return sessionStorage.getItem(`guest_username_${code}`) || '';
@@ -582,8 +583,27 @@ export const MeetingRoom: React.FC = () => {
           setPasscodeGatePassed(true);
         }
 
+        // Enforce lock-to-invited-only
+        if (activeMeeting.inviteOnly && !isUserHost) {
+          const userEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase();
+          const invitedEmails = activeMeeting.invitedEmails || [];
+          const isInvited = userEmail && invitedEmails.some((email: string) => email.trim().toLowerCase() === userEmail);
+          if (!isInvited) {
+            setDenialReason('This meeting is locked to invited participants only. Please sign in with an invited email address to join.');
+            setWaitingStatus('denied');
+            setIsLoadingMeeting(false);
+            return;
+          }
+        }
+
+        // Check if early join is prevented and participant is early
+        const now = Date.now();
+        const scheduledStart = activeMeeting.scheduled_start ? new Date(activeMeeting.scheduled_start).getTime() : null;
+        const isEarly = scheduledStart && now < scheduledStart;
+        const isEarlyBlocked = activeMeeting.blockEarlyJoin && isEarly;
+
         // Check if waiting room is needed
-        if ((activeMeeting.is_waiting_room_enabled || activeMeeting.is_locked) && !isUserHost) {
+        if ((activeMeeting.is_waiting_room_enabled || activeMeeting.is_locked || isEarlyBlocked) && !isUserHost) {
           const wasWaitingStatusApproved = sessionStorage.getItem(`waiting_status_approved_${code}`) === 'true';
           setWaitingStatus(wasWaitingStatusApproved ? 'approved' : 'waiting');
         } else {
@@ -612,6 +632,27 @@ export const MeetingRoom: React.FC = () => {
 
     loadMeeting();
   }, [code, user]);
+
+  // Check early join restriction periodically while in waiting room
+  React.useEffect(() => {
+    if (waitingStatus !== 'waiting' || !currentMeeting || !currentMeeting.blockEarlyJoin) return;
+
+    const scheduledStart = currentMeeting.scheduled_start ? new Date(currentMeeting.scheduled_start).getTime() : null;
+    if (!scheduledStart) return;
+
+    const checkInterval = setInterval(() => {
+      const now = Date.now();
+      if (now >= scheduledStart) {
+        clearInterval(checkInterval);
+        // If standard waiting room is NOT enabled, let them enter directly
+        if (!currentMeeting.is_waiting_room_enabled && !currentMeeting.is_locked) {
+          setWaitingStatus('none');
+        }
+      }
+    }, 2000);
+
+    return () => clearInterval(checkInterval);
+  }, [waitingStatus, currentMeeting, setWaitingStatus]);
 
   // Handle Leave Meeting
   const handleLeaveMeeting = async () => {
@@ -842,7 +883,9 @@ export const MeetingRoom: React.FC = () => {
         <div className="max-w-md space-y-4">
           <div className="text-red-500 text-3xl">🚫</div>
           <h2 className="text-lg font-black text-white">Entry Denied</h2>
-          <p className="text-sm text-white/80">The meeting host did not approve your entry request.</p>
+          <p className="text-sm text-white/80">
+            {denialReason || 'The meeting host did not approve your entry request.'}
+          </p>
           <button
             onClick={() => navigate('/')}
             className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold shadow-md hover:bg-primary-active"

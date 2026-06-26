@@ -12,7 +12,11 @@ export interface Meeting {
   scheduled_start: string | null;
   duration: number | null;
   created_at: string;
+  blockEarlyJoin?: boolean;
+  inviteOnly?: boolean;
+  invitedEmails?: string[];
 }
+
 
 export interface Participant {
   socketId: string;
