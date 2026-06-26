@@ -4,8 +4,10 @@ import { ClerkProvider, SignedIn, SignedOut, SignIn, SignUp } from '@clerk/clerk
 import { Dashboard } from './components/dashboard/Dashboard';
 import { MeetingRoom } from './components/meeting/MeetingRoom';
 import { FutureFeatures } from './components/dashboard/FutureFeatures';
+import { SchedulePage } from './components/dashboard/SchedulePage';
 import { Card, Button } from './components/ui';
 import { AlertTriangle, Home } from 'lucide-react';
+
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -91,6 +93,21 @@ const ClerkWithRoutes = () => {
             <>
               <SignedIn>
                 <Dashboard />
+              </SignedIn>
+              <SignedOut>
+                <Navigate to="/signin" replace />
+              </SignedOut>
+            </>
+          }
+        />
+
+        {/* Protected Schedule Page */}
+        <Route
+          path="/schedule"
+          element={
+            <>
+              <SignedIn>
+                <SchedulePage />
               </SignedIn>
               <SignedOut>
                 <Navigate to="/signin" replace />

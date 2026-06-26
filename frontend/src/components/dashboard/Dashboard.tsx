@@ -27,19 +27,7 @@ export const Dashboard: React.FC = () => {
 
   // Form states
   const [joinCode, setJoinCode] = useState('');
-  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-
-  // Create meeting form state
-  const [meetingTitle, setMeetingTitle] = useState('');
-  const [scheduledDate, setScheduledDate] = useState('');
-  const [scheduledTime, setScheduledTime] = useState('');
-  const [meetingDuration, setMeetingDuration] = useState('30');
-  const [meetingPasscode, setMeetingPasscode] = useState('');
-  const [isWaitingRoomEnabled, setIsWaitingRoomEnabled] = useState(false);
-  const [guestEmails, setGuestEmails] = useState('');
-  const [blockEarlyJoin, setBlockEarlyJoin] = useState(false);
-  const [inviteOnly, setInviteOnly] = useState(false);
   const [activeTab, setActiveTab] = useState<'meetings' | 'chats'>('meetings');
   const [chatThreads, setChatThreads] = useState<any[]>([]);
   const [activeThreadCode, setActiveThreadCode] = useState<string | null>(null);
@@ -51,11 +39,7 @@ export const Dashboard: React.FC = () => {
   const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
   const [activeChatInput, setActiveChatInput] = useState('');
   const [isSendingMessage, setIsSendingMessage] = useState(false);
-  const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
-  const [createMeetingError, setCreateMeetingError] = useState<string | null>(null);
   const [instantMeetingError, setInstantMeetingError] = useState<string | null>(null);
-  const [scheduledMeetingResult, setScheduledMeetingResult] = useState<ScheduledMeeting | null>(null);
-  const [isResultCopied, setIsResultCopied] = useState(false);
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
   const [isJobsModalOpen, setIsJobsModalOpen] = useState(false);
@@ -129,76 +113,7 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const handleScheduleMeeting = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCreateMeetingError(null);
-    setIsCreatingMeeting(true);
-    if (!meetingTitle) {
-      setCreateMeetingError('Meeting title is required.');
-      setIsCreatingMeeting(false);
-      return;
-    }
-    try {
-      const apiUrl = import.meta.env.VITE_API_URL;
-      let scheduledStartISO = null;
-      if (scheduledDate && scheduledTime) {
-        scheduledStartISO = new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
-      }
-      if (!apiUrl) throw new Error("API URL not configured.");
-      const headers = await getAuthHeader();
-      const invitedEmailsList = guestEmails
-        .split(',')
-        .map(email => email.trim())
-        .filter(email => email.length > 0 && email.includes('@'));
 
-      const response = await fetch(`${apiUrl}/api/meetings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...headers },
-        body: JSON.stringify({
-          title: meetingTitle,
-          passcode: meetingPasscode || null,
-          isWaitingRoomEnabled,
-          scheduledStart: scheduledStartISO,
-          duration: meetingDuration ? parseInt(meetingDuration, 10) : null,
-          blockEarlyJoin,
-          inviteOnly,
-          invitedEmails: invitedEmailsList
-        })
-      });
-      if (!response.ok) throw new Error('Failed to schedule meeting');
-      const data = await response.json();
-      setScheduledMeetingResult(data.meeting);
-      fetchMeetings();
-    } catch (err: any) {
-      setCreateMeetingError(err.message || 'An error occurred.');
-    } finally {
-      setIsCreatingMeeting(false);
-    }
-  };
-
-  const handleCloseScheduleSuccess = () => {
-    setMeetingTitle('');
-    setScheduledDate('');
-    setScheduledTime('');
-    setMeetingPasscode('');
-    setGuestEmails('');
-    setBlockEarlyJoin(false);
-    setInviteOnly(false);
-    setScheduledMeetingResult(null);
-    setIsScheduleModalOpen(false);
-  };
-
-  const handleCloseScheduleModal = () => {
-    setMeetingTitle('');
-    setScheduledDate('');
-    setScheduledTime('');
-    setMeetingPasscode('');
-    setGuestEmails('');
-    setBlockEarlyJoin(false);
-    setInviteOnly(false);
-    setScheduledMeetingResult(null);
-    setIsScheduleModalOpen(false);
-  };
 
   const handleJoinByCode = (e: React.FormEvent) => {
     e.preventDefault();
@@ -421,7 +336,7 @@ export const Dashboard: React.FC = () => {
                 <p className="text-body-default mb-8 max-w-sm">Launch a new room in one click. Share the link with anyone to join immediately.</p>
                 <div className="flex items-center gap-4">
                   <Button onClick={handleStartInstantMeeting} variant="primary">New Meeting</Button>
-                  <Button onClick={() => setIsScheduleModalOpen(true)} variant="secondary">Schedule</Button>
+                  <Button onClick={() => navigate('/schedule')} variant="secondary">Schedule</Button>
                 </div>
               </div>
               
@@ -717,113 +632,7 @@ export const Dashboard: React.FC = () => {
         </div>
       </footer>
 
-      {/* SCHEDULE MODAL */}
-      <Modal 
-        isOpen={isScheduleModalOpen} 
-        onClose={handleCloseScheduleModal} 
-        title={scheduledMeetingResult ? "Meeting Scheduled Successfully!" : "Schedule Upcoming Meeting"}
-      >
-        {scheduledMeetingResult ? (
-          <div className="space-y-6 py-2">
-            <div className="p-4 bg-block-lime/10 border border-block-lime/30 rounded-lg text-ink space-y-3">
-              <h3 className="text-body-strong font-bold">{scheduledMeetingResult.title}</h3>
-              <p className="text-body-sm text-ink/75">
-                {scheduledMeetingResult.scheduled_start ? new Date(scheduledMeetingResult.scheduled_start).toLocaleString('en-US', {
-                  weekday: 'long', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                }) : 'Anytime'}
-              </p>
-              <div className="flex items-center justify-between bg-canvas border border-hairline rounded p-2 text-body-xs font-mono">
-                <span className="truncate">{window.location.origin}/room/{scheduledMeetingResult.code}</span>
-                <Button 
-                  variant="tertiary-text"
-                  onClick={() => {
-                    navigator.clipboard.writeText(`${window.location.origin}/room/${scheduledMeetingResult.code}`);
-                    setIsResultCopied(true);
-                    setTimeout(() => setIsResultCopied(false), 2000);
-                  }}
-                  className="py-1 px-2 text-xs"
-                >
-                  {isResultCopied ? 'Copied!' : 'Copy Link'}
-                </Button>
-              </div>
-            </div>
 
-            <div className="space-y-3">
-              <p className="text-eyebrow text-ink/60">Add to your calendar</p>
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  onClick={() => {
-                    const url = generateGoogleCalendarUrl(
-                      scheduledMeetingResult.title,
-                      scheduledMeetingResult.scheduled_start,
-                      scheduledMeetingResult.duration,
-                      scheduledMeetingResult.code
-                    );
-                    window.open(url, '_blank');
-                  }}
-                  variant="secondary"
-                  className="w-full text-center"
-                >
-                  Google Calendar
-                </Button>
-                <Button
-                  onClick={() => {
-                    downloadIcsFile(
-                      scheduledMeetingResult.title,
-                      scheduledMeetingResult.scheduled_start,
-                      scheduledMeetingResult.duration,
-                      scheduledMeetingResult.code
-                    );
-                  }}
-                  variant="secondary"
-                  className="w-full text-center"
-                >
-                  Outlook / Apple (.ics)
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-4 border-t border-hairline">
-              <Button onClick={handleCloseScheduleSuccess} variant="primary">
-                Done
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <form onSubmit={handleScheduleMeeting} className="space-y-4">
-            {createMeetingError && <div className="text-red-500 text-body-sm">{createMeetingError}</div>}
-            <Input label="Meeting Title" value={meetingTitle} onChange={(e) => setMeetingTitle(e.target.value)} />
-            <div className="flex gap-4">
-              <Input label="Date" type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} />
-              <Input label="Time" type="time" value={scheduledTime} onChange={(e) => setScheduledTime(e.target.value)} />
-            </div>
-            <div className="flex gap-4">
-              <Input label="Duration (min)" type="number" value={meetingDuration} onChange={(e) => setMeetingDuration(e.target.value)} />
-              <Input label="Passcode (Optional)" value={meetingPasscode} onChange={(e) => setMeetingPasscode(e.target.value)} />
-            </div>
-            <Input label="Invited Guest Emails (Optional, comma-separated)" placeholder="e.g. alice@example.com, bob@example.com" value={guestEmails} onChange={(e) => setGuestEmails(e.target.value)} />
-            
-            <div className="flex flex-col gap-2 py-2">
-              <div className="flex items-center gap-3">
-                <input type="checkbox" checked={isWaitingRoomEnabled} onChange={(e) => setIsWaitingRoomEnabled(e.target.checked)} className="w-4 h-4 accent-primary" />
-                <label className="text-body-sm font-bold">Enable Waiting Room</label>
-              </div>
-              <div className="flex items-center gap-3">
-                <input type="checkbox" checked={blockEarlyJoin} onChange={(e) => setBlockEarlyJoin(e.target.checked)} className="w-4 h-4 accent-primary" />
-                <label className="text-body-sm font-bold">Prevent Early Join (route to waiting room before scheduled time)</label>
-              </div>
-              <div className="flex items-center gap-3">
-                <input type="checkbox" checked={inviteOnly} onChange={(e) => setInviteOnly(e.target.checked)} className="w-4 h-4 accent-primary" />
-                <label className="text-body-sm font-bold">Lock scheduled meeting to invited participants only</label>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-4">
-              <Button variant="secondary" type="button" onClick={handleCloseScheduleModal}>Cancel</Button>
-              <Button type="submit" variant="primary" isLoading={isCreatingMeeting}>Schedule</Button>
-            </div>
-          </form>
-        )}
-      </Modal>
 
       {/* PRIVACY POLICY MODAL */}
       <Modal isOpen={isPrivacyModalOpen} onClose={() => setIsPrivacyModalOpen(false)} title="Privacy Policy">
