@@ -41,7 +41,8 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
     toggleParticipantsPanel,
     currentMeeting,
     isLocalHandRaised,
-    setLocalHandRaised
+    setLocalHandRaised,
+    isScreenShareLocked
   } = useMeetingStore();
 
   const { setAudioMute, setVideoMute } = useWebRTCStore();
@@ -84,13 +85,17 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
       sessionStorage.setItem(`meeting_video_muted_${code}`, String(!nextState));
     }
   };
-  const toggleScreenShare = () => localParticipant?.setScreenShareEnabled(!isScreenShareEnabled, {
+  const isShareBlocked = isScreenShareLocked && myRole !== 'host';
+  const toggleScreenShare = () => {
+    if (isShareBlocked) return;
+    localParticipant?.setScreenShareEnabled(!isScreenShareEnabled, {
     audio: {
       echoCancellation: false,
       noiseSuppression: false,
       autoGainControl: false
     }
   });
+  };
 
   const handleRaiseHand = () => {
     const nextState = !isLocalHandRaised;
@@ -137,7 +142,7 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
           {!isCameraEnabled ? <VideoOff className="w-[18px] h-[18px]" /> : <Video className="w-[18px] h-[18px]" />}
         </button>
 
-        <button onClick={toggleScreenShare} className={isScreenShareEnabled ? activePill : defaultPill} title={isScreenShareEnabled ? 'Stop Sharing' : 'Share Screen'}>
+        <button onClick={toggleScreenShare} disabled={isShareBlocked} className={`${isScreenShareEnabled ? activePill : defaultPill} disabled:opacity-40 disabled:cursor-not-allowed`} title={isShareBlocked ? 'Screen sharing is locked by host' : isScreenShareEnabled ? 'Stop Sharing' : 'Share Screen'}>
           {isScreenShareEnabled ? <MonitorOff className="w-[18px] h-[18px]" /> : <Monitor className="w-[18px] h-[18px]" />}
         </button>
 

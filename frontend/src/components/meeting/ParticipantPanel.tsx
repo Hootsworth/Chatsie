@@ -2,7 +2,7 @@ import React from 'react';
 import { useMeetingStore } from '../../stores/meetingStore';
 import { signalingClient } from '../../services/signaling';
 import { useParticipants, useLocalParticipant } from '@livekit/components-react';
-import { MicOff, VideoOff, Trash2, Check, X, ShieldAlert, VolumeX } from 'lucide-react';
+import { Hand, MicOff, VideoOff, Trash2, Check, X, ShieldAlert, VolumeX } from 'lucide-react';
 
 export const ParticipantPanel: React.FC = () => {
   const {
@@ -31,6 +31,33 @@ export const ParticipantPanel: React.FC = () => {
     signalingClient.waitingRoomAction(userId, action);
   };
 
+  const handleAdmitAll = () => {
+    waitingRoomList.forEach((waiter) => {
+      signalingClient.waitingRoomAction(waiter.userId, 'approve');
+    });
+  };
+
+  const handleDenyAll = () => {
+    const confirmation = window.confirm('Deny every participant currently in the waiting room?');
+    if (!confirmation) return;
+    waitingRoomList.forEach((waiter) => {
+      signalingClient.waitingRoomAction(waiter.userId, 'deny');
+    });
+  };
+
+  const handleMuteAll = (type: 'audio' | 'video') => {
+    allParticipants.forEach((p) => {
+      const isMe = p.identity === localParticipant?.identity;
+      if (!isMe) {
+        signalingClient.mutePeer(p.identity, type);
+      }
+    });
+  };
+
+  const handleLowerAllHands = () => {
+    signalingClient.sendLowerAllHands();
+  };
+
   const isHost = myRole === 'host';
 
   return (
@@ -43,6 +70,20 @@ export const ParticipantPanel: React.FC = () => {
             <ShieldAlert className="w-4 h-4 mr-1.5" />
             Waiting Room ({waitingRoomList.length})
           </h3>
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <button
+              onClick={handleAdmitAll}
+              className="py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold transition-colors cursor-pointer"
+            >
+              Admit All
+            </button>
+            <button
+              onClick={handleDenyAll}
+              className="py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-[10px] font-bold transition-colors cursor-pointer"
+            >
+              Deny All
+            </button>
+          </div>
           
           <div className="space-y-2.5">
             {waitingRoomList.map((waiter) => (
@@ -84,6 +125,37 @@ export const ParticipantPanel: React.FC = () => {
           {allParticipants.length}
         </span>
       </div>
+
+      {isHost && (
+        <div className="px-4 py-3 border-b border-white/[0.06] bg-[#202124]">
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              onClick={() => handleMuteAll('audio')}
+              className="flex items-center justify-center gap-1 py-2 rounded-lg bg-[#292b2f] hover:bg-red-500/10 text-[#e8eaed] hover:text-red-400 border border-white/[0.06] text-[10px] font-bold transition-colors cursor-pointer"
+              title="Mute everyone else"
+            >
+              <VolumeX className="w-3.5 h-3.5" />
+              Mute All
+            </button>
+            <button
+              onClick={() => handleMuteAll('video')}
+              className="flex items-center justify-center gap-1 py-2 rounded-lg bg-[#292b2f] hover:bg-red-500/10 text-[#e8eaed] hover:text-red-400 border border-white/[0.06] text-[10px] font-bold transition-colors cursor-pointer"
+              title="Stop everyone else's cameras"
+            >
+              <VideoOff className="w-3.5 h-3.5" />
+              Cameras
+            </button>
+            <button
+              onClick={handleLowerAllHands}
+              className="flex items-center justify-center gap-1 py-2 rounded-lg bg-[#292b2f] hover:bg-amber-500/10 text-[#e8eaed] hover:text-amber-400 border border-white/[0.06] text-[10px] font-bold transition-colors cursor-pointer"
+              title="Clear raised hands"
+            >
+              <Hand className="w-3.5 h-3.5" />
+              Hands
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 3. ACTIVE PARTICIPANTS LIST */}
       <div className="flex-grow p-4 space-y-3.5 bg-[#202124]">

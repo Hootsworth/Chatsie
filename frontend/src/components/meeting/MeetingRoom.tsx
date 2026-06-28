@@ -26,8 +26,11 @@ import { WhiteboardPanel } from './WhiteboardPanel';
 import { BreakoutModal } from './BreakoutModal';
 import { Modal, Button } from '../ui';
 import { DeviceSelector } from './DeviceSelector';
-import { Copy, Check, Users, Keyboard, Mic, MicOff, Video, VideoOff, Camera, User, ExternalLink, Lock, Unlock, Mail, Loader2, Settings, Palette, FileText, PictureInPicture, Circle, MousePointer } from 'lucide-react';
+import { Copy, Check, Users, Keyboard, Mic, MicOff, Video, VideoOff, Camera, User, ExternalLink, Lock, Unlock, Mail, Loader2, Settings, Palette, FileText, PictureInPicture, Circle, MousePointer, MessageSquare, MonitorOff } from 'lucide-react';
 import { useGestureDetector } from '../../hooks/useGestureDetector';
+import { SmartJoinDiagnostics } from './SmartJoinDiagnostics';
+import { IntentToSpeakIndicator } from './IntentToSpeakIndicator';
+import { FollowUpEmailModal } from './FollowUpEmailModal';
 
 export const MeetingRoom: React.FC = () => {
   const { code: rawCode } = useParams<{ code: string }>();
@@ -60,6 +63,8 @@ export const MeetingRoom: React.FC = () => {
     selectedAudioInput,
     selectedVideoInput,
     selectedAudioOutput,
+    audioDevices,
+    videoDevices,
     setAudioMute,
     setVideoMute,
     setDevices,
@@ -846,6 +851,36 @@ export const MeetingRoom: React.FC = () => {
                   </div>
                   <Settings className="w-4 h-4 opacity-75" />
                 </Button>
+
+                <SmartJoinDiagnostics
+                  stream={lobbyStream}
+                  audioDeviceCount={audioDevices.length}
+                  videoDeviceCount={videoDevices.length}
+                  isMutedAudio={isMutedAudio}
+                  isMutedVideo={isMutedVideo}
+                />
+
+                <div className="bg-[#202124] text-white border border-white/10 rounded-lg p-4 space-y-3 overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">Vibe Check</span>
+                    <span className="text-[10px] text-white/50">Privacy blur</span>
+                  </div>
+                  <div className="relative aspect-video rounded-md overflow-hidden bg-[#2a2d32]">
+                    {lobbyStream && !isMutedVideo ? (
+                      <video ref={lobbyVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" style={{ filter: 'blur(18px)', transform: 'scaleX(-1) scale(1.08)' }} />
+                    ) : (
+                      <div className="w-full h-full grid grid-cols-2 gap-1.5 p-3 opacity-75">
+                        <div className="rounded bg-emerald-400/25 animate-pulse" />
+                        <div className="rounded bg-[#fbbc04]/25 animate-pulse" />
+                        <div className="rounded bg-[#8ab4f8]/25 animate-pulse" />
+                        <div className="rounded bg-[#ff3d8b]/25 animate-pulse" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/35 flex items-center justify-center text-center px-4">
+                      <span className="text-[11px] font-bold text-white/85">Private room activity preview</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <Button
@@ -1062,6 +1097,7 @@ const ActiveRoomContent: React.FC<{
     myRole,
     addChatMessage,
     updateParticipantHand,
+    setLocalHandRaised,
     setParticipants,
     addParticipant,
     removeParticipant,
@@ -1079,7 +1115,12 @@ const ActiveRoomContent: React.FC<{
     setQuestionAnswered,
     deleteQuestion,
     isMultiplayerCursorEnabled,
-    setMultiplayerCursorEnabled
+    setMultiplayerCursorEnabled,
+    isChatLocked,
+    isScreenShareLocked,
+    setModerationPolicy,
+    transcripts,
+    chatMessages
   } = useMeetingStore();
 
   const {
@@ -1099,6 +1140,10 @@ const ActiveRoomContent: React.FC<{
   const room = useRoomContext();
 
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
+  const localAudioStream = React.useMemo(() => {
+    const audioTrack = localParticipant?.getTrackPublication('microphone' as any)?.audioTrack?.mediaStreamTrack;
+    return audioTrack ? new MediaStream([audioTrack]) : null;
+  }, [localParticipant, isMicrophoneEnabled]);
   const { getToken } = useAuth();
   const [hasCopiedCode, setHasCopiedCode] = useState(false);
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
@@ -1109,6 +1154,7 @@ const ActiveRoomContent: React.FC<{
   const [breakoutTimeLeft, setBreakoutTimeLeft] = useState<number | null>(null);
   const [isBreakoutModalOpen, setIsBreakoutModalOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
   const [isTabVisible, setIsTabVisible] = useState(true);
 
   // Soundboard states
@@ -1217,7 +1263,8 @@ const ActiveRoomContent: React.FC<{
           useMeetingStore.getState().isSettingsOpen || 
           useMeetingStore.getState().isShortcutsOpen ||
           isBreakoutModalOpen ||
-          isInviteModalOpen
+          isInviteModalOpen ||
+          isFollowUpModalOpen
         ) {
           return;
         }
@@ -1240,7 +1287,7 @@ const ActiveRoomContent: React.FC<{
         clearTimeout(timeoutId);
       }
     };
-  }, [isBreakoutModalOpen, isInviteModalOpen]);
+  }, [isBreakoutModalOpen, isInviteModalOpen, isFollowUpModalOpen]);
 
   const handleToggleRoomLock = async () => {
     try {
@@ -1276,7 +1323,7 @@ const ActiveRoomContent: React.FC<{
       setIsBreakoutActive(true);
       setBreakoutTimeLeft(durationSeconds);
 
-      const myUserId = user?.id;
+      const myUserId = user?.id || localParticipant?.identity;
       const assignedRoom = myUserId ? assignments[myUserId] : null;
 
       if (assignedRoom && assignedRoom !== activeRoomName) {
@@ -1302,7 +1349,7 @@ const ActiveRoomContent: React.FC<{
       signalingClient.off('breakout-started', handleBreakoutStarted);
       signalingClient.off('breakout-ended', handleBreakoutEnded);
     };
-  }, [code, user, activeRoomName, setActiveRoomName, setLiveKitToken]);
+  }, [code, user, localParticipant?.identity, activeRoomName, setActiveRoomName, setLiveKitToken]);
 
   // Handle breakout timer countdown
   useEffect(() => {
@@ -1434,6 +1481,11 @@ const ActiveRoomContent: React.FC<{
       updateParticipantHand(userId, isRaised);
     };
 
+    const handleLowerHandsCommand = () => {
+      setLocalHandRaised(false);
+      signalingClient.raiseHand(false);
+    };
+
     const handleMuteCommand = ({ type }: { type: 'audio' | 'video' }) => {
       if (type === 'audio') {
         localParticipant?.setMicrophoneEnabled(false);
@@ -1517,8 +1569,13 @@ const ActiveRoomContent: React.FC<{
       setMultiplayerCursorEnabled(enabled);
     };
 
+    const handleModerationPolicy = (policy: { isChatLocked?: boolean; isScreenShareLocked?: boolean }) => {
+      setModerationPolicy(policy);
+    };
+
     signalingClient.on('chat-received', handleChatReceived);
     signalingClient.on('hand-raised', handleHandRaised);
+    signalingClient.on('lower-hands-command', handleLowerHandsCommand);
     signalingClient.on('mute-command', handleMuteCommand);
     signalingClient.on('room-participants', handleRoomParticipants);
     signalingClient.on('peer-joined', handlePeerJoined);
@@ -1536,10 +1593,12 @@ const ActiveRoomContent: React.FC<{
     signalingClient.on('question-answered', handleQuestionAnswered);
     signalingClient.on('question-deleted', handleQuestionDeleted);
     signalingClient.on('multiplayer-cursors-toggled', handleMultiplayerCursorsToggled);
+    signalingClient.on('moderation-policy-updated', handleModerationPolicy);
 
     return () => {
       signalingClient.off('chat-received', handleChatReceived);
       signalingClient.off('hand-raised', handleHandRaised);
+      signalingClient.off('lower-hands-command', handleLowerHandsCommand);
       signalingClient.off('mute-command', handleMuteCommand);
       signalingClient.off('room-participants', handleRoomParticipants);
       signalingClient.off('peer-joined', handlePeerJoined);
@@ -1557,12 +1616,14 @@ const ActiveRoomContent: React.FC<{
       signalingClient.off('question-answered', handleQuestionAnswered);
       signalingClient.off('question-deleted', handleQuestionDeleted);
       signalingClient.off('multiplayer-cursors-toggled', handleMultiplayerCursorsToggled);
+      signalingClient.off('moderation-policy-updated', handleModerationPolicy);
     };
   }, [
     localParticipant,
     code,
     addChatMessage,
     updateParticipantHand,
+    setLocalHandRaised,
     setAudioMute,
     setVideoMute,
     setParticipants,
@@ -1582,7 +1643,8 @@ const ActiveRoomContent: React.FC<{
     deleteQuestion,
     setChatToasts,
     user?.id,
-    setMultiplayerCursorEnabled
+    setMultiplayerCursorEnabled,
+    setModerationPolicy
   ]);
 
   // Handle incoming unread chat notification
@@ -1781,6 +1843,7 @@ const ActiveRoomContent: React.FC<{
       
       {/* Floating Emoji Reaction Overlay */}
       <ReactionOverlay reactions={reactionList} />
+      <IntentToSpeakIndicator stream={localAudioStream} enabled={!!isMicrophoneEnabled} />
 
       {/* Breakout rooms notification banner */}
       {isBreakoutActive && breakoutTimeLeft !== null && (
@@ -1846,6 +1909,20 @@ const ActiveRoomContent: React.FC<{
               >
                 <MousePointer className="w-4 h-4" />
               </button>
+              <button
+                onClick={() => signalingClient.sendModerationPolicy({ isChatLocked: !isChatLocked })}
+                className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${isChatLocked ? 'text-[#ea4335]' : 'text-[#9aa0a6] hover:text-[#e8eaed]'}`}
+                title={isChatLocked ? 'Unlock chat' : 'Lock chat'}
+              >
+                <MessageSquare className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => signalingClient.sendModerationPolicy({ isScreenShareLocked: !isScreenShareLocked })}
+                className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${isScreenShareLocked ? 'text-[#ea4335]' : 'text-[#9aa0a6] hover:text-[#e8eaed]'}`}
+                title={isScreenShareLocked ? 'Allow participant sharing' : 'Lock participant sharing'}
+              >
+                <MonitorOff className="w-4 h-4" />
+              </button>
             </>
           )}
 
@@ -1859,6 +1936,10 @@ const ActiveRoomContent: React.FC<{
 
           <button onClick={toggleTranscriptionPanel} className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${isTranscriptionPanelOpen ? 'text-[#8ab4f8]' : 'text-[#9aa0a6] hover:text-[#e8eaed]'}`} title="Transcript">
             <FileText className="w-4 h-4" />
+          </button>
+
+          <button onClick={() => setIsFollowUpModalOpen(true)} className="p-2 rounded-full hover:bg-white/10 text-[#9aa0a6] hover:text-[#e8eaed] transition-colors cursor-pointer" title="Generate follow-up email">
+            <Mail className="w-4 h-4" />
           </button>
 
           {'documentPictureInPicture' in window && (
@@ -2118,6 +2199,22 @@ const ActiveRoomContent: React.FC<{
         title="Invite via Email"
       >
         <InviteModalContent code={code || ''} onClose={() => setIsInviteModalOpen(false)} />
+      </Modal>
+
+      {/* FOLLOW-UP EMAIL MODAL */}
+      <Modal
+        isOpen={isFollowUpModalOpen}
+        onClose={() => setIsFollowUpModalOpen(false)}
+        title="Generate Follow-up Email"
+        size="lg"
+      >
+        <FollowUpEmailModal
+          meetingTitle={currentMeeting?.title || 'Meeting'}
+          meetingCode={code || ''}
+          participants={participants}
+          transcripts={transcripts}
+          chatMessages={chatMessages}
+        />
       </Modal>
     </div>
   );

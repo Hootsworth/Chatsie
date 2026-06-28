@@ -73,6 +73,20 @@ export const ReactionOverlay: React.FC<ReactionOverlayProps> = ({ reactions }) =
             />
           );
         }
+        if (reaction.emoji === 'intent' || reaction.emoji === 'nod') {
+          return (
+            <div
+              key={reaction.id}
+              className="absolute animate-reaction-float select-none bg-emerald-500 text-white rounded-full px-3 py-1.5 text-xs font-black uppercase tracking-wider shadow-xl border border-white/20"
+              style={{
+                left: `${reaction.x}%`,
+                bottom: '80px',
+              }}
+            >
+              {reaction.emoji === 'intent' ? 'Intent to speak' : 'Nod detected'}
+            </div>
+          );
+        }
         return (
           <span
             key={reaction.id}

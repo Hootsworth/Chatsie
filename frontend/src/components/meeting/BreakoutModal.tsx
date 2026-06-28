@@ -15,6 +15,7 @@ export const BreakoutModal: React.FC<BreakoutModalProps> = ({ onClose, isBreakou
   const [roomCount, setRoomCount] = useState(2);
   const [durationMinutes, setDurationMinutes] = useState(5);
   const [assignments, setAssignments] = useState<Record<string, string>>({}); // { userId: roomCode }
+  const [broadcastMessage, setBroadcastMessage] = useState('');
   
   const handleAssignRandomly = () => {
     if (participants.length === 0) return;
@@ -51,6 +52,13 @@ export const BreakoutModal: React.FC<BreakoutModalProps> = ({ onClose, isBreakou
     onClose();
   };
 
+  const handleBroadcast = () => {
+    const message = broadcastMessage.trim();
+    if (!message) return;
+    signalingClient.sendChat(`[Breakout broadcast] ${message}`);
+    setBroadcastMessage('');
+  };
+
   return (
     <div className="space-y-5 py-2">
       {isBreakoutActive ? (
@@ -61,6 +69,19 @@ export const BreakoutModal: React.FC<BreakoutModalProps> = ({ onClose, isBreakou
           <div className="space-y-1">
             <h3 className="text-sm font-bold text-ink">Breakout Rooms are Active</h3>
             <p className="text-xs text-muted">Participants are currently distributed in their sub-rooms.</p>
+          </div>
+          <div className="bg-surface-card border border-hairline rounded-lg p-3 space-y-2 text-left">
+            <label className="text-xs font-semibold text-muted uppercase tracking-wider">Broadcast to everyone</label>
+            <textarea
+              value={broadcastMessage}
+              onChange={(e) => setBroadcastMessage(e.target.value)}
+              rows={3}
+              placeholder="Wrap up in two minutes..."
+              className="w-full px-3 py-2 text-sm rounded-lg bg-canvas border border-hairline text-ink focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+            />
+            <Button onClick={handleBroadcast} disabled={!broadcastMessage.trim()} variant="secondary" className="w-full">
+              Send Broadcast
+            </Button>
           </div>
           <Button onClick={onEndBreakout} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5">
             End Breakout Rooms
@@ -142,6 +163,33 @@ export const BreakoutModal: React.FC<BreakoutModalProps> = ({ onClose, isBreakou
                 );
               })}
             </div>
+
+            {participants.length > 0 && (
+              <div className="pt-2 space-y-2">
+                <span className="text-xs font-semibold text-muted uppercase tracking-wider">Manual Assignment</span>
+                <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
+                  {participants.map((participant, idx) => (
+                    <div key={participant.userId} className="flex items-center justify-between gap-3 p-2 bg-surface-card border border-hairline rounded-lg">
+                      <span className="text-xs font-bold text-ink truncate">{participant.username}</span>
+                      <select
+                        value={assignments[participant.userId] || `${currentMeeting?.code}-breakout-${(idx % roomCount) + 1}`}
+                        onChange={(e) => setAssignments(prev => ({ ...prev, [participant.userId]: e.target.value }))}
+                        className="px-2 py-1 text-xs rounded-md bg-canvas border border-hairline text-ink focus:outline-none focus:ring-2 focus:ring-primary"
+                      >
+                        {Array.from({ length: roomCount }).map((_, roomIdx) => {
+                          const roomCode = `${currentMeeting?.code}-breakout-${roomIdx + 1}`;
+                          return (
+                            <option key={roomCode} value={roomCode}>
+                              Room {roomIdx + 1}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Action buttons */}

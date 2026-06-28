@@ -12,7 +12,7 @@ interface ChatPanelProps {
 }
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, userId, username }) => {
-  const { chatMessages, polls, questions, myRole } = useMeetingStore();
+  const { chatMessages, polls, questions, myRole, isChatLocked } = useMeetingStore();
   const [activeTab, setActiveTab] = useState<'chat' | 'polls' | 'qa'>('chat');
   const { getToken } = useAuth();
   
@@ -29,6 +29,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, userId, username }
   const [questionText, setQuestionText] = useState('');
 
   const isHost = myRole === 'host';
+  const isChatInputLocked = isChatLocked && !isHost;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -42,6 +43,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, userId, username }
 
   const handleSendChat = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isChatInputLocked) return;
     const messageText = text.trim();
     if (!messageText) return;
 
@@ -217,10 +219,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, userId, username }
 
             {/* Quick Emojis */}
             <div className="px-4 py-1.5 border-t border-white/[0.06] flex items-center gap-1 bg-[#292b2f]">
+              {isChatInputLocked && (
+                <span className="text-[10px] text-[#fbbc04] font-bold mr-1">Chat locked by host</span>
+              )}
               {quickEmojis.map(emoji => (
                 <button
                   key={emoji}
+                  disabled={isChatInputLocked}
                   onClick={async () => {
+                    if (isChatInputLocked) return;
                     try {
                       const backendUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || 'http://localhost:5001';
                       let token = null;
@@ -236,7 +243,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, userId, username }
                       signalingClient.sendChatWithDetails(roomId, username, emoji, userId); }
                     else { signalingClient.sendChat(emoji); }
                   }}
-                  className="hover:scale-110 transition-transform p-1.5 text-sm rounded-full hover:bg-white/10 cursor-pointer"
+                  className="hover:scale-110 transition-transform p-1.5 text-sm rounded-full hover:bg-white/10 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {emoji}
                 </button>
@@ -248,12 +255,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, userId, username }
               <input
                 placeholder="Send a message..."
                 value={text}
+                disabled={isChatInputLocked}
                 onChange={(e) => setText(e.target.value)}
-                className="flex-1 bg-[#3c4043] text-[#e8eaed] placeholder-[#9aa0a6] rounded-full px-4 py-2.5 text-[13px] border-none outline-none focus:ring-1 focus:ring-[#8ab4f8]/50"
+                className="flex-1 bg-[#3c4043] text-[#e8eaed] placeholder-[#9aa0a6] rounded-full px-4 py-2.5 text-[13px] border-none outline-none focus:ring-1 focus:ring-[#8ab4f8]/50 disabled:opacity-60"
               />
               <button 
                 type="submit" 
-                disabled={!text.trim()} 
+                disabled={!text.trim() || isChatInputLocked} 
                 className="w-9 h-9 rounded-full bg-[#8ab4f8] hover:bg-[#aecbfa] disabled:bg-[#3c4043] disabled:text-[#5f6368] text-[#202124] flex items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed"
               >
                 <Send className="w-4 h-4" />

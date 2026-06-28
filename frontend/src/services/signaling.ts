@@ -25,6 +25,7 @@ export interface SignalingEventMap {
     timestamp: number;
   }) => void;
   'hand-raised': (data: { userId: string; isRaised: boolean }) => void;
+  'lower-hands-command': () => void;
   'peer-muted-status': (data: { userId: string; type: 'audio' | 'video'; isMuted: boolean }) => void;
   'mute-command': (data: { type: 'audio' | 'video' }) => void;
   'kicked-command': () => void;
@@ -38,6 +39,7 @@ export interface SignalingEventMap {
   'breakout-started': (data: { assignments: Record<string, string>; durationSeconds: number }) => void;
   'breakout-ended': () => void;
   'room-lock-toggled': (data: { isLocked: boolean }) => void;
+  'moderation-policy-updated': (data: { isChatLocked?: boolean; isScreenShareLocked?: boolean }) => void;
   'waiting-doodle-draw': (data: { x1: number; y1: number; x2: number; y2: number; color: string; thickness: number }) => void;
   'waiting-doodle-clear': () => void;
   'soundboard-play': (data: { userId: string; soundId: string }) => void;
@@ -63,6 +65,7 @@ export interface ISignalingClient {
   sendSignal(targetUserId: string, signal: any): void;
   sendChat(text: string): void;
   raiseHand(isRaised: boolean): void;
+  sendLowerAllHands(): void;
   mutePeer(targetUserId: string, type: 'audio' | 'video'): void;
   toggleMediaStatus(type: 'audio' | 'video', isMuted: boolean): void;
   kickPeer(targetUserId: string): void;
@@ -77,6 +80,7 @@ export interface ISignalingClient {
   sendStartBreakout(assignments: Record<string, string>, durationSeconds: number): void;
   sendEndBreakout(): void;
   sendRoomLockToggle(isLocked: boolean): void;
+  sendModerationPolicy(policy: { isChatLocked?: boolean; isScreenShareLocked?: boolean }): void;
   sendWaitingDoodleDraw(x1: number, y1: number, x2: number, y2: number, color: string, thickness: number): void;
   sendWaitingDoodleClear(): void;
   sendSoundboardPlay(soundId: string): void;
@@ -141,6 +145,7 @@ class SocketIOSignalingClient implements ISignalingClient {
     this.socket.on('signal', (data) => this.emit('signal', data));
     this.socket.on('chat-received', (data) => this.emit('chat-received', data));
     this.socket.on('hand-raised', (data) => this.emit('hand-raised', data));
+    this.socket.on('lower-hands-command', () => this.emit('lower-hands-command'));
     this.socket.on('peer-muted-status', (data) => this.emit('peer-muted-status', data));
     this.socket.on('mute-command', (data) => this.emit('mute-command', data));
     this.socket.on('kicked-command', () => this.emit('kicked-command'));
@@ -153,6 +158,7 @@ class SocketIOSignalingClient implements ISignalingClient {
     this.socket.on('breakout-started', (data) => this.emit('breakout-started', data));
     this.socket.on('breakout-ended', () => this.emit('breakout-ended'));
     this.socket.on('room-lock-toggled', (data) => this.emit('room-lock-toggled', data));
+    this.socket.on('moderation-policy-updated', (data) => this.emit('moderation-policy-updated', data));
     this.socket.on('waiting-doodle-draw', (data) => this.emit('waiting-doodle-draw', data));
     this.socket.on('waiting-doodle-clear', () => this.emit('waiting-doodle-clear'));
     this.socket.on('soundboard-play', (data) => this.emit('soundboard-play', data));
@@ -197,6 +203,12 @@ class SocketIOSignalingClient implements ISignalingClient {
   raiseHand(isRaised: boolean): void {
     if (this.socket) {
       this.socket.emit('raise-hand', { roomId: this.roomId, isRaised });
+    }
+  }
+
+  sendLowerAllHands(): void {
+    if (this.socket) {
+      this.socket.emit('lower-all-hands', { roomId: this.roomId });
     }
   }
 
@@ -266,9 +278,17 @@ class SocketIOSignalingClient implements ISignalingClient {
     }
   }
 
+  sendModerationPolicy(policy: { isChatLocked?: boolean; isScreenShareLocked?: boolean }): void {
+    if (this.socket) {
+      this.socket.emit('moderation-policy', { roomId: this.roomId, policy });
+      this.emit('moderation-policy-updated', policy);
+    }
+  }
+
   sendMultiplayerCursorsToggle(enabled: boolean): void {
     if (this.socket) {
       this.socket.emit('toggle-multiplayer-cursors', { roomId: this.roomId, enabled });
+      this.emit('multiplayer-cursors-toggled', { enabled });
     }
   }
 
@@ -447,6 +467,9 @@ class SupabaseSignalingClient implements ISignalingClient {
       .on('broadcast', { event: 'caption' }, (payload) => {
         this.emit('caption', payload.payload);
       })
+      .on('broadcast', { event: 'lower-hands-command' }, () => {
+        this.emit('lower-hands-command');
+      })
       .on('broadcast', { event: 'reaction' }, (payload) => {
         this.emit('reaction', payload.payload);
       })
@@ -464,6 +487,9 @@ class SupabaseSignalingClient implements ISignalingClient {
       })
       .on('broadcast', { event: 'room-lock-toggled' }, (payload) => {
         this.emit('room-lock-toggled', payload.payload);
+      })
+      .on('broadcast', { event: 'moderation-policy-updated' }, (payload) => {
+        this.emit('moderation-policy-updated', payload.payload);
       })
       .on('broadcast', { event: 'waiting-doodle-draw' }, (payload) => {
         this.emit('waiting-doodle-draw', payload.payload);
@@ -679,6 +705,15 @@ class SupabaseSignalingClient implements ISignalingClient {
     this.emit('hand-raised', { userId: this.user?.userId || '', isRaised });
   }
 
+  sendLowerAllHands(): void {
+    this.channel?.send({
+      type: 'broadcast',
+      event: 'lower-hands-command',
+      payload: {}
+    });
+    this.emit('lower-hands-command');
+  }
+
   mutePeer(targetUserId: string, type: 'audio' | 'video'): void {
     this.channel?.send({
       type: 'broadcast',
@@ -768,6 +803,15 @@ class SupabaseSignalingClient implements ISignalingClient {
       event: 'room-lock-toggled',
       payload: { isLocked }
     });
+  }
+
+  sendModerationPolicy(policy: { isChatLocked?: boolean; isScreenShareLocked?: boolean }): void {
+    this.channel?.send({
+      type: 'broadcast',
+      event: 'moderation-policy-updated',
+      payload: policy
+    });
+    this.emit('moderation-policy-updated', policy);
   }
 
   sendMultiplayerCursorsToggle(enabled: boolean): void {

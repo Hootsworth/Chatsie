@@ -2242,6 +2242,15 @@ io.on('connection', (socket) => {
             isRaised
         });
     });
+    socket.on('lower-all-hands', (data) => {
+        const { roomId } = data;
+        const roomParticipants = rooms.get(roomId) || [];
+        roomParticipants.forEach((participant) => {
+            participant.isHandRaised = false;
+        });
+        rooms.set(roomId, roomParticipants);
+        io.to(roomId).emit('lower-hands-command');
+    });
     // 7. Toggle own media status in backend memory
     socket.on('toggle-media-status', (data) => {
         const { roomId, type, isMuted } = data;
@@ -2331,6 +2340,10 @@ io.on('connection', (socket) => {
     socket.on('toggle-room-lock', (data) => {
         const { roomId, isLocked } = data;
         socket.to(roomId).emit('room-lock-toggled', { isLocked });
+    });
+    socket.on('moderation-policy', (data) => {
+        const { roomId, policy } = data;
+        socket.to(roomId).emit('moderation-policy-updated', policy);
     });
     // Toggle Multiplayer Cursors
     socket.on('toggle-multiplayer-cursors', (data) => {

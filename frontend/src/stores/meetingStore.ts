@@ -106,6 +106,8 @@ interface MeetingState {
   isSettingsOpen: boolean;
   isShortcutsOpen: boolean;
   isMultiplayerCursorEnabled: boolean;
+  isChatLocked: boolean;
+  isScreenShareLocked: boolean;
   
   // Actions
   setCurrentMeeting: (meeting: Meeting | null) => void;
@@ -144,6 +146,7 @@ interface MeetingState {
   setSettingsOpen: (isOpen: boolean) => void;
   setShortcutsOpen: (isOpen: boolean) => void;
   setMultiplayerCursorEnabled: (enabled: boolean) => void;
+  setModerationPolicy: (policy: { isChatLocked?: boolean; isScreenShareLocked?: boolean }) => void;
   resetMeetingState: () => void;
 }
 
@@ -168,6 +171,8 @@ export const useMeetingStore = create<MeetingState>((set) => ({
   isSettingsOpen: false,
   isShortcutsOpen: false,
   isMultiplayerCursorEnabled: false,
+  isChatLocked: false,
+  isScreenShareLocked: false,
 
   setCurrentMeeting: (meeting) => set({ currentMeeting: meeting }),
   setMyRole: (role) => set({ myRole: role }),
@@ -314,6 +319,7 @@ export const useMeetingStore = create<MeetingState>((set) => ({
 
   setSettingsOpen: (isOpen) => set({ isSettingsOpen: isOpen }),
   setShortcutsOpen: (isOpen) => set({ isShortcutsOpen: isOpen }),
+  setModerationPolicy: (policy) => set(policy),
 
   resetMeetingState: () => set({
     currentMeeting: null,
@@ -334,6 +340,8 @@ export const useMeetingStore = create<MeetingState>((set) => ({
     isWhiteboardOpen: false,
     isSettingsOpen: false,
     isShortcutsOpen: false,
-    isMultiplayerCursorEnabled: false
+    isMultiplayerCursorEnabled: false,
+    isChatLocked: false,
+    isScreenShareLocked: false
   })
 }));
