@@ -329,77 +329,116 @@ export const WorkspacePanel: React.FC = () => {
   };
 
   return (
-    <div className="w-[380px] bg-[#1a1b1e] border-l border-white/[0.08] flex h-full text-white animate-in slide-in-from-right duration-200">
+    <div className="w-[385px] flex-shrink-0 flex h-[calc(100%-32px)] my-4 mr-4 bg-[#1e2022] border border-white/10 rounded-[28px] shadow-lg overflow-hidden text-white animate-in slide-in-from-right duration-200">
       
-      {/* LEFT COMPACT WORKSPACE DOCK (48px) */}
-      <div className="w-[50px] bg-[#141517] border-r border-white/[0.06] flex flex-col items-center py-4 justify-between flex-shrink-0">
-        <div className="flex flex-col items-center gap-4 w-full">
+      {/* LEFT COMPACT WORKSPACE DOCK - M3 NAVIGATION RAIL (64px) */}
+      <div className="w-[64px] bg-[#131417] border-r border-white/[0.06] flex flex-col items-center py-5 justify-between flex-shrink-0">
+        <div className="flex flex-col items-center gap-5 w-full">
           {/* Marketplace / Hub Icon */}
           <button
             onClick={() => setActiveView('hub')}
-            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-              activeView === 'hub' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm' : 'text-white/40 hover:text-white/80 hover:bg-white/5'
-            }`}
+            className="w-full flex flex-col items-center gap-1 cursor-pointer group outline-none"
             title="Plugins Hub"
           >
-            <Layers className="w-4 h-4" />
+            <div className={`w-12 h-8 rounded-full flex items-center justify-center transition-all ${
+              activeView === 'hub' ? 'bg-[#a8c7fa] text-[#062e6f]' : 'text-white/60 hover:bg-white/5 hover:text-white'
+            }`}>
+              <Layers className="w-4 h-4" />
+            </div>
+            <span className={`text-[9px] font-bold tracking-wide transition-all ${
+              activeView === 'hub' ? 'text-[#a8c7fa]' : 'text-white/40 group-hover:text-white/60'
+            }`}>
+              Hub
+            </span>
           </button>
           
-          <div className="w-6 h-px bg-white/10" />
+          <div className="w-8 h-px bg-white/10" />
 
           {/* Collaborative Notes */}
           <button
             onClick={() => setActiveView('markdown')}
-            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-              activeView === 'markdown' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm' : 'text-white/40 hover:text-white/80 hover:bg-white/5'
-            }`}
+            className="w-full flex flex-col items-center gap-1 cursor-pointer group outline-none"
             title="Collaborative Notes"
           >
-            <FileText className="w-4 h-4" />
+            <div className={`w-12 h-8 rounded-full flex items-center justify-center transition-all ${
+              activeView === 'markdown' ? 'bg-[#a8c7fa] text-[#062e6f]' : 'text-white/60 hover:bg-white/5 hover:text-white'
+            }`}>
+              <FileText className="w-4 h-4" />
+            </div>
+            <span className={`text-[9px] font-bold tracking-wide transition-all ${
+              activeView === 'markdown' ? 'text-[#a8c7fa]' : 'text-white/40 group-hover:text-white/60'
+            }`}>
+              Notes
+            </span>
           </button>
 
           {/* JS Code Sandbox */}
           <button
             onClick={() => setActiveView('code')}
-            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-              activeView === 'code' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm' : 'text-white/40 hover:text-white/80 hover:bg-white/5'
-            }`}
+            className="w-full flex flex-col items-center gap-1 cursor-pointer group outline-none"
             title="Code Sandbox"
           >
-            <Code className="w-4 h-4" />
+            <div className={`w-12 h-8 rounded-full flex items-center justify-center transition-all ${
+              activeView === 'code' ? 'bg-[#a8c7fa] text-[#062e6f]' : 'text-white/60 hover:bg-white/5 hover:text-white'
+            }`}>
+              <Code className="w-4 h-4" />
+            </div>
+            <span className={`text-[9px] font-bold tracking-wide transition-all ${
+              activeView === 'code' ? 'text-[#a8c7fa]' : 'text-white/40 group-hover:text-white/60'
+            }`}>
+              Sandbox
+            </span>
           </button>
 
           {/* AI Copilot */}
           <button
             onClick={() => setActiveView('copilot')}
-            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-              activeView === 'copilot' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm' : 'text-white/40 hover:text-white/80 hover:bg-white/5'
-            }`}
+            className="w-full flex flex-col items-center gap-1 cursor-pointer group outline-none"
             title="AI Copilot"
           >
-            <Brain className="w-4 h-4" />
+            <div className={`w-12 h-8 rounded-full flex items-center justify-center transition-all ${
+              activeView === 'copilot' ? 'bg-[#a8c7fa] text-[#062e6f]' : 'text-white/60 hover:bg-white/5 hover:text-white'
+            }`}>
+              <Brain className="w-4 h-4" />
+            </div>
+            <span className={`text-[9px] font-bold tracking-wide transition-all ${
+              activeView === 'copilot' ? 'text-[#a8c7fa]' : 'text-white/40 group-hover:text-white/60'
+            }`}>
+              Copilot
+            </span>
           </button>
 
-          {/* Kanban Board (Enabled if installed) */}
+          {/* Kanban Board */}
           <button
             onClick={() => isKanbanInstalled && setActiveView('kanban')}
             disabled={!isKanbanInstalled}
-            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
-              !isKanbanInstalled 
-                ? 'opacity-25 cursor-not-allowed text-white/20' 
-                : activeView === 'kanban' 
-                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 cursor-pointer shadow-sm' 
-                  : 'text-white/40 hover:text-white/80 hover:bg-white/5 cursor-pointer'
-            }`}
-            title={isKanbanInstalled ? "Kanban Board" : "Kanban Board (Install from Hub)"}
+            className="w-full flex flex-col items-center gap-1 group outline-none disabled:opacity-25 disabled:cursor-not-allowed"
+            title={isKanbanInstalled ? "Kanban Board" : "Kanban (Install from Hub)"}
           >
-            <Layers className="w-4 h-4 rotate-90" />
+            <div className={`w-12 h-8 rounded-full flex items-center justify-center transition-all ${
+              !isKanbanInstalled 
+                ? 'text-white/20' 
+                : activeView === 'kanban' 
+                  ? 'bg-[#a8c7fa] text-[#062e6f]' 
+                  : 'text-white/60 hover:bg-white/5 hover:text-white cursor-pointer'
+            }`}>
+              <Layers className="w-4 h-4 rotate-90" />
+            </div>
+            <span className={`text-[9px] font-bold tracking-wide transition-all ${
+              !isKanbanInstalled 
+                ? 'text-white/10' 
+                : activeView === 'kanban' 
+                  ? 'text-[#a8c7fa]' 
+                  : 'text-white/40 group-hover:text-white/60 cursor-pointer'
+            }`}>
+              Kanban
+            </span>
           </button>
         </div>
       </div>
 
-      {/* RIGHT MAIN PANEL CONTENT (330px) */}
-      <div className="flex-1 flex flex-col min-w-0 h-full">
+      {/* RIGHT MAIN PANEL CONTENT (320px) */}
+      <div className="flex-grow flex flex-col min-w-0 h-full">
         
         {/* HEADER */}
         <div className="p-4 border-b border-white/[0.08] flex items-center justify-between bg-[#202124] flex-shrink-0">

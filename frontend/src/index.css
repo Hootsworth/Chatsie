@@ -28,6 +28,37 @@
   --color-accent-magenta: #ff3d8b;
   --color-semantic-success: #1ea64a;
   --color-overlay-scrim: #000000;
+
+  /* Material 3 Dark Theme Colors */
+  --color-m3-background: #0f1013;
+  --color-m3-surface: #131417;
+  --color-m3-surface-low: #1a1c1e;
+  --color-m3-surface-container: #1e2022;
+  --color-m3-surface-high: #282a2d;
+  --color-m3-surface-highest: #333538;
+  
+  --color-m3-primary: #a8c7fa;
+  --color-m3-on-primary: #062e6f;
+  --color-m3-primary-container: #004494;
+  --color-m3-on-primary-container: #d6e3ff;
+  
+  --color-m3-secondary: #c2c6dc;
+  --color-m3-on-secondary: #2c3042;
+  --color-m3-secondary-container: #424759;
+  --color-m3-on-secondary-container: #dae2f9;
+
+  --color-m3-tertiary: #ffd6f8;
+  --color-m3-on-tertiary: #46254a;
+  --color-m3-tertiary-container: #5e3b62;
+  --color-m3-on-tertiary-container: #ffd6f8;
+
+  --color-m3-error: #f2b8b5;
+  --color-m3-on-error: #601410;
+  --color-m3-error-container: #8c1d18;
+  --color-m3-on-error-container: #f9dedc;
+  
+  --color-m3-outline: rgba(255, 255, 255, 0.12);
+  --color-m3-outline-variant: rgba(255, 255, 255, 0.06);
   
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;

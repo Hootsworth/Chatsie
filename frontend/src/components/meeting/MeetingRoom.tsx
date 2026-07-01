@@ -1918,18 +1918,18 @@ const ActiveRoomContent: React.FC<{
       </header>
 
       {/* Main conference body */}
-      <div className="flex-grow flex relative min-h-0 bg-[#202124]">
+      <div className="flex-grow flex relative min-h-0 bg-[#0f1013]">
         
         {/* Central area */}
         <div className="flex-grow flex flex-col min-h-0 overflow-y-auto no-scrollbar relative">
           {isWhiteboardOpen ? (
-            <div className="flex-grow p-2 min-h-0 bg-[#1e1f20] border-2 border-white/5 rounded-2xl m-2 overflow-hidden">
+            <div className="flex-grow p-2 min-h-0 bg-[#1e1f20] border border-white/10 rounded-[28px] m-2 overflow-hidden">
               <WhiteboardPanel />
             </div>
           ) : isTabVisible ? (
             <VideoGrid />
           ) : (
-            <div className="flex-grow flex flex-col items-center justify-center bg-[#292b2f] rounded-xl m-2 p-8 select-none">
+            <div className="flex-grow flex flex-col items-center justify-center bg-m3-surface-low rounded-[28px] border border-white/10 m-2 p-8 select-none">
               <div className="w-12 h-12 bg-[#8ab4f8]/10 text-[#8ab4f8] rounded-full flex items-center justify-center mb-3 animate-pulse">
                 <Users className="w-5 h-5" />
               </div>
@@ -1973,7 +1973,7 @@ const ActiveRoomContent: React.FC<{
 
         {/* Right Sidebar panels */}
         {isChatPanelOpen && (
-          <div className="side-panel w-80 z-40 overflow-hidden flex flex-col animate-in slide-in-from-right duration-200">
+          <div className="w-80 flex-shrink-0 flex flex-col h-[calc(100%-32px)] my-4 mr-4 bg-m3-surface-container border border-white/10 rounded-[28px] shadow-lg overflow-hidden z-40 animate-in slide-in-from-right duration-200">
             <ChatPanel 
               roomId={code || ''} 
               userId={user?.id || ''} 
@@ -1983,13 +1983,13 @@ const ActiveRoomContent: React.FC<{
         )}
 
         {isParticipantsPanelOpen && (
-          <div className="side-panel w-80 z-40 overflow-hidden flex flex-col animate-in slide-in-from-right duration-200">
+          <div className="w-80 flex-shrink-0 flex flex-col h-[calc(100%-32px)] my-4 mr-4 bg-m3-surface-container border border-white/10 rounded-[28px] shadow-lg overflow-hidden z-40 animate-in slide-in-from-right duration-200">
             <ParticipantPanel onBreakoutClick={() => setIsBreakoutModalOpen(true)} />
           </div>
         )}
 
         {isTranscriptionPanelOpen && (
-          <div className="side-panel w-80 z-40 overflow-hidden flex flex-col animate-in slide-in-from-right duration-200">
+          <div className="w-80 flex-shrink-0 flex flex-col h-[calc(100%-32px)] my-4 mr-4 bg-m3-surface-container border border-white/10 rounded-[28px] shadow-lg overflow-hidden z-40 animate-in slide-in-from-right duration-200">
             <TranscriptionPanel />
           </div>
         )}

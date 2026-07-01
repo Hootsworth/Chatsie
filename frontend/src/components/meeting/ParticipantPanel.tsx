@@ -176,14 +176,14 @@ export const ParticipantPanel: React.FC<ParticipantPanelProps> = ({ onBreakoutCl
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#202124] text-[#e8eaed] z-20 overflow-hidden">
+    <div className="w-full h-full flex flex-col bg-[#1e2022] text-[#e3e2e6] overflow-hidden select-none">
       
-      {/* Tab Switcher Headers (Hosts only get Host Controls tab) */}
-      <div className="flex bg-[#27282b] border-b border-white/[0.06] flex-shrink-0">
+      {/* M3 Segmented Navigation Tabs */}
+      <div className="flex bg-[#131417] p-1 border-b border-white/[0.08] flex-shrink-0 gap-1">
         <button
           onClick={() => setActiveTab('list')}
-          className={`flex-1 py-3 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer border-b-2 ${
-            activeTab === 'list' ? 'text-emerald-400 border-emerald-400 bg-white/[0.02]' : 'text-white/60 border-transparent hover:text-white'
+          className={`flex-1 py-2 text-[11px] font-bold rounded-full transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            activeTab === 'list' ? 'bg-[#a8c7fa] text-[#062e6f]' : 'text-white/60 hover:text-white hover:bg-white/5'
           }`}
         >
           <Users className="w-3.5 h-3.5" />
@@ -192,8 +192,8 @@ export const ParticipantPanel: React.FC<ParticipantPanelProps> = ({ onBreakoutCl
         {isHost && (
           <button
             onClick={() => setActiveTab('controls')}
-            className={`flex-1 py-3 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer border-b-2 ${
-              activeTab === 'controls' ? 'text-emerald-400 border-emerald-400 bg-white/[0.02]' : 'text-white/60 border-transparent hover:text-white'
+            className={`flex-1 py-2 text-[11px] font-bold rounded-full transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              activeTab === 'controls' ? 'bg-[#a8c7fa] text-[#062e6f]' : 'text-white/60 hover:text-white hover:bg-white/5'
             }`}
           >
             <ShieldAlert className="w-3.5 h-3.5" />
@@ -204,42 +204,42 @@ export const ParticipantPanel: React.FC<ParticipantPanelProps> = ({ onBreakoutCl
 
       {/* TAB CONTENT: ACTIVE PARTICIPANTS */}
       {activeTab === 'list' && (
-        <div className="flex-1 flex flex-col min-h-0 bg-[#202124]">
+        <div className="flex-1 flex flex-col min-h-0 bg-[#1e2022]">
           {/* Waiting Room queue */}
           {isHost && waitingRoomList.length > 0 && (
-            <div className="border-b border-white/[0.06] p-4 bg-amber-500/5 flex-shrink-0">
-              <h3 className="font-bold text-[11px] text-amber-400 uppercase tracking-wider flex items-center mb-3">
+            <div className="border-b border-white/[0.08] p-4 bg-amber-500/5 flex-shrink-0">
+              <h3 className="font-bold text-[10px] text-amber-400 uppercase tracking-wider flex items-center mb-3">
                 <ShieldAlert className="w-3.5 h-3.5 mr-1.5" />
                 Waiting Room ({waitingRoomList.length})
               </h3>
               <div className="grid grid-cols-2 gap-2 mb-3">
                 <button
                   onClick={handleAdmitAll}
-                  className="py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold transition-colors cursor-pointer"
+                  className="py-1.5 bg-[#c4eed0] hover:bg-[#e0f8e9] text-[#072711] rounded-full text-[10px] font-bold transition-all cursor-pointer"
                 >
                   Admit All
                 </button>
                 <button
                   onClick={handleDenyAll}
-                  className="py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-[10px] font-bold transition-colors cursor-pointer"
+                  className="py-1.5 bg-[#f2b8b5] hover:bg-[#f9dedc] text-[#601410] rounded-full text-[10px] font-bold transition-all cursor-pointer"
                 >
                   Deny All
                 </button>
               </div>
               <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
                 {waitingRoomList.map((waiter) => (
-                  <div key={waiter.userId} className="flex items-center justify-between p-2 bg-[#292b2f] border border-amber-500/10 rounded-lg text-xs">
-                    <span className="font-bold text-[#e8eaed] truncate mr-2">{waiter.username}</span>
+                  <div key={waiter.userId} className="flex items-center justify-between p-2.5 bg-[#131417] border border-white/5 rounded-xl text-xs">
+                    <span className="font-bold text-white/90 truncate mr-2">{waiter.username}</span>
                     <div className="flex space-x-1 flex-shrink-0">
                       <button
                         onClick={() => handleWaitingAction(waiter.userId, 'approve')}
-                        className="p-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded cursor-pointer"
+                        className="p-1 bg-[#c4eed0] hover:bg-[#e0f8e9] text-[#072711] rounded-full cursor-pointer"
                       >
                         <Check className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => handleWaitingAction(waiter.userId, 'deny')}
-                        className="p-1 bg-red-600 hover:bg-red-700 text-white rounded cursor-pointer"
+                        className="p-1 bg-[#f2b8b5] hover:bg-[#f9dedc] text-[#601410] rounded-full cursor-pointer"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -251,7 +251,7 @@ export const ParticipantPanel: React.FC<ParticipantPanelProps> = ({ onBreakoutCl
           )}
 
           {/* Active Participants List */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-[#202124]">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#1e2022]">
             {allParticipants.map((p) => {
               const isMe = p.identity === localParticipant?.identity;
               const isHandRaised = isMe 
@@ -263,32 +263,32 @@ export const ParticipantPanel: React.FC<ParticipantPanelProps> = ({ onBreakoutCl
               return (
                 <div key={p.identity} className="flex items-center justify-between text-xs py-1 group">
                   <div className="flex items-center space-x-2.5 min-w-0">
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 ${
-                      isMe ? 'bg-[#8ab4f8]/20 text-[#8ab4f8]' : 'bg-[#3c4043] text-[#e8eaed]'
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 ${
+                      isMe ? 'bg-[#a8c7fa]/20 text-[#a8c7fa]' : 'bg-[#303134] text-white'
                     }`}>
                       {p.name?.charAt(0).toUpperCase() || 'U'}
                     </div>
                     <div className="truncate">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-[#e8eaed] truncate">{isMe ? 'Me' : p.name}</span>
+                        <span className="font-bold text-white/90 truncate">{isMe ? 'Me' : p.name}</span>
                         {isHandRaised && <span className="text-amber-400 font-bold animate-bounce">✋</span>}
                       </div>
-                      <span className="text-[9px] text-[#9aa0a6] font-semibold block">
+                      <span className="text-[9px] text-white/50 font-bold block">
                         {p.identity === currentMeeting?.host_id ? 'Meeting Host' : ''}
                       </span>
                     </div>
                   </div>
 
                   <div className="flex items-center space-x-1.5 flex-shrink-0">
-                    {!p.isMicrophoneEnabled && <MicOff className="w-3.5 h-3.5 text-red-500" />}
-                    {!p.isCameraEnabled && <VideoOff className="w-3.5 h-3.5 text-red-500" />}
+                    {!p.isMicrophoneEnabled && <MicOff className="w-3.5 h-3.5 text-red-400" />}
+                    {!p.isCameraEnabled && <VideoOff className="w-3.5 h-3.5 text-red-400" />}
 
                     {!isMe && (canMute || isHost) && (
-                      <div className="hidden group-hover:flex items-center space-x-1 pl-1 bg-[#202124]">
+                      <div className="hidden group-hover:flex items-center space-x-1 pl-1 bg-[#1e2022]">
                         {canMute && p.isMicrophoneEnabled && (
                           <button
                             onClick={() => handleMutePeer(p.identity, 'audio')}
-                            className="p-1 text-[#9aa0a6] hover:text-red-400 hover:bg-red-500/10 rounded cursor-pointer"
+                            className="p-1.5 text-white/60 hover:text-red-400 hover:bg-white/5 rounded-full cursor-pointer"
                             title="Mute Audio"
                           >
                             <VolumeX className="w-3.5 h-3.5" />
@@ -297,7 +297,7 @@ export const ParticipantPanel: React.FC<ParticipantPanelProps> = ({ onBreakoutCl
                         {canMute && p.isCameraEnabled && (
                           <button
                             onClick={() => handleMutePeer(p.identity, 'video')}
-                            className="p-1 text-[#9aa0a6] hover:text-red-400 hover:bg-red-500/10 rounded cursor-pointer"
+                            className="p-1.5 text-white/60 hover:text-red-400 hover:bg-white/5 rounded-full cursor-pointer"
                             title="Mute Video"
                           >
                             <VideoOff className="w-3.5 h-3.5" />
@@ -306,7 +306,7 @@ export const ParticipantPanel: React.FC<ParticipantPanelProps> = ({ onBreakoutCl
                         {isHost && (
                           <button
                             onClick={() => handleKickPeer(p.identity)}
-                            className="p-1 text-[#9aa0a6] hover:text-red-400 hover:bg-red-500/10 rounded cursor-pointer"
+                            className="p-1.5 text-white/60 hover:text-red-400 hover:bg-white/5 rounded-full cursor-pointer"
                             title="Remove User"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -321,9 +321,9 @@ export const ParticipantPanel: React.FC<ParticipantPanelProps> = ({ onBreakoutCl
           </div>
 
           {/* Email Invite Box at the bottom */}
-          <div className="p-4 border-t border-white/[0.06] bg-[#1a1b1e] flex-shrink-0 space-y-3">
-            <h4 className="text-[10px] font-bold text-white/50 uppercase tracking-wider flex items-center gap-1.5">
-              <UserPlus className="w-3.5 h-3.5 text-emerald-400" />
+          <div className="p-4 border-t border-white/[0.08] bg-[#131417] flex-shrink-0 space-y-3">
+            <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-wider flex items-center gap-1.5">
+              <UserPlus className="w-3.5 h-3.5 text-[#a8c7fa]" />
               Invite Guest via Email
             </h4>
             <form onSubmit={handleSendInvite} className="flex gap-2">
@@ -333,13 +333,13 @@ export const ParticipantPanel: React.FC<ParticipantPanelProps> = ({ onBreakoutCl
                 onChange={(e) => setEmailInput(e.target.value)}
                 placeholder="colleague@example.com"
                 required
-                className="flex-1 bg-[#202124] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-white/30 focus:outline-none focus:border-emerald-500"
+                className="flex-1 bg-[#1e2022] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/30 focus:outline-none focus:border-[#a8c7fa]"
                 disabled={inviteStatus === 'sending'}
               />
               <button
                 type="submit"
                 disabled={!emailInput.trim().includes('@') || inviteStatus === 'sending'}
-                className="px-3 bg-emerald-500 hover:bg-emerald-600 text-gray-900 rounded-lg font-bold text-xs disabled:opacity-40 transition-all cursor-pointer flex-shrink-0"
+                className="px-4 bg-[#a8c7fa] hover:bg-[#c4eed0] text-[#062e6f] rounded-full font-bold text-xs disabled:opacity-40 transition-all cursor-pointer flex-shrink-0"
               >
                 Invite
               </button>
@@ -348,19 +348,19 @@ export const ParticipantPanel: React.FC<ParticipantPanelProps> = ({ onBreakoutCl
             {/* Invite Status overlays */}
             {isSearching && (
               <div className="text-[9px] text-white/40 flex items-center gap-1">
-                <Loader2 className="w-3 h-3 animate-spin text-emerald-400" />
+                <Loader2 className="w-3 h-3 animate-spin text-[#a8c7fa]" />
                 <span>Searching user records...</span>
               </div>
             )}
 
             {lookupResult && (
-              <div className="p-2 bg-white/5 border border-white/[0.04] rounded-lg flex items-center justify-between text-[10px]">
+              <div className="p-2.5 bg-[#1e2022] border border-white/5 rounded-xl flex items-center justify-between text-[10px]">
                 <div className="truncate pr-2">
-                  <span className="font-bold block truncate">{lookupResult.name}</span>
+                  <span className="font-bold block truncate text-white">{lookupResult.name}</span>
                   <span className="text-white/40">{lookupResult.exists ? 'Registered Member' : 'External Email'}</span>
                 </div>
-                <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold border ${
-                  lookupResult.exists ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-white/10 border-white/10 text-white/50'
+                <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold border ${
+                  lookupResult.exists ? 'bg-[#c4eed0]/10 border-[#c4eed0]/25 text-[#c4eed0]' : 'bg-white/5 border-white/10 text-white/50'
                 }`}>
                   {lookupResult.exists ? 'Member' : 'Guest'}
                 </span>
@@ -383,9 +383,9 @@ export const ParticipantPanel: React.FC<ParticipantPanelProps> = ({ onBreakoutCl
 
       {/* TAB CONTENT: HOST CONTROLS */}
       {activeTab === 'controls' && isHost && (
-        <div className="flex-1 overflow-y-auto p-4 space-y-5 bg-[#202124] text-left">
+        <div className="flex-1 overflow-y-auto p-4 space-y-5 bg-[#1e2022] text-left">
           
-          <div className="space-y-1 pb-2 border-b border-white/[0.06]">
+          <div className="space-y-1 pb-2 border-b border-white/[0.08]">
             <h3 className="text-xs font-bold text-white">Active Moderation Policies</h3>
             <p className="text-[10px] text-white/50">Apply locking rules to this current active room session.</p>
           </div>
@@ -396,46 +396,46 @@ export const ParticipantPanel: React.FC<ParticipantPanelProps> = ({ onBreakoutCl
             <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => handleMuteAll('audio')}
-                className="flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white/5 hover:bg-red-500/10 text-white hover:text-red-400 border border-white/[0.04] text-[10px] font-bold transition-all cursor-pointer"
+                className="flex flex-col items-center justify-center gap-1.5 py-3 rounded-2xl bg-[#131417] hover:bg-white/5 text-white border border-white/5 text-[10px] font-bold transition-all cursor-pointer"
               >
-                <VolumeX className="w-4 h-4" />
+                <VolumeX className="w-4 h-4 text-[#a8c7fa]" />
                 Mute Mic All
               </button>
               <button
                 onClick={() => handleMuteAll('video')}
-                className="flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white/5 hover:bg-red-500/10 text-white hover:text-red-400 border border-white/[0.04] text-[10px] font-bold transition-all cursor-pointer"
+                className="flex flex-col items-center justify-center gap-1.5 py-3 rounded-2xl bg-[#131417] hover:bg-white/5 text-white border border-white/5 text-[10px] font-bold transition-all cursor-pointer"
               >
-                <VideoOff className="w-4 h-4" />
+                <VideoOff className="w-4 h-4 text-[#a8c7fa]" />
                 Cameras Off
               </button>
               <button
                 onClick={handleLowerAllHands}
-                className="flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white/5 hover:bg-amber-500/10 text-white hover:text-amber-400 border border-white/[0.04] text-[10px] font-bold transition-all cursor-pointer"
+                className="flex flex-col items-center justify-center gap-1.5 py-3 rounded-2xl bg-[#131417] hover:bg-white/5 text-white border border-white/5 text-[10px] font-bold transition-all cursor-pointer"
               >
-                <Hand className="w-4 h-4" />
+                <Hand className="w-4 h-4 text-[#fde293]" />
                 Lower Hands
               </button>
             </div>
           </div>
 
-          <div className="w-full h-px bg-white/[0.06]" />
+          <div className="w-full h-px bg-white/[0.08]" />
 
           {/* Moderation settings checkboxes */}
           <div className="space-y-4">
             <h4 className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Room Policies</h4>
             
             {/* Lock Room Toggle */}
-            <div className="flex items-start space-x-3 p-3 bg-white/5 border border-white/[0.04] rounded-xl">
+            <div className="flex items-start space-x-3 p-3.5 bg-[#131417] border border-white/10 rounded-[20px]">
               <input
                 type="checkbox"
                 id="host-lock-room"
                 checked={!!currentMeeting?.is_locked}
                 onChange={handleToggleRoomLock}
-                className="rounded border-white/20 bg-white/5 text-emerald-500 focus:ring-0 w-4 h-4 mt-0.5 cursor-pointer accent-emerald-500"
+                className="rounded border-white/20 bg-white/5 text-[#a8c7fa] focus:ring-0 w-4 h-4 mt-0.5 cursor-pointer accent-[#a8c7fa]"
               />
               <div className="flex-1">
                 <label htmlFor="host-lock-room" className="text-xs font-bold text-white select-none cursor-pointer flex items-center gap-1.5">
-                  {currentMeeting?.is_locked ? <Lock className="w-3.5 h-3.5 text-red-400" /> : <Unlock className="w-3.5 h-3.5 text-emerald-400" />}
+                  {currentMeeting?.is_locked ? <Lock className="w-3.5 h-3.5 text-[#f2b8b5]" /> : <Unlock className="w-3.5 h-3.5 text-[#c4eed0]" />}
                   Lock Meeting Room
                 </label>
                 <p className="text-[10px] text-white/50 leading-normal mt-0.5">
@@ -445,17 +445,17 @@ export const ParticipantPanel: React.FC<ParticipantPanelProps> = ({ onBreakoutCl
             </div>
 
             {/* Lock Chat Toggle */}
-            <div className="flex items-start space-x-3 p-3 bg-white/5 border border-white/[0.04] rounded-xl">
+            <div className="flex items-start space-x-3 p-3.5 bg-[#131417] border border-white/10 rounded-[20px]">
               <input
                 type="checkbox"
                 id="host-lock-chat"
                 checked={!!isChatLocked}
                 onChange={() => signalingClient.sendModerationPolicy({ isChatLocked: !isChatLocked })}
-                className="rounded border-white/20 bg-white/5 text-emerald-500 focus:ring-0 w-4 h-4 mt-0.5 cursor-pointer accent-emerald-500"
+                className="rounded border-white/20 bg-white/5 text-[#a8c7fa] focus:ring-0 w-4 h-4 mt-0.5 cursor-pointer accent-[#a8c7fa]"
               />
               <div className="flex-1">
                 <label htmlFor="host-lock-chat" className="text-xs font-bold text-white select-none cursor-pointer flex items-center gap-1.5">
-                  <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />
+                  <MessageSquare className="w-3.5 h-3.5 text-[#a8c7fa]" />
                   Lock Participant Chat
                 </label>
                 <p className="text-[10px] text-white/50 leading-normal mt-0.5">
@@ -465,17 +465,17 @@ export const ParticipantPanel: React.FC<ParticipantPanelProps> = ({ onBreakoutCl
             </div>
 
             {/* Lock Screen Share Toggle */}
-            <div className="flex items-start space-x-3 p-3 bg-white/5 border border-white/[0.04] rounded-xl">
+            <div className="flex items-start space-x-3 p-3.5 bg-[#131417] border border-white/10 rounded-[20px]">
               <input
                 type="checkbox"
                 id="host-lock-screen"
                 checked={!!isScreenShareLocked}
                 onChange={() => signalingClient.sendModerationPolicy({ isScreenShareLocked: !isScreenShareLocked })}
-                className="rounded border-white/20 bg-white/5 text-emerald-500 focus:ring-0 w-4 h-4 mt-0.5 cursor-pointer accent-emerald-500"
+                className="rounded border-white/20 bg-white/5 text-[#a8c7fa] focus:ring-0 w-4 h-4 mt-0.5 cursor-pointer accent-[#a8c7fa]"
               />
               <div className="flex-1">
                 <label htmlFor="host-lock-screen" className="text-xs font-bold text-white select-none cursor-pointer flex items-center gap-1.5">
-                  <MonitorOff className="w-3.5 h-3.5 text-rose-400" />
+                  <MonitorOff className="w-3.5 h-3.5 text-[#a8c7fa]" />
                   Lock Screen Sharing
                 </label>
                 <p className="text-[10px] text-white/50 leading-normal mt-0.5">
@@ -485,17 +485,17 @@ export const ParticipantPanel: React.FC<ParticipantPanelProps> = ({ onBreakoutCl
             </div>
 
             {/* Enable Cursors Toggle */}
-            <div className="flex items-start space-x-3 p-3 bg-white/5 border border-white/[0.04] rounded-xl">
+            <div className="flex items-start space-x-3 p-3.5 bg-[#131417] border border-white/10 rounded-[20px]">
               <input
                 type="checkbox"
                 id="host-cursors"
                 checked={!!isMultiplayerCursorEnabled}
                 onChange={() => signalingClient.sendMultiplayerCursorsToggle(!isMultiplayerCursorEnabled)}
-                className="rounded border-white/20 bg-white/5 text-emerald-500 focus:ring-0 w-4 h-4 mt-0.5 cursor-pointer accent-emerald-500"
+                className="rounded border-white/20 bg-white/5 text-[#a8c7fa] focus:ring-0 w-4 h-4 mt-0.5 cursor-pointer accent-[#a8c7fa]"
               />
               <div className="flex-1">
                 <label htmlFor="host-cursors" className="text-xs font-bold text-white select-none cursor-pointer flex items-center gap-1.5">
-                  <MousePointer className="w-3.5 h-3.5 text-pink-400" />
+                  <MousePointer className="w-3.5 h-3.5 text-[#ffd6f8]" />
                   Multiplayer Cursors
                 </label>
                 <p className="text-[10px] text-white/50 leading-normal mt-0.5">
@@ -506,9 +506,9 @@ export const ParticipantPanel: React.FC<ParticipantPanelProps> = ({ onBreakoutCl
 
             {/* Breakout Rooms Trigger button */}
             {onBreakoutClick && (
-              <div className="p-3 bg-white/5 border border-white/[0.04] rounded-xl space-y-2">
+              <div className="p-3.5 bg-[#131417] border border-white/10 rounded-[20px] space-y-2">
                 <div className="flex items-start space-x-2">
-                  <Users className="w-4 h-4 mt-0.5 text-sky-400" />
+                  <Users className="w-4 h-4 mt-0.5 text-[#a8c7fa]" />
                   <div>
                     <h5 className="text-xs font-bold text-white">Split Meeting into Breakout Rooms</h5>
                     <p className="text-[10px] text-white/50 leading-normal mt-0.5">
@@ -519,7 +519,7 @@ export const ParticipantPanel: React.FC<ParticipantPanelProps> = ({ onBreakoutCl
                 <button
                   type="button"
                   onClick={onBreakoutClick}
-                  className="w-full py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold transition-all cursor-pointer"
+                  className="w-full py-2 bg-[#a8c7fa] text-[#062e6f] rounded-full text-xs font-bold transition-all cursor-pointer"
                 >
                   Configure Breakout Rooms
                 </button>

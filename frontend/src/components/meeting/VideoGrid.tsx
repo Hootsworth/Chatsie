@@ -144,7 +144,7 @@ export const VideoGrid: React.FC = () => {
   } as React.CSSProperties;
 
   return (
-    <div className="absolute inset-0">
+    <div className="w-full h-full p-2 flex">
       <div className="video-grid-container" style={gridStyle}>
         {finalTracks.map((track) => {
           const isLocalScreen = track.source === Track.Source.ScreenShare && track.participant.isLocal;

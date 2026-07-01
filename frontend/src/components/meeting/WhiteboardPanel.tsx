@@ -40,9 +40,9 @@ export const WhiteboardPanel: React.FC = () => {
         tempCtx.drawImage(canvas, 0, 0);
       }
 
-      // Resize canvas to fit container
+      // Resize canvas to fit full container height (toolbar floats on top)
       canvas.width = container.clientWidth;
-      canvas.height = container.clientHeight - 64; // Offset for Material toolbar height
+      canvas.height = container.clientHeight;
 
       // Restore background and contents
       const ctx = canvas.getContext('2d');
@@ -54,7 +54,6 @@ export const WhiteboardPanel: React.FC = () => {
     };
 
     handleResize();
-    // Add a tiny delay to allow parent layout to settle
     const timer = setTimeout(handleResize, 100);
 
     window.addEventListener('resize', handleResize);
@@ -176,62 +175,58 @@ export const WhiteboardPanel: React.FC = () => {
   return (
     <div ref={containerRef} className="w-full h-full flex flex-col bg-[#1e1f20] select-none text-white relative">
       
-      {/* Material Expressive Flat Toolbar */}
-      <div className="flex items-center justify-between gap-4 px-5 h-16 bg-[#131314] border-b border-white/[0.08] flex-shrink-0">
+      {/* Material Expressive Floating Pill Dock */}
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 flex items-center gap-3.5 px-4 h-14 bg-[#131417] border border-white/10 rounded-full shadow-2xl max-w-[95%] overflow-x-auto no-scrollbar">
         
-        <div className="flex items-center gap-3">
-          {/* Tool Toggles */}
-          <div className="flex bg-[#303134] rounded-full p-1 border border-white/[0.04]">
-            <button
-              onClick={() => setTool('pen')}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                tool === 'pen' ? 'bg-[#c4eed0] text-[#072711]' : 'text-white/60 hover:text-white'
-              }`}
-              title="Pen Draw"
-            >
-              <Edit2 className="w-3.5 h-3.5" />
-              Draw
-            </button>
-            <button
-              onClick={() => setTool('eraser')}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                tool === 'eraser' ? 'bg-[#c4eed0] text-[#072711]' : 'text-white/60 hover:text-white'
-              }`}
-              title="Eraser Tool"
-            >
-              <Eraser className="w-3.5 h-3.5" />
-              Eraser
-            </button>
-          </div>
+        {/* Tool Toggles */}
+        <div className="flex bg-[#303134] rounded-full p-0.5 border border-white/[0.04] flex-shrink-0">
+          <button
+            onClick={() => setTool('pen')}
+            className={`px-3 py-1.5 rounded-full text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              tool === 'pen' ? 'bg-[#c4eed0] text-[#072711]' : 'text-white/60 hover:text-white'
+            }`}
+            title="Pen Draw"
+          >
+            <Edit2 className="w-3 h-3" />
+            Draw
+          </button>
+          <button
+            onClick={() => setTool('eraser')}
+            className={`px-3 py-1.5 rounded-full text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              tool === 'eraser' ? 'bg-[#c4eed0] text-[#072711]' : 'text-white/60 hover:text-white'
+            }`}
+            title="Eraser Tool"
+          >
+            <Eraser className="w-3 h-3" />
+            Eraser
+          </button>
+        </div>
 
-          {/* Stroke Width Selector */}
-          <div className="flex items-center gap-1.5 bg-[#303134] px-3.5 py-1.5 rounded-full border border-white/[0.04]">
-            <span className="text-[10px] font-bold text-white/50 uppercase tracking-wider">Size:</span>
-            <select
-              value={thickness}
-              onChange={(e) => setThickness(Number(e.target.value))}
-              className="bg-transparent text-xs font-bold text-white border-none focus:ring-0 focus:outline-none cursor-pointer outline-none"
-            >
-              <option className="bg-[#202124] text-white" value={2}>Thin (2px)</option>
-              <option className="bg-[#202124] text-white" value={4}>Medium (4px)</option>
-              <option className="bg-[#202124] text-white" value={8}>Bold (8px)</option>
-              <option className="bg-[#202124] text-white" value={15}>Extra Bold (15px)</option>
-            </select>
-          </div>
+        {/* Stroke Width Selector */}
+        <div className="flex items-center gap-1 bg-[#303134] px-2.5 py-1 rounded-full border border-white/[0.04] flex-shrink-0">
+          <select
+            value={thickness}
+            onChange={(e) => setThickness(Number(e.target.value))}
+            className="bg-transparent text-[10px] font-bold text-white border-none focus:ring-0 focus:outline-none cursor-pointer outline-none"
+          >
+            <option className="bg-[#202124] text-white" value={2}>2px</option>
+            <option className="bg-[#202124] text-white" value={4}>4px</option>
+            <option className="bg-[#202124] text-white" value={8}>8px</option>
+            <option className="bg-[#202124] text-white" value={15}>15px</option>
+          </select>
         </div>
 
         {/* Dynamic Color Selector */}
         {tool === 'pen' && (
-          <div className="hidden sm:flex items-center gap-2 bg-[#303134] px-4 py-1.5 rounded-full border border-white/[0.04]">
-            <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest mr-1">Color Palette</span>
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 bg-[#303134] px-3 py-1 rounded-full border border-white/[0.04] flex-shrink-0">
+            <div className="flex items-center gap-1">
               {COLORS.map((c) => (
                 <button
                   key={c.value}
                   onClick={() => setColor(c.value)}
-                  className={`w-5 h-5 rounded-full border transition-all cursor-pointer relative ${
+                  className={`w-4 h-4 rounded-full border transition-all cursor-pointer relative ${
                     color === c.value 
-                      ? 'scale-110 border-white ring-2 ring-emerald-400/50' 
+                      ? 'scale-110 border-white ring-1 ring-emerald-400/50' 
                       : 'border-transparent hover:scale-105'
                   }`}
                   style={{ backgroundColor: c.value }}
@@ -243,20 +238,19 @@ export const WhiteboardPanel: React.FC = () => {
         )}
 
         {/* Actions (Clear canvas) */}
-        <div>
+        <div className="flex-shrink-0">
           <button
             onClick={handleClear}
-            className="px-4 py-2 bg-[#f2b8b5] hover:bg-[#f9dedc] text-[#601410] active:scale-95 font-bold rounded-full transition-all cursor-pointer flex items-center gap-1.5 border-none text-xs"
-            title="Clear canvas for everyone"
+            className="p-2 bg-[#f2b8b5]/20 hover:bg-[#f2b8b5] text-[#f2b8b5] hover:text-[#601410] active:scale-95 font-bold rounded-full transition-all cursor-pointer border border-[#f2b8b5]/30 flex items-center justify-center"
+            title="Clear Canvas"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            Clear Canvas
           </button>
         </div>
       </div>
 
-      {/* Grid Canvas Wrapper */}
-      <div className="flex-1 relative bg-white overflow-hidden">
+      {/* Grid Canvas Wrapper - Full screen height */}
+      <div className="flex-grow w-full h-full relative bg-white overflow-hidden">
         {/* Graph grid paper overlay with clean SVG grid */}
         <div 
           className="absolute inset-0 opacity-[0.06] pointer-events-none"

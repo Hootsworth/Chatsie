@@ -1,190 +1,105 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useMeetingStore } from '../../stores/meetingStore';
-import { FileText, Sparkles, X, Copy, Check, Key } from 'lucide-react';
-import { Button, Input, Card } from '../ui';
+import { FileText, Sparkles, AlertTriangle } from 'lucide-react';
 
 export const TranscriptionPanel: React.FC = () => {
   const { transcripts } = useMeetingStore();
+  const listRef = useRef<HTMLDivElement | null>(null);
+
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
-  const [isCopied, setIsCopied] = useState(false);
-  const [apiKeyInput, setApiKeyInput] = useState('');
-  const [showKeyPrompt, setShowKeyPrompt] = useState(false);
+  const summaryType = 'brief';
+  const [showSettings, setShowSettings] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  
-  const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Auto scroll to bottom as new transcript segments arrive
+  // Settings local storage keys
+  const [apiKey, setApiKey] = useState('');
+
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setApiKey(localStorage.getItem('gemini_api_key') || '');
+  }, []);
+
+  // Scroll to bottom of transcripts
+  useEffect(() => {
+    if (listRef.current) {
+      listRef.current.scrollTop = listRef.current.scrollHeight;
+    }
   }, [transcripts]);
 
-  // Export current transcript to Markdown file
   const handleDownload = () => {
-    if (transcripts.length === 0) return;
+    const textContent = transcripts
+      .map((t) => `[${new Date(t.timestamp).toLocaleTimeString()}] ${t.username}: ${t.text}`)
+      .join('\n');
 
-    let mdText = `# Meeting Transcript\nGenerated on: ${new Date().toLocaleString()}\n\n`;
-    
-    transcripts.forEach((t) => {
-      const time = new Date(t.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      mdText += `**[${time}] ${t.username}:** ${t.text}\n\n`;
-    });
-
-    const blob = new Blob([mdText], { type: 'text/markdown;charset=utf-8;' });
+    const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `transcript-${Date.now()}.md`);
-    document.body.appendChild(link);
+    link.download = `transcript-${Date.now()}.txt`;
     link.click();
-    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
-  // Summarize meeting transcript using Gemini API
   const handleSummarize = async () => {
-    const key = localStorage.getItem('gemini_api_key') || '';
-    if (!key) {
-      setShowKeyPrompt(true);
-      return;
-    }
-
-    if (transcripts.length === 0) {
-      setErrorMsg('No conversation transcription available to summarize yet.');
-      return;
-    }
-
-    setIsSummarizing(true);
+    if (transcripts.length === 0) return;
     setErrorMsg(null);
-
-    // Format transcripts into text block
-    const conversation = transcripts
-      .map(t => `${t.username}: ${t.text}`)
-      .join('\n');
-
-    const prompt = `You are an expert AI meeting coordinator. Analyze the following meeting conversation transcript and generate a structured summary including:
-1. # MEETING MINUTES & OVERVIEW (Brief summary of the meeting topics)
-2. ## KEY DECISIONS MADE (Bullet points of finalized items/agreements)
-3. ## ACTION ITEMS & ASSIGNEES (Task lists indicating who needs to do what)
-
-Meeting Transcript:
-${conversation}
-
-Please format your response in clean Markdown. Be precise, professional, and clear.`;
+    setIsSummarizing(true);
 
     try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: prompt
-                  }
-                ]
-              }
-            ]
-          })
-        }
-      );
+      const activeKey = apiKey || localStorage.getItem('gemini_api_key') || '';
+      if (!activeKey) {
+        setErrorMsg('Gemini API key is required. Click the Settings icon in the header to set your API Key.');
+        setShowSettings(true);
+        setIsSummarizing(false);
+        return;
+      }
+
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+      
+      const transcriptLines = transcripts
+        .map((t) => `${t.username}: ${t.text}`)
+        .join('\n');
+
+      const prompt = `You are a professional meeting summarizer. Review the following meeting transcript lines and generate a ${summaryType} summary. Outline key topics, decisions, and action items if applicable. Use clean bullet points.\n\nMeeting Transcripts:\n${transcriptLines}`;
+
+      const response = await fetch(`${backendUrl}/api/ai/summarize`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt,
+          apiKey: activeKey,
+        }),
+      });
 
       if (!response.ok) {
-        throw new Error(`Gemini API Error: Status ${response.status}`);
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to generate summary.');
       }
 
       const data = await response.json();
-      const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-      if (!generatedText) {
-        throw new Error('Invalid response structure received from Gemini API.');
-      }
-
-      setSummary(generatedText);
-    } catch (e: any) {
-      console.error('Gemini summarization failed:', e);
-      setErrorMsg(e?.message || 'Failed to generate AI summary. Please check your internet connection or API key validity.');
+      setSummary(data.summary);
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || 'Failed to generate transcription summary.');
     } finally {
       setIsSummarizing(false);
     }
   };
 
-  const handleSaveApiKey = () => {
-    if (!apiKeyInput.trim()) return;
-    localStorage.setItem('gemini_api_key', apiKeyInput.trim());
-    setApiKeyInput('');
-    setShowKeyPrompt(false);
-    setErrorMsg(null);
-    setTimeout(() => handleSummarize(), 200);
-  };
-
-  const handleCopySummary = () => {
-    if (!summary) return;
-    navigator.clipboard.writeText(summary);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
-  };
-
-  // Simple parser to format Markdown strings on the fly
-  const renderFormattedMarkdown = (markdownText: string) => {
-    return markdownText.split('\n').map((line, idx) => {
-      if (line.startsWith('# ')) {
-        return (
-          <h4 key={idx} className="text-xs font-black text-[#8ab4f8] mt-4 mb-2 uppercase tracking-wider border-b border-white/[0.06] pb-1">
-            {line.slice(2)}
-          </h4>
-        );
-      }
-      if (line.startsWith('## ')) {
-        return (
-          <h5 key={idx} className="text-[11px] font-bold text-[#e8eaed] mt-3 mb-1.5 uppercase tracking-wide">
-            {line.slice(3)}
-          </h5>
-        );
-      }
-      if (line.startsWith('### ')) {
-        return (
-          <h6 key={idx} className="text-[10px] font-bold text-[#9aa0a6] mt-2.5 mb-1">
-            {line.slice(4)}
-          </h6>
-        );
-      }
-      if (line.startsWith('- ') || line.startsWith('* ')) {
-        return (
-          <li key={idx} className="ml-3 list-disc text-[11px] text-[#e8eaed]/80 my-1 pl-0.5 leading-relaxed">
-            {line.slice(2)}
-          </li>
-        );
-      }
-
-      let content: React.ReactNode = line;
-      if (line.includes('**')) {
-        const parts = line.split('**');
-        content = parts.map((part, index) => 
-          index % 2 === 1 ? <strong key={index} className="font-bold text-[#e8eaed]">{part}</strong> : part
-        );
-      }
-
-      if (!line.trim()) return <div key={idx} className="h-2" />;
-
-      return (
-        <p key={idx} className="text-[11px] text-[#e8eaed]/80 leading-relaxed my-1">
-          {content}
-        </p>
-      );
-    });
+  const handleSaveApiKey = (e: React.FormEvent) => {
+    e.preventDefault();
+    localStorage.setItem('gemini_api_key', apiKey.trim());
+    setShowSettings(false);
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#202124] text-[#e8eaed] z-20 relative">
+    <div className="w-full h-full flex flex-col bg-[#1e2022] text-[#e3e2e6] relative select-none">
       
       {/* Header */}
-      <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
-        <h3 className="font-bold text-xs text-[#e8eaed] uppercase tracking-wider">
+      <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between bg-[#131417] flex-shrink-0">
+        <h3 className="font-bold text-xs text-white uppercase tracking-wider">
           Live Transcription
         </h3>
         <div className="flex items-center space-x-1.5">
@@ -192,7 +107,7 @@ Please format your response in clean Markdown. Be precise, professional, and cle
             onClick={handleDownload}
             disabled={transcripts.length === 0}
             title="Download Transcript"
-            className="p-1.5 hover:bg-white/5 text-[#9aa0a6] hover:text-[#e8eaed] rounded-md disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
+            className="p-1.5 text-white/60 hover:text-white hover:bg-white/5 rounded-full disabled:opacity-30 cursor-pointer transition-all"
           >
             <FileText className="w-4 h-4" />
           </button>
@@ -200,7 +115,7 @@ Please format your response in clean Markdown. Be precise, professional, and cle
             onClick={handleSummarize}
             disabled={transcripts.length === 0 || isSummarizing}
             title="Summarize with Gemini AI"
-            className="p-1.5 hover:bg-white/5 text-[#8ab4f8] hover:text-[#aecbfa] rounded-md disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
+            className="p-1.5 text-[#a8c7fa] hover:text-white hover:bg-[#a8c7fa]/10 rounded-full disabled:opacity-30 cursor-pointer transition-all"
           >
             <Sparkles className="w-4 h-4" />
           </button>
@@ -209,158 +124,123 @@ Please format your response in clean Markdown. Be precise, professional, and cle
 
       {/* Error Message banner */}
       {errorMsg && (
-        <div className="px-4 py-2.5 bg-red-950/20 border-b border-red-900/30 text-[10px] font-bold text-red-400">
-          {errorMsg}
+        <div className="px-4 py-2 bg-[#f2b8b5]/15 border-b border-[#f2b8b5]/20 text-[10px] font-bold text-[#f2b8b5] flex items-center gap-1.5 text-left flex-shrink-0">
+          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+          <span>{errorMsg}</span>
         </div>
       )}
 
       {/* Transcription List */}
-      <div className="flex-grow overflow-y-auto p-4 space-y-3.5 bg-[#202124]">
+      <div ref={listRef} className="flex-grow overflow-y-auto p-4 space-y-4 bg-[#1e2022] select-text">
         {transcripts.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center text-xs text-[#9aa0a6] font-semibold p-4">
-            <div className="w-8 h-8 rounded-full border border-white/[0.06] flex items-center justify-center mb-2.5 bg-white/2">
-              <span className="animate-pulse w-2 h-2 rounded-full bg-[#8ab4f8]" />
+          <div className="h-full flex flex-col items-center justify-center text-center text-xs text-white/30 p-4 space-y-2">
+            <div className="w-10 h-10 rounded-full border border-white/[0.08] flex items-center justify-center bg-[#131417]">
+              <span className="animate-pulse w-2.5 h-2.5 rounded-full bg-[#a8c7fa]" />
             </div>
-            Listening for speech... Make sure captions are enabled and microphone is unmuted.
+            <p className="font-bold text-white/90">Awaiting audio signals...</p>
+            <p className="text-[10px] opacity-75">Transcriptions will display here once speech is captured.</p>
           </div>
         ) : (
-          transcripts.map((t, idx) => {
-            const isFinal = t.isFinal;
-            return (
-              <div key={t.id || idx} className="space-y-0.5 animate-in fade-in duration-200">
-                <div className="flex items-center space-x-1.5 text-[9px] font-bold text-[#9aa0a6]">
-                  <span className="truncate max-w-[120px] text-[#8ab4f8]">{t.username}</span>
-                  <span>•</span>
-                  <span>
-                    {new Date(t.timestamp).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      second: '2-digit'
-                    })}
+          transcripts.map((t, idx) => (
+            <div key={idx} className="space-y-1 text-xs text-left">
+              <div className="flex items-center gap-1.5 text-white/50 text-[10px]">
+                <span className="font-bold">{t.username}</span>
+                <span>·</span>
+                <span>{new Date(t.timestamp).toLocaleTimeString()}</span>
+                {!t.isFinal && (
+                  <span className="text-[8px] bg-white/5 text-[#a8c7fa] px-1.5 py-0.5 rounded-full select-none font-bold">
+                    Drafting
                   </span>
-                  {!isFinal && (
-                    <span className="text-[8px] bg-white/10 text-[#9aa0a6] px-1 rounded uppercase tracking-wider scale-90">
-                      Speaking
-                    </span>
-                  )}
-                </div>
-                <p className={`text-xs leading-relaxed ${isFinal ? 'text-[#e8eaed] font-medium' : 'text-[#9aa0a6] italic'}`}>
-                  {t.text}
-                </p>
+                )}
               </div>
-            );
-          })
+              <p className={`leading-relaxed ${t.isFinal ? 'text-white/80' : 'text-white/40 italic'}`}>
+                {t.text}
+              </p>
+            </div>
+          ))
         )}
-        <div ref={scrollRef} />
       </div>
 
-      {/* API KEY PROMPT OVERLAY */}
-      {showKeyPrompt && (
-        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-30 p-6 flex flex-col justify-center">
-          <Card className="p-5 space-y-4 border border-white/[0.06] bg-[#292b2f] text-[#e8eaed]">
-            <div className="flex justify-between items-start">
-              <div className="flex items-center space-x-2 text-[#8ab4f8]">
-                <Key className="w-5 h-5" />
-                <h4 className="font-bold text-sm text-[#e8eaed]">Gemini API Key</h4>
-              </div>
-              <button 
-                onClick={() => setShowKeyPrompt(false)}
-                className="text-[#9aa0a6] hover:text-[#e8eaed] cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
+      {/* MODAL overlay: Settings API Key */}
+      {showSettings && (
+        <div className="absolute inset-0 bg-[#0a0b0d]/80 z-30 p-6 flex flex-col justify-center text-left">
+          <div className="p-5 space-y-4 border border-white/[0.08] bg-[#131417] text-white rounded-[24px] shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="space-y-1">
+              <h4 className="text-xs font-bold text-white">Gemini API Key Required</h4>
+              <p className="text-[10px] text-white/50 leading-relaxed">
+                Gemini AI powers transcripts summarization. Set your key below.
+              </p>
             </div>
-            <p className="text-[11px] text-[#9aa0a6] leading-relaxed">
-              To summarize meetings, please provide a Gemini API Key. Your key is stored strictly on your device locally (`localStorage`) and is never sent to our servers.
-            </p>
-            <div className="space-y-3">
-              <Input
+            <form onSubmit={handleSaveApiKey} className="space-y-4">
+              <input
                 type="password"
-                placeholder="Enter Gemini API Key..."
-                value={apiKeyInput}
-                onChange={(e) => setApiKeyInput(e.target.value)}
-                className="bg-[#3c4043] text-[#e8eaed] border-white/[0.06] placeholder-[#9aa0a6] focus:ring-[#8ab4f8] text-xs"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="AIzaSy..."
+                className="w-full bg-[#1e2022] text-white border border-white/10 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#a8c7fa]"
+                required
               />
-              <div className="flex space-x-2">
-                <Button 
-                  onClick={handleSaveApiKey}
-                  disabled={!apiKeyInput.trim()}
-                  className="flex-grow text-xs h-9 bg-[#8ab4f8] text-[#202124] hover:bg-[#aecbfa] font-bold cursor-pointer disabled:cursor-not-allowed"
-                >
-                  Save & Summarize
-                </Button>
-                <Button 
-                  variant="tertiary-text" 
-                  onClick={() => setShowKeyPrompt(false)}
-                  className="text-xs h-9 border border-white/[0.06] text-[#e8eaed] hover:bg-white/5 bg-transparent cursor-pointer"
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowSettings(false)}
+                  className="px-3.5 py-2 bg-[#303134] text-white/80 hover:text-white rounded-full text-xs font-bold transition-all cursor-pointer"
                 >
                   Cancel
-                </Button>
+                </button>
+                <button
+                  type="submit"
+                  className="px-4.5 py-2 bg-[#a8c7fa] text-[#062e6f] hover:bg-[#c4eed0] font-bold rounded-full text-xs transition-all cursor-pointer"
+                >
+                  Save API Key
+                </button>
               </div>
-            </div>
-          </Card>
+            </form>
+          </div>
         </div>
       )}
 
-      {/* SUMMARY MODAL OVERLAY */}
+      {/* MODAL overlay: Summary details */}
       {summary && (
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-40 p-4 flex flex-col justify-end">
-          <div className="w-full h-[90%] bg-[#202124] border border-white/[0.06] rounded-2xl flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-300">
-            {/* Modal Header */}
-            <div className="px-5 py-4 border-b border-white/[0.06] bg-[#292b2f] flex items-center justify-between rounded-t-2xl">
-              <div className="flex items-center space-x-2 text-[#8ab4f8]">
-                <Sparkles className="w-4 h-4" />
-                <span className="font-black text-xs uppercase tracking-wider text-[#e8eaed]">AI Meeting Summary</span>
+        <div className="absolute inset-0 bg-[#0a0b0d]/75 z-40 p-4 flex flex-col justify-end text-left select-text">
+          <div className="w-full h-[90%] bg-[#1e2022] border border-white/[0.08] rounded-[28px] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-300 overflow-hidden">
+            
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-white/[0.08] bg-[#131417] flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#a8c7fa]" />
+                <h4 className="text-xs font-bold text-white">Gemini Summary Result</h4>
               </div>
-              <div className="flex items-center space-x-1.5">
-                <button
-                  onClick={handleCopySummary}
-                  className="p-1.5 hover:bg-white/5 text-[#9aa0a6] hover:text-[#e8eaed] rounded-md transition-colors cursor-pointer"
-                  title="Copy to Clipboard"
-                >
-                  {isCopied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
-                </button>
-                <button
-                  onClick={() => setSummary(null)}
-                  className="p-1.5 hover:bg-white/5 text-[#9aa0a6] hover:text-[#e8eaed] rounded-md transition-colors cursor-pointer"
-                  title="Close Summary"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+              <button
+                onClick={() => handleDownload()}
+                className="px-3 py-1 bg-[#303134] hover:bg-[#3c4043] text-white rounded-full text-[10px] font-bold transition-colors cursor-pointer"
+              >
+                Save Summary
+              </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="flex-grow overflow-y-auto p-5 space-y-2 bg-[#202124]">
-              {renderFormattedMarkdown(summary)}
+            {/* Content body */}
+            <div className="flex-grow overflow-y-auto p-5 space-y-2 bg-[#1e2022]">
+              <p className="text-[11px] leading-relaxed text-white/80 whitespace-pre-wrap">
+                {summary}
+              </p>
             </div>
 
-            {/* Modal Footer */}
-            <div className="p-4 border-t border-white/[0.06] bg-[#292b2f] rounded-b-2xl flex justify-end">
-              <Button onClick={() => setSummary(null)} className="h-9 text-xs bg-[#8ab4f8] text-[#202124] hover:bg-[#aecbfa] font-bold cursor-pointer">
-                Close Summary
-              </Button>
+            {/* Footer */}
+            <div className="p-4 border-t border-white/[0.08] bg-[#131417] flex justify-end flex-shrink-0">
+              <button 
+                onClick={() => setSummary(null)} 
+                className="h-9 px-4.5 text-xs bg-[#a8c7fa] text-[#062e6f] hover:bg-[#c4eed0] font-bold rounded-full cursor-pointer flex items-center justify-center transition-colors"
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Loader during AI generation */}
-      {isSummarizing && (
-        <div className="absolute inset-0 bg-black/75 backdrop-blur-sm z-30 flex flex-col items-center justify-center text-center p-6 animate-in fade-in duration-200">
-          <svg className="animate-spin h-7 w-7 text-[#8ab4f8] mb-3.5" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-          <span className="text-xs font-bold text-[#e8eaed] tracking-wide animate-pulse">
-            Gemini is analyzing meeting transcripts...
-          </span>
-          <span className="text-[10px] text-[#9aa0a6] mt-1.5 max-w-[200px]">
-            Compiling meeting minutes, key decisions, and action items.
-          </span>
-        </div>
-      )}
     </div>
   );
 };
+
 export default TranscriptionPanel;
