@@ -22,11 +22,10 @@ import { ChatPanel } from './ChatPanel';
 import { ParticipantPanel } from './ParticipantPanel';
 import { TranscriptionPanel } from './TranscriptionPanel';
 import { ReactionOverlay } from './ReactionOverlay';
-import { WhiteboardPanel } from './WhiteboardPanel';
 import { BreakoutModal } from './BreakoutModal';
 import { Modal, Button } from '../ui';
 import { DeviceSelector } from './DeviceSelector';
-import { Copy, Check, Users, Keyboard, Mic, MicOff, Video, VideoOff, Camera, User, ExternalLink, Lock, Unlock, Mail, Loader2, Settings, Palette, FileText, PictureInPicture, Circle, MousePointer, MessageSquare, MonitorOff, Headphones, LayoutGrid } from 'lucide-react';
+import { Copy, Check, Users, Keyboard, Mic, MicOff, Video, VideoOff, Camera, User, ExternalLink, Mail, Loader2, Settings, FileText, PictureInPicture, Circle, LayoutGrid } from 'lucide-react';
 import { useGestureDetector } from '../../hooks/useGestureDetector';
 import { SmartJoinDiagnostics } from './SmartJoinDiagnostics';
 import { IntentToSpeakIndicator } from './IntentToSpeakIndicator';
@@ -1090,7 +1089,6 @@ const ActiveRoomContent: React.FC<{
     isChatPanelOpen,
     isParticipantsPanelOpen,
     isTranscriptionPanelOpen,
-    isWhiteboardOpen,
     isSettingsOpen,
     isShortcutsOpen,
     setSettingsOpen,
@@ -1104,7 +1102,6 @@ const ActiveRoomContent: React.FC<{
     addParticipant,
     removeParticipant,
     updateParticipantMute,
-    toggleWhiteboard,
     toggleTranscriptionPanel,
     setPolls,
     addPoll,
@@ -1116,17 +1113,12 @@ const ActiveRoomContent: React.FC<{
     updateQuestionUpvotes,
     setQuestionAnswered,
     deleteQuestion,
-    isMultiplayerCursorEnabled,
-    setMultiplayerCursorEnabled,
-    isChatLocked,
-    isScreenShareLocked,
     setModerationPolicy,
     transcripts,
     chatMessages,
     isWorkspaceOpen,
     setWorkspaceOpen,
-    isSpatialAudioEnabled,
-    setSpatialAudioEnabled
+    setMultiplayerCursorEnabled
   } = useMeetingStore();
 
   const {
@@ -1150,7 +1142,6 @@ const ActiveRoomContent: React.FC<{
     const audioTrack = localParticipant?.getTrackPublication('microphone' as any)?.audioTrack?.mediaStreamTrack;
     return audioTrack ? new MediaStream([audioTrack]) : null;
   }, [localParticipant, isMicrophoneEnabled]);
-  const { getToken } = useAuth();
   const [hasCopiedCode, setHasCopiedCode] = useState(false);
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
   const [chatToasts, setChatToasts] = useState<Array<{ id: string; sender: string; text: string }>>([]);
@@ -1295,33 +1286,7 @@ const ActiveRoomContent: React.FC<{
     };
   }, [isBreakoutModalOpen, isInviteModalOpen, isFollowUpModalOpen]);
 
-  const handleToggleRoomLock = async () => {
-    try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
-      const token = await getToken();
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const nextLockedState = !currentMeeting?.is_locked;
-      const res = await fetch(`${backendUrl}/api/meetings/${code}/lock`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify({ isLocked: nextLockedState })
-      });
-
-      if (res.ok) {
-        signalingClient.sendRoomLockToggle(nextLockedState);
-        useMeetingStore.getState().setCurrentMeeting(
-          currentMeeting ? { ...currentMeeting, is_locked: nextLockedState } : null
-        );
-      } else {
-        const data = await res.json();
-        console.error("Failed to toggle meeting lock:", data.error);
-      }
-    } catch (err) {
-      console.error("Error toggling meeting lock:", err);
-    }
-  };
 
   // Listen for breakout room events
   useEffect(() => {
@@ -1903,54 +1868,13 @@ const ActiveRoomContent: React.FC<{
             <button onClick={handleCopyRoomLink} className="p-1 hover:bg-white/10 rounded transition-colors cursor-pointer" title="Copy link">
               {hasCopiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-[#9aa0a6] hover:text-[#e8eaed]" />}
             </button>
-            {myRole === 'host' && (
-              <button onClick={() => setIsInviteModalOpen(true)} className="p-1 hover:bg-white/10 rounded transition-colors cursor-pointer" title="Invite">
-                <Mail className="w-3.5 h-3.5 text-[#9aa0a6] hover:text-[#e8eaed]" />
-              </button>
-            )}
           </div>
         </div>
 
         {/* Right: Quick actions */}
         <div className="flex items-center gap-1">
-          {myRole === 'host' && (
-            <>
-              <button onClick={handleToggleRoomLock} className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${currentMeeting?.is_locked ? 'text-[#ea4335]' : 'text-emerald-400'}`} title={currentMeeting?.is_locked ? 'Unlock' : 'Lock'}>
-                {currentMeeting?.is_locked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-              </button>
-              <button onClick={() => setIsBreakoutModalOpen(true)} className="p-2 rounded-full hover:bg-white/10 text-[#8ab4f8] transition-colors cursor-pointer" title="Breakout Rooms">
-                <Users className="w-4 h-4" />
-              </button>
-              <button 
-                onClick={() => signalingClient.sendMultiplayerCursorsToggle(!isMultiplayerCursorEnabled)} 
-                className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${isMultiplayerCursorEnabled ? 'text-pink-500' : 'text-[#9aa0a6] hover:text-[#e8eaed]'}`} 
-                title={isMultiplayerCursorEnabled ? 'Disable Multiplayer Cursors (Beta)' : 'Enable Multiplayer Cursors (Beta)'}
-              >
-                <MousePointer className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => signalingClient.sendModerationPolicy({ isChatLocked: !isChatLocked })}
-                className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${isChatLocked ? 'text-[#ea4335]' : 'text-[#9aa0a6] hover:text-[#e8eaed]'}`}
-                title={isChatLocked ? 'Unlock chat' : 'Lock chat'}
-              >
-                <MessageSquare className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => signalingClient.sendModerationPolicy({ isScreenShareLocked: !isScreenShareLocked })}
-                className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${isScreenShareLocked ? 'text-[#ea4335]' : 'text-[#9aa0a6] hover:text-[#e8eaed]'}`}
-                title={isScreenShareLocked ? 'Allow participant sharing' : 'Lock participant sharing'}
-              >
-                <MonitorOff className="w-4 h-4" />
-              </button>
-            </>
-          )}
-
           <button onClick={isRecording ? stopRecording : startRecording} className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${isRecording ? 'text-[#ea4335]' : 'text-[#9aa0a6] hover:text-[#e8eaed]'}`} title={isRecording ? 'Stop Recording' : 'Record'}>
             <Circle className={`w-4 h-4 ${isRecording ? 'fill-[#ea4335] animate-pulse' : ''}`} />
-          </button>
-
-          <button onClick={toggleWhiteboard} className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${isWhiteboardOpen ? 'text-[#8ab4f8]' : 'text-[#9aa0a6] hover:text-[#e8eaed]'}`} title="Whiteboard">
-            <Palette className="w-4 h-4" />
           </button>
 
           <button onClick={toggleTranscriptionPanel} className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${isTranscriptionPanelOpen ? 'text-[#8ab4f8]' : 'text-[#9aa0a6] hover:text-[#e8eaed]'}`} title="Transcript">
@@ -1963,10 +1887,6 @@ const ActiveRoomContent: React.FC<{
 
           <button onClick={() => setWorkspaceOpen(!isWorkspaceOpen)} className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${isWorkspaceOpen ? 'text-[#8ab4f8]' : 'text-[#9aa0a6] hover:text-[#e8eaed]'}`} title="Plugins & Workspace">
             <LayoutGrid className="w-4 h-4" />
-          </button>
-
-          <button onClick={() => setSpatialAudioEnabled(!isSpatialAudioEnabled)} className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${isSpatialAudioEnabled ? 'text-emerald-400 bg-emerald-500/10' : 'text-[#9aa0a6] hover:text-[#e8eaed]'}`} title={isSpatialAudioEnabled ? "Spatial 3D Audio Enabled" : "Enable Spatial 3D Audio"}>
-            <Headphones className="w-4 h-4" />
           </button>
 
           {'documentPictureInPicture' in window && (
@@ -1995,11 +1915,7 @@ const ActiveRoomContent: React.FC<{
         
         {/* Central area */}
         <div className="flex-grow flex flex-col min-h-0 overflow-y-auto no-scrollbar relative">
-          {isWhiteboardOpen ? (
-            <div className="flex-grow p-2 min-h-0">
-              <WhiteboardPanel />
-            </div>
-          ) : isTabVisible ? (
+          {isTabVisible ? (
             <VideoGrid />
           ) : (
             <div className="flex-grow flex flex-col items-center justify-center bg-[#292b2f] rounded-xl m-2 p-8 select-none">
@@ -2057,7 +1973,7 @@ const ActiveRoomContent: React.FC<{
 
         {isParticipantsPanelOpen && (
           <div className="side-panel w-80 z-40 overflow-hidden flex flex-col animate-in slide-in-from-right duration-200">
-            <ParticipantPanel />
+            <ParticipantPanel onBreakoutClick={() => setIsBreakoutModalOpen(true)} />
           </div>
         )}
 

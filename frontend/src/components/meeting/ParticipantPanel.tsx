@@ -1,23 +1,48 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useMeetingStore } from '../../stores/meetingStore';
 import { signalingClient } from '../../services/signaling';
 import { useParticipants, useLocalParticipant } from '@livekit/components-react';
-import { Hand, MicOff, VideoOff, Trash2, Check, X, ShieldAlert, VolumeX } from 'lucide-react';
+import { useAuth } from '@clerk/clerk-react';
+import { 
+  Hand, MicOff, VideoOff, Trash2, Check, X, ShieldAlert, 
+  VolumeX, Lock, Unlock, MousePointer, MessageSquare, MonitorOff, 
+  Users, Loader2, UserPlus 
+} from 'lucide-react';
 
-export const ParticipantPanel: React.FC = () => {
+interface ParticipantPanelProps {
+  onBreakoutClick?: () => void;
+}
+
+export const ParticipantPanel: React.FC<ParticipantPanelProps> = ({ onBreakoutClick }) => {
   const {
     myRole,
     waitingRoomList,
     participants,
     isLocalHandRaised,
-    currentMeeting
+    currentMeeting,
+    isMultiplayerCursorEnabled,
+    isChatLocked,
+    isScreenShareLocked
   } = useMeetingStore();
 
   const allParticipants = useParticipants();
-  const { localParticipant } = useLocalParticipant();
+  const { localParticipant } = useRoomLocalParticipant();
+  const { getToken } = useAuth();
+
+  // Tab state: 'list' | 'controls' (Host only)
+  const [activeTab, setActiveTab] = useState<'list' | 'controls'>('list');
+
+  // Invite form state
+  const [emailInput, setEmailInput] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [lookupResult, setLookupResult] = useState<any>(null);
+  const [inviteStatus, setInviteStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const searchTimeoutRef = useRef<any>(null);
+
+  const isHost = myRole === 'host';
 
   const handleMutePeer = (socketId: string, type: 'audio' | 'video') => {
-    // Custom signaling for remote muting
     signalingClient.mutePeer(socketId, type);
   };
 
@@ -58,185 +83,463 @@ export const ParticipantPanel: React.FC = () => {
     signalingClient.sendLowerAllHands();
   };
 
-  const isHost = myRole === 'host';
+  // Toggle Lock
+  const handleToggleRoomLock = async () => {
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+      const token = await getToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`${backendUrl}/api/meetings/${currentMeeting?.code}/lock`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ isLocked: !currentMeeting?.is_locked })
+      });
+      if (res.ok) {
+        signalingClient.sendRoomLockToggle(!currentMeeting?.is_locked);
+      }
+    } catch (err) {
+      console.error('Failed to toggle room lock:', err);
+    }
+  };
+
+  // Invite user database lookup
+  useEffect(() => {
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+    const trimmed = emailInput.trim();
+    if (!trimmed || !trimmed.includes('@')) {
+      setLookupResult(null);
+      return;
+    }
+
+    setIsSearching(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+        const token = await getToken();
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const res = await fetch(`${backendUrl}/api/users/lookup?email=${encodeURIComponent(trimmed)}`, { headers });
+        if (res.ok) {
+          const data = await res.json();
+          setLookupResult(data);
+        }
+      } catch (err) {
+        console.error('Error looking up user:', err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 400);
+
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    };
+  }, [emailInput, getToken]);
+
+  // Send Gmail invitation
+  const handleSendInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = emailInput.trim();
+    if (!trimmed) return;
+
+    setInviteStatus('sending');
+    setInviteError(null);
+
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+      const token = await getToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`${backendUrl}/api/meetings/${currentMeeting?.code}/invite`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ email: trimmed })
+      });
+
+      if (res.ok) {
+        setInviteStatus('success');
+        setEmailInput('');
+        setTimeout(() => setInviteStatus('idle'), 3000);
+      } else {
+        const data = await res.json();
+        setInviteStatus('error');
+        setInviteError(data.error || 'Failed to send invitation');
+      }
+    } catch (err: any) {
+      setInviteStatus('error');
+      setInviteError(err.message || 'Failed to send invitation');
+    }
+  };
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#202124] text-[#e8eaed] z-20 overflow-y-auto">
+    <div className="w-full h-full flex flex-col bg-[#202124] text-[#e8eaed] z-20 overflow-hidden">
       
-      {/* 1. WAITING ROOM QUEUE (HOST ONLY) */}
-      {isHost && waitingRoomList.length > 0 && (
-        <div className="border-b border-white/[0.06] p-4 bg-amber-500/5">
-          <h3 className="font-bold text-[11px] text-amber-400 uppercase tracking-widest flex items-center mb-3">
-            <ShieldAlert className="w-4 h-4 mr-1.5" />
-            Waiting Room ({waitingRoomList.length})
-          </h3>
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            <button
-              onClick={handleAdmitAll}
-              className="py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold transition-colors cursor-pointer"
-            >
-              Admit All
-            </button>
-            <button
-              onClick={handleDenyAll}
-              className="py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-[10px] font-bold transition-colors cursor-pointer"
-            >
-              Deny All
-            </button>
-          </div>
-          
-          <div className="space-y-2.5">
-            {waitingRoomList.map((waiter) => (
-              <div 
-                key={waiter.userId}
-                className="flex items-center justify-between p-2.5 bg-[#292b2f] rounded-lg border border-amber-500/20 text-xs"
-              >
-                <span className="font-bold text-[#e8eaed] truncate mr-2">
-                  {waiter.username}
-                </span>
-                <div className="flex space-x-1.5 flex-shrink-0">
-                  <button
-                    onClick={() => handleWaitingAction(waiter.userId, 'approve')}
-                    className="p-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded transition-colors cursor-pointer"
-                    title="Admit"
-                  >
-                    <Check className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleWaitingAction(waiter.userId, 'deny')}
-                    className="p-1 bg-red-600 hover:bg-red-700 text-white rounded transition-colors cursor-pointer"
-                    title="Deny"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 2. ACTIVE PARTICIPANTS HEADER */}
-      <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
-        <h3 className="font-bold text-xs text-[#e8eaed] uppercase tracking-wider">
+      {/* Tab Switcher Headers (Hosts only get Host Controls tab) */}
+      <div className="flex bg-[#27282b] border-b border-white/[0.06] flex-shrink-0">
+        <button
+          onClick={() => setActiveTab('list')}
+          className={`flex-1 py-3 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer border-b-2 ${
+            activeTab === 'list' ? 'text-emerald-400 border-emerald-400 bg-white/[0.02]' : 'text-white/60 border-transparent hover:text-white'
+          }`}
+        >
+          <Users className="w-3.5 h-3.5" />
           Participants
-        </h3>
-        <span className="px-2 py-0.5 bg-[#3c4043] text-[#e8eaed] rounded text-[10px] font-bold">
-          {allParticipants.length}
-        </span>
+        </button>
+        {isHost && (
+          <button
+            onClick={() => setActiveTab('controls')}
+            className={`flex-1 py-3 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer border-b-2 ${
+              activeTab === 'controls' ? 'text-emerald-400 border-emerald-400 bg-white/[0.02]' : 'text-white/60 border-transparent hover:text-white'
+            }`}
+          >
+            <ShieldAlert className="w-3.5 h-3.5" />
+            Host Rules
+          </button>
+        )}
       </div>
 
-      {isHost && (
-        <div className="px-4 py-3 border-b border-white/[0.06] bg-[#202124]">
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              onClick={() => handleMuteAll('audio')}
-              className="flex items-center justify-center gap-1 py-2 rounded-lg bg-[#292b2f] hover:bg-red-500/10 text-[#e8eaed] hover:text-red-400 border border-white/[0.06] text-[10px] font-bold transition-colors cursor-pointer"
-              title="Mute everyone else"
-            >
-              <VolumeX className="w-3.5 h-3.5" />
-              Mute All
-            </button>
-            <button
-              onClick={() => handleMuteAll('video')}
-              className="flex items-center justify-center gap-1 py-2 rounded-lg bg-[#292b2f] hover:bg-red-500/10 text-[#e8eaed] hover:text-red-400 border border-white/[0.06] text-[10px] font-bold transition-colors cursor-pointer"
-              title="Stop everyone else's cameras"
-            >
-              <VideoOff className="w-3.5 h-3.5" />
-              Cameras
-            </button>
-            <button
-              onClick={handleLowerAllHands}
-              className="flex items-center justify-center gap-1 py-2 rounded-lg bg-[#292b2f] hover:bg-amber-500/10 text-[#e8eaed] hover:text-amber-400 border border-white/[0.06] text-[10px] font-bold transition-colors cursor-pointer"
-              title="Clear raised hands"
-            >
-              <Hand className="w-3.5 h-3.5" />
-              Hands
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 3. ACTIVE PARTICIPANTS LIST */}
-      <div className="flex-grow p-4 space-y-3.5 bg-[#202124]">
-        
-        {/* Participants (Local & Remote) */}
-        {allParticipants.map((p) => {
-          const isMe = p.identity === localParticipant?.identity;
-          const isHandRaised = isMe 
-            ? isLocalHandRaised 
-            : participants.find(sp => sp.userId === p.identity)?.isHandRaised;
-          
-          const isTargetHost = p.identity === currentMeeting?.host_id;
-          const canMute = !isMe && (isHost || !isTargetHost);
-          
-          return (
-            <div 
-              key={p.identity}
-              className="flex items-center justify-between text-xs py-1 group"
-            >
-              {/* Meta */}
-              <div className="flex items-center space-x-2.5 min-w-0">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${isMe ? 'bg-[#8ab4f8]/20 text-[#8ab4f8]' : 'bg-[#3c4043] text-[#e8eaed]'}`}>
-                  {p.name?.charAt(0).toUpperCase() || 'U'}
-                </div>
-                <div className="truncate">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-[#e8eaed] truncate">{isMe ? 'Me' : p.name}</span>
-                    {isHandRaised && <span className="text-amber-400 font-bold animate-bounce" title="Hand Raised">✋</span>}
-                  </div>
-                  <span className="text-[10px] text-[#9aa0a6] font-semibold block">{p.identity === currentMeeting?.host_id ? '@host' : ''}</span>
-                </div>
+      {/* TAB CONTENT: ACTIVE PARTICIPANTS */}
+      {activeTab === 'list' && (
+        <div className="flex-1 flex flex-col min-h-0 bg-[#202124]">
+          {/* Waiting Room queue */}
+          {isHost && waitingRoomList.length > 0 && (
+            <div className="border-b border-white/[0.06] p-4 bg-amber-500/5 flex-shrink-0">
+              <h3 className="font-bold text-[11px] text-amber-400 uppercase tracking-wider flex items-center mb-3">
+                <ShieldAlert className="w-3.5 h-3.5 mr-1.5" />
+                Waiting Room ({waitingRoomList.length})
+              </h3>
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <button
+                  onClick={handleAdmitAll}
+                  className="py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold transition-colors cursor-pointer"
+                >
+                  Admit All
+                </button>
+                <button
+                  onClick={handleDenyAll}
+                  className="py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-[10px] font-bold transition-colors cursor-pointer"
+                >
+                  Deny All
+                </button>
               </div>
-
-              {/* Actions / Status */}
-              <div className="flex items-center space-x-2 flex-shrink-0">
-                
-                {/* Static status icons */}
-                {!p.isMicrophoneEnabled && <MicOff className="w-3.5 h-3.5 text-red-500" />}
-                {!p.isCameraEnabled && <VideoOff className="w-3.5 h-3.5 text-red-500" />}
-
-                {/* Control Actions (visible on hover/mobile) */}
-                {!isMe && (canMute || isHost) && (
-                  <div className="hidden group-hover:flex items-center space-x-1 pl-1 bg-[#202124] text-[#e8eaed]">
-                    {/* Remote Mute Audio */}
-                    {canMute && p.isMicrophoneEnabled && (
+              <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
+                {waitingRoomList.map((waiter) => (
+                  <div key={waiter.userId} className="flex items-center justify-between p-2 bg-[#292b2f] border border-amber-500/10 rounded-lg text-xs">
+                    <span className="font-bold text-[#e8eaed] truncate mr-2">{waiter.username}</span>
+                    <div className="flex space-x-1 flex-shrink-0">
                       <button
-                        onClick={() => handleMutePeer(p.identity, 'audio')}
-                        className="p-1 text-[#9aa0a6] hover:text-red-400 hover:bg-red-500/10 rounded transition-colors cursor-pointer"
-                        title="Mute Audio"
+                        onClick={() => handleWaitingAction(waiter.userId, 'approve')}
+                        className="p-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded cursor-pointer"
                       >
-                        <VolumeX className="w-3.5 h-3.5" />
+                        <Check className="w-3.5 h-3.5" />
                       </button>
-                    )}
-                    {/* Remote Mute Video */}
-                    {canMute && p.isCameraEnabled && (
                       <button
-                        onClick={() => handleMutePeer(p.identity, 'video')}
-                        className="p-1 text-[#9aa0a6] hover:text-red-400 hover:bg-red-500/10 rounded transition-colors cursor-pointer"
-                        title="Mute Video"
+                        onClick={() => handleWaitingAction(waiter.userId, 'deny')}
+                        className="p-1 bg-red-600 hover:bg-red-700 text-white rounded cursor-pointer"
                       >
-                        <VideoOff className="w-3.5 h-3.5" />
+                        <X className="w-3.5 h-3.5" />
                       </button>
-                    )}
-                    {/* Kick Peer */}
-                    {isHost && (
-                      <button
-                        onClick={() => handleKickPeer(p.identity)}
-                        className="p-1 text-[#9aa0a6] hover:text-red-400 hover:bg-red-500/10 rounded transition-colors cursor-pointer"
-                        title="Remove from meeting"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                    </div>
                   </div>
-                )}
+                ))}
               </div>
             </div>
-          );
-        })}
-      </div>
+          )}
+
+          {/* Active Participants List */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-[#202124]">
+            {allParticipants.map((p) => {
+              const isMe = p.identity === localParticipant?.identity;
+              const isHandRaised = isMe 
+                ? isLocalHandRaised 
+                : participants.find(sp => sp.userId === p.identity)?.isHandRaised;
+              const isTargetHost = p.identity === currentMeeting?.host_id;
+              const canMute = !isMe && (isHost || !isTargetHost);
+
+              return (
+                <div key={p.identity} className="flex items-center justify-between text-xs py-1 group">
+                  <div className="flex items-center space-x-2.5 min-w-0">
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 ${
+                      isMe ? 'bg-[#8ab4f8]/20 text-[#8ab4f8]' : 'bg-[#3c4043] text-[#e8eaed]'
+                    }`}>
+                      {p.name?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                    <div className="truncate">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-[#e8eaed] truncate">{isMe ? 'Me' : p.name}</span>
+                        {isHandRaised && <span className="text-amber-400 font-bold animate-bounce">✋</span>}
+                      </div>
+                      <span className="text-[9px] text-[#9aa0a6] font-semibold block">
+                        {p.identity === currentMeeting?.host_id ? 'Meeting Host' : ''}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-1.5 flex-shrink-0">
+                    {!p.isMicrophoneEnabled && <MicOff className="w-3.5 h-3.5 text-red-500" />}
+                    {!p.isCameraEnabled && <VideoOff className="w-3.5 h-3.5 text-red-500" />}
+
+                    {!isMe && (canMute || isHost) && (
+                      <div className="hidden group-hover:flex items-center space-x-1 pl-1 bg-[#202124]">
+                        {canMute && p.isMicrophoneEnabled && (
+                          <button
+                            onClick={() => handleMutePeer(p.identity, 'audio')}
+                            className="p-1 text-[#9aa0a6] hover:text-red-400 hover:bg-red-500/10 rounded cursor-pointer"
+                            title="Mute Audio"
+                          >
+                            <VolumeX className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {canMute && p.isCameraEnabled && (
+                          <button
+                            onClick={() => handleMutePeer(p.identity, 'video')}
+                            className="p-1 text-[#9aa0a6] hover:text-red-400 hover:bg-red-500/10 rounded cursor-pointer"
+                            title="Mute Video"
+                          >
+                            <VideoOff className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {isHost && (
+                          <button
+                            onClick={() => handleKickPeer(p.identity)}
+                            className="p-1 text-[#9aa0a6] hover:text-red-400 hover:bg-red-500/10 rounded cursor-pointer"
+                            title="Remove User"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Email Invite Box at the bottom */}
+          <div className="p-4 border-t border-white/[0.06] bg-[#1a1b1e] flex-shrink-0 space-y-3">
+            <h4 className="text-[10px] font-bold text-white/50 uppercase tracking-wider flex items-center gap-1.5">
+              <UserPlus className="w-3.5 h-3.5 text-emerald-400" />
+              Invite Guest via Email
+            </h4>
+            <form onSubmit={handleSendInvite} className="flex gap-2">
+              <input
+                type="email"
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                placeholder="colleague@example.com"
+                required
+                className="flex-1 bg-[#202124] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-white/30 focus:outline-none focus:border-emerald-500"
+                disabled={inviteStatus === 'sending'}
+              />
+              <button
+                type="submit"
+                disabled={!emailInput.trim().includes('@') || inviteStatus === 'sending'}
+                className="px-3 bg-emerald-500 hover:bg-emerald-600 text-gray-900 rounded-lg font-bold text-xs disabled:opacity-40 transition-all cursor-pointer flex-shrink-0"
+              >
+                Invite
+              </button>
+            </form>
+
+            {/* Invite Status overlays */}
+            {isSearching && (
+              <div className="text-[9px] text-white/40 flex items-center gap-1">
+                <Loader2 className="w-3 h-3 animate-spin text-emerald-400" />
+                <span>Searching user records...</span>
+              </div>
+            )}
+
+            {lookupResult && (
+              <div className="p-2 bg-white/5 border border-white/[0.04] rounded-lg flex items-center justify-between text-[10px]">
+                <div className="truncate pr-2">
+                  <span className="font-bold block truncate">{lookupResult.name}</span>
+                  <span className="text-white/40">{lookupResult.exists ? 'Registered Member' : 'External Email'}</span>
+                </div>
+                <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold border ${
+                  lookupResult.exists ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-white/10 border-white/10 text-white/50'
+                }`}>
+                  {lookupResult.exists ? 'Member' : 'Guest'}
+                </span>
+              </div>
+            )}
+
+            {inviteStatus === 'success' && (
+              <div className="text-[10px] text-emerald-400 font-medium">
+                ✓ Invitation email sent successfully!
+              </div>
+            )}
+            {inviteStatus === 'error' && (
+              <div className="text-[10px] text-red-400">
+                ⚠ {inviteError}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB CONTENT: HOST CONTROLS */}
+      {activeTab === 'controls' && isHost && (
+        <div className="flex-1 overflow-y-auto p-4 space-y-5 bg-[#202124] text-left">
+          
+          <div className="space-y-1 pb-2 border-b border-white/[0.06]">
+            <h3 className="text-xs font-bold text-white">Active Moderation Policies</h3>
+            <p className="text-[10px] text-white/50">Apply locking rules to this current active room session.</p>
+          </div>
+
+          {/* Quick Participant controls */}
+          <div className="space-y-3">
+            <h4 className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Global Commands</h4>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => handleMuteAll('audio')}
+                className="flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white/5 hover:bg-red-500/10 text-white hover:text-red-400 border border-white/[0.04] text-[10px] font-bold transition-all cursor-pointer"
+              >
+                <VolumeX className="w-4 h-4" />
+                Mute Mic All
+              </button>
+              <button
+                onClick={() => handleMuteAll('video')}
+                className="flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white/5 hover:bg-red-500/10 text-white hover:text-red-400 border border-white/[0.04] text-[10px] font-bold transition-all cursor-pointer"
+              >
+                <VideoOff className="w-4 h-4" />
+                Cameras Off
+              </button>
+              <button
+                onClick={handleLowerAllHands}
+                className="flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white/5 hover:bg-amber-500/10 text-white hover:text-amber-400 border border-white/[0.04] text-[10px] font-bold transition-all cursor-pointer"
+              >
+                <Hand className="w-4 h-4" />
+                Lower Hands
+              </button>
+            </div>
+          </div>
+
+          <div className="w-full h-px bg-white/[0.06]" />
+
+          {/* Moderation settings checkboxes */}
+          <div className="space-y-4">
+            <h4 className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Room Policies</h4>
+            
+            {/* Lock Room Toggle */}
+            <div className="flex items-start space-x-3 p-3 bg-white/5 border border-white/[0.04] rounded-xl">
+              <input
+                type="checkbox"
+                id="host-lock-room"
+                checked={!!currentMeeting?.is_locked}
+                onChange={handleToggleRoomLock}
+                className="rounded border-white/20 bg-white/5 text-emerald-500 focus:ring-0 w-4 h-4 mt-0.5 cursor-pointer accent-emerald-500"
+              />
+              <div className="flex-1">
+                <label htmlFor="host-lock-room" className="text-xs font-bold text-white select-none cursor-pointer flex items-center gap-1.5">
+                  {currentMeeting?.is_locked ? <Lock className="w-3.5 h-3.5 text-red-400" /> : <Unlock className="w-3.5 h-3.5 text-emerald-400" />}
+                  Lock Meeting Room
+                </label>
+                <p className="text-[10px] text-white/50 leading-normal mt-0.5">
+                  Stops any new participants from entering the meeting lobby or waiting room.
+                </p>
+              </div>
+            </div>
+
+            {/* Lock Chat Toggle */}
+            <div className="flex items-start space-x-3 p-3 bg-white/5 border border-white/[0.04] rounded-xl">
+              <input
+                type="checkbox"
+                id="host-lock-chat"
+                checked={!!isChatLocked}
+                onChange={() => signalingClient.sendModerationPolicy({ isChatLocked: !isChatLocked })}
+                className="rounded border-white/20 bg-white/5 text-emerald-500 focus:ring-0 w-4 h-4 mt-0.5 cursor-pointer accent-emerald-500"
+              />
+              <div className="flex-1">
+                <label htmlFor="host-lock-chat" className="text-xs font-bold text-white select-none cursor-pointer flex items-center gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />
+                  Lock Participant Chat
+                </label>
+                <p className="text-[10px] text-white/50 leading-normal mt-0.5">
+                  Prevents non-hosts from posting messages or questions in the meeting chat window.
+                </p>
+              </div>
+            </div>
+
+            {/* Lock Screen Share Toggle */}
+            <div className="flex items-start space-x-3 p-3 bg-white/5 border border-white/[0.04] rounded-xl">
+              <input
+                type="checkbox"
+                id="host-lock-screen"
+                checked={!!isScreenShareLocked}
+                onChange={() => signalingClient.sendModerationPolicy({ isScreenShareLocked: !isScreenShareLocked })}
+                className="rounded border-white/20 bg-white/5 text-emerald-500 focus:ring-0 w-4 h-4 mt-0.5 cursor-pointer accent-emerald-500"
+              />
+              <div className="flex-1">
+                <label htmlFor="host-lock-screen" className="text-xs font-bold text-white select-none cursor-pointer flex items-center gap-1.5">
+                  <MonitorOff className="w-3.5 h-3.5 text-rose-400" />
+                  Lock Screen Sharing
+                </label>
+                <p className="text-[10px] text-white/50 leading-normal mt-0.5">
+                  Only allows meeting hosts to share their screen. Blocks other participants.
+                </p>
+              </div>
+            </div>
+
+            {/* Enable Cursors Toggle */}
+            <div className="flex items-start space-x-3 p-3 bg-white/5 border border-white/[0.04] rounded-xl">
+              <input
+                type="checkbox"
+                id="host-cursors"
+                checked={!!isMultiplayerCursorEnabled}
+                onChange={() => signalingClient.sendMultiplayerCursorsToggle(!isMultiplayerCursorEnabled)}
+                className="rounded border-white/20 bg-white/5 text-emerald-500 focus:ring-0 w-4 h-4 mt-0.5 cursor-pointer accent-emerald-500"
+              />
+              <div className="flex-1">
+                <label htmlFor="host-cursors" className="text-xs font-bold text-white select-none cursor-pointer flex items-center gap-1.5">
+                  <MousePointer className="w-3.5 h-3.5 text-pink-400" />
+                  Multiplayer Cursors
+                </label>
+                <p className="text-[10px] text-white/50 leading-normal mt-0.5">
+                  Shows live cursor indicators of other participants over active screenshares.
+                </p>
+              </div>
+            </div>
+
+            {/* Breakout Rooms Trigger button */}
+            {onBreakoutClick && (
+              <div className="p-3 bg-white/5 border border-white/[0.04] rounded-xl space-y-2">
+                <div className="flex items-start space-x-2">
+                  <Users className="w-4 h-4 mt-0.5 text-sky-400" />
+                  <div>
+                    <h5 className="text-xs font-bold text-white">Split Meeting into Breakout Rooms</h5>
+                    <p className="text-[10px] text-white/50 leading-normal mt-0.5">
+                      Distribute active callers into smaller sub-rooms for focused workshops.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={onBreakoutClick}
+                  className="w-full py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold transition-all cursor-pointer"
+                >
+                  Configure Breakout Rooms
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
+
+// Safe wrapper hook to handle cases when we are outside a RoomContext safely
+function useRoomLocalParticipant() {
+  try {
+    return useLocalParticipant();
+  } catch(e) {
+    return { localParticipant: null };
+  }
+}
+
 export default ParticipantPanel;

@@ -41,14 +41,13 @@ export const WhiteboardPanel: React.FC = () => {
 
       // Resize canvas to fit container
       canvas.width = container.clientWidth;
-      canvas.height = container.clientHeight;
+      canvas.height = container.clientHeight - 60; // Offset for toolbar height
 
-      // Restore background
+      // Restore background and contents
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.fillStyle = '#f9f9f9'; // canvas background
+        ctx.fillStyle = '#ffffff'; // white background
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        // Draw the saved drawing back
         ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
       }
     };
@@ -77,7 +76,7 @@ export const WhiteboardPanel: React.FC = () => {
     };
 
     const handleRemoteClear = () => {
-      ctx.fillStyle = '#f9f9f9';
+      ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     };
 
@@ -90,13 +89,11 @@ export const WhiteboardPanel: React.FC = () => {
     };
   }, []);
 
-  // Drawing event handlers
   const getCoordinates = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
     
-    // Check if TouchEvent or MouseEvent
     if ('touches' in e) {
       if (e.touches.length === 0) return { x: 0, y: 0 };
       return {
@@ -127,7 +124,6 @@ export const WhiteboardPanel: React.FC = () => {
     ctx.stroke();
 
     if (local) {
-      // Broadcast coordinates normalized as percentages (0 to 1) so it fits other screen sizes correctly!
       signalingClient.sendDraw(
         x1 / canvas.width,
         y1 / canvas.height,
@@ -148,10 +144,7 @@ export const WhiteboardPanel: React.FC = () => {
   const handleDraw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     if (!isDrawing) return;
     const currentPos = getCoordinates(e);
-    
-    // Choose color based on active tool (Eraser draws background color)
-    const drawColor = tool === 'eraser' ? '#f9f9f9' : color;
-    
+    const drawColor = tool === 'eraser' ? '#ffffff' : color;
     drawLine(lastPos.current.x, lastPos.current.y, currentPos.x, currentPos.y, drawColor, thickness);
     lastPos.current = currentPos;
   };
@@ -166,92 +159,113 @@ export const WhiteboardPanel: React.FC = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.fillStyle = '#f9f9f9';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Broadcast clear event
-    signalingClient.sendClearWhiteboard();
+    if (window.confirm('Are you sure you want to clear the whiteboard for all participants?')) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      signalingClient.sendClearWhiteboard();
+    }
   };
 
   return (
-    <div ref={containerRef} className="relative w-full h-full min-h-[350px] bg-canvas rounded-none border border-hairline overflow-hidden flex flex-col shadow-none">
-      {/* Tool control bar overlay */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-block-cream border border-hairline px-4 py-2.5 rounded-pill flex items-center space-x-4 z-10 shadow-sm select-none">
-        {/* Tool Pen/Eraser Toggle */}
-        <div className="flex items-center space-x-1 border-r border-hairline pr-4">
+    <div ref={containerRef} className="w-full h-full flex flex-col bg-[#1a1b1e] rounded-none overflow-hidden select-none">
+      
+      {/* Dynamic Toolbox (fits in sidebar) */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-[#202124] border-b border-white/[0.08] text-xs">
+        
+        {/* Toggle Mode */}
+        <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/[0.04]">
           <button
             onClick={() => setTool('pen')}
-            className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-              tool === 'pen' ? 'bg-primary text-white' : 'text-ink/70 hover:text-ink hover:bg-hairline'
+            className={`p-1.5 rounded transition-all cursor-pointer ${
+              tool === 'pen' ? 'bg-white/10 text-white font-bold' : 'text-white/60 hover:text-white'
             }`}
-            title="Pen Tool"
+            title="Pen"
           >
-            <Edit2 className="w-4 h-4" />
+            <Edit2 className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => setTool('eraser')}
-            className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-              tool === 'eraser' ? 'bg-primary text-white' : 'text-ink/70 hover:text-ink hover:bg-hairline'
+            className={`p-1.5 rounded transition-all cursor-pointer ${
+              tool === 'eraser' ? 'bg-white/10 text-white font-bold' : 'text-white/60 hover:text-white'
             }`}
-            title="Eraser Tool"
+            title="Eraser"
           >
-            <Eraser className="w-4 h-4" />
+            <Eraser className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        {/* Color Palette */}
-        {tool === 'pen' && (
-          <div className="flex items-center space-x-1.5 border-r border-hairline pr-4">
-            {COLORS.map((c) => (
-              <button
-                key={c.value}
-                onClick={() => setColor(c.value)}
-                className={`w-5 h-5 rounded-full border transition-all cursor-pointer relative ${
-                  color === c.value ? 'scale-110 border-white ring-2 ring-primary/45' : 'border-transparent hover:scale-105'
-                }`}
-                style={{ backgroundColor: c.value }}
-                title={c.label}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Brush Thickness selector */}
-        <div className="flex items-center space-x-2 border-r border-hairline pr-4">
-          <span className="text-[10px] font-bold text-ink/70">SIZE</span>
+        {/* Thickness Select */}
+        <div className="flex items-center gap-1.5 bg-white/5 px-2 py-1 rounded-lg border border-white/[0.04]">
           <select
             value={thickness}
             onChange={(e) => setThickness(Number(e.target.value))}
-            className="bg-transparent text-xs text-ink border-0 focus:ring-0 focus:outline-none cursor-pointer font-bold"
+            className="bg-transparent text-[10px] font-bold text-white border-none focus:ring-0 focus:outline-none cursor-pointer outline-none"
           >
-            <option className="bg-canvas text-ink" value={2}>Thin (2px)</option>
-            <option className="bg-canvas text-ink" value={4}>Medium (4px)</option>
-            <option className="bg-canvas text-ink" value={8}>Thick (8px)</option>
-            <option className="bg-canvas text-ink" value={15}>Extra (15px)</option>
+            <option className="bg-[#202124] text-white" value={2}>2px</option>
+            <option className="bg-[#202124] text-white" value={4}>4px</option>
+            <option className="bg-[#202124] text-white" value={8}>8px</option>
+            <option className="bg-[#202124] text-white" value={15}>15px</option>
           </select>
         </div>
 
-        {/* Clear Action Button */}
+        {/* Trash Clear */}
         <button
           onClick={handleClear}
-          className="p-1.5 bg-red-500/10 hover:bg-red-500/20 active:scale-95 text-red-400 hover:text-red-300 rounded-lg transition-all cursor-pointer"
+          className="p-1.5 bg-red-500/10 hover:bg-red-500/20 active:scale-95 text-red-400 hover:text-red-300 rounded-lg transition-all cursor-pointer border border-red-500/15"
           title="Clear Whiteboard"
         >
-          <Trash2 className="w-4 h-4" />
+          <Trash2 className="w-3.5 h-3.5" />
         </button>
+
+        {/* Color Palette Row */}
+        {tool === 'pen' && (
+          <div className="w-full flex items-center justify-between gap-1.5 pt-1 border-t border-white/[0.04]">
+            <span className="text-[9px] font-bold text-white/40 uppercase tracking-wider">Palette</span>
+            <div className="flex items-center gap-1.5">
+              {COLORS.map((c) => (
+                <button
+                  key={c.value}
+                  onClick={() => setColor(c.value)}
+                  className={`w-4 h-4 rounded-full border transition-all cursor-pointer relative ${
+                    color === c.value ? 'scale-110 border-white ring-1 ring-white/30' : 'border-transparent hover:scale-105'
+                  }`}
+                  style={{ backgroundColor: c.value }}
+                  title={c.label}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      <canvas
-        ref={canvasRef}
-        onMouseDown={handleStartDraw}
-        onMouseMove={handleDraw}
-        onMouseUp={handleEndDraw}
-        onMouseLeave={handleEndDraw}
-        onTouchStart={handleStartDraw}
-        onTouchMove={handleDraw}
-        onTouchEnd={handleEndDraw}
-        className="w-full h-full block cursor-crosshair touch-none"
-      />
+      {/* Grid Canvas */}
+      <div className="flex-1 relative bg-white">
+        {/* Graph grid paper overlay using SVG in CSS */}
+        <div 
+          className="absolute inset-0 opacity-[0.06] pointer-events-none"
+          style={{
+            backgroundImage: `
+              linear-gradient(to right, #000000 1px, transparent 1px),
+              linear-gradient(to bottom, #000000 1px, transparent 1px)
+            `,
+            backgroundSize: '16px 16px'
+          }}
+        />
+        
+        <canvas
+          ref={canvasRef}
+          onMouseDown={handleStartDraw}
+          onMouseMove={handleDraw}
+          onMouseUp={handleEndDraw}
+          onMouseLeave={handleEndDraw}
+          onTouchStart={handleStartDraw}
+          onTouchMove={handleDraw}
+          onTouchEnd={handleEndDraw}
+          className="w-full h-full block cursor-crosshair touch-none relative z-10"
+        />
+      </div>
     </div>
   );
 };
+
+export default WhiteboardPanel;

@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useWebRTCStore } from '../../stores/webrtcStore';
-import { Camera, Mic, Volume2, Key, Sparkles, Smile } from 'lucide-react';
+import { Camera, Mic, Volume2, Key, Sparkles, Smile, Headphones } from 'lucide-react';
 import { useGestureDetector } from '../../hooks/useGestureDetector';
+import { useMeetingStore } from '../../stores/meetingStore';
 
 export const DeviceSelector: React.FC = () => {
+  const { isSpatialAudioEnabled, setSpatialAudioEnabled } = useMeetingStore();
   const {
     audioDevices,
     videoDevices,
@@ -241,6 +243,26 @@ export const DeviceSelector: React.FC = () => {
                 </label>
                 <p className="text-[10px] text-ink/60 leading-normal mt-0.5">
                   Encrypts all media tracks locally. Requires all participants to have E2EE enabled.
+                </p>
+              </div>
+            </div>
+
+            {/* Spatial 3D Audio Mode */}
+            <div className="flex items-start space-x-3 p-3 rounded-lg border border-hairline bg-ink/[0.02]">
+              <input
+                type="checkbox"
+                id="spatial-audio-mode"
+                checked={isSpatialAudioEnabled}
+                onChange={(e) => setSpatialAudioEnabled(e.target.checked)}
+                className="rounded border-hairline text-ink focus:ring-ink w-4 h-4 mt-0.5 accent-ink cursor-pointer"
+              />
+              <div className="flex-1">
+                <label htmlFor="spatial-audio-mode" className="text-xs text-ink font-bold select-none cursor-pointer flex items-center gap-1.5">
+                  <Headphones className="w-3.5 h-3.5" />
+                  Spatial 3D Stereo Audio
+                </label>
+                <p className="text-[10px] text-ink/60 leading-normal mt-0.5">
+                  Positions participant voices horizontally relative to their grid position. Best experienced with headphones.
                 </p>
               </div>
             </div>
