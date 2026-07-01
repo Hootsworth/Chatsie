@@ -137,10 +137,10 @@ export const VideoGrid: React.FC = () => {
     '--grid-md-cols': mdCols,
     '--grid-md-rows': mdRows,
     display: 'grid',
-    gap: '12px',
+    gap: '10px',
     width: '100%',
     height: '100%',
-    padding: '12px'
+    padding: '10px'
   } as React.CSSProperties;
 
   return (
@@ -155,7 +155,7 @@ export const VideoGrid: React.FC = () => {
             : participantsList.find(sp => sp.userId === track.participant.identity)?.isHandRaised;
           const isCameraOff = (track.source === Track.Source.Camera && !track.participant.isCameraEnabled) || (isLowBandwidthMode && !isMe);
 
-          const speakingRing = isSpeaking ? 'ring-2 ring-[#8ab4f8] ring-offset-2 ring-offset-[#202124]' : '';
+          const speakingRing = isSpeaking ? 'video-tile--speaking' : '';
           const displayName = track.participant.name || track.participant.identity;
 
           // Reaction evaluation
@@ -165,7 +165,7 @@ export const VideoGrid: React.FC = () => {
           if (isLocalScreen) {
             return (
               <div key={`${track.participant.identity}-${track.source}`} className="w-full h-full flex items-center justify-center">
-                <div className={`relative w-full h-full rounded-xl bg-[#292b2f] border border-white/[0.06] flex flex-col items-center justify-center transition-all ${speakingRing}`}>
+                <div className={`video-tile relative w-full h-full flex flex-col items-center justify-center ${speakingRing}`}>
                   {/* Cursor Overlay for Local Presenter */}
                   <ScreenshareCursorOverlay isLocalPresenter={true} roomId="" participant={track.participant} />
                   
@@ -195,9 +195,9 @@ export const VideoGrid: React.FC = () => {
             const palette = AVATAR_COLORS[colorIdx];
             return (
               <div key={`${track.participant.identity}-${track.source}`} className="w-full h-full flex items-center justify-center">
-                <div className={`relative w-full h-full rounded-xl bg-[#292b2f] border border-white/[0.06] flex flex-col items-center justify-center transition-all ${speakingRing}`}>
+                <div className={`video-tile avatar-tile-bg relative w-full h-full flex flex-col items-center justify-center ${speakingRing}`}>
                   {isHandRaised && (
-                    <div className="absolute top-2 left-2 bg-[#fbbc04] text-[#202124] text-[10px] font-bold px-2 py-1 rounded-full z-10">
+                    <div className="hand-raised-badge">
                       ✋ Raised
                     </div>
                   )}
@@ -208,7 +208,7 @@ export const VideoGrid: React.FC = () => {
                   )}
 
                   <div
-                    className="w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center text-xl md:text-2xl font-semibold select-none animate-in fade-in duration-300"
+                    className="avatar-circle w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center text-xl md:text-2xl font-semibold select-none animate-in fade-in duration-300"
                     style={{ backgroundColor: palette.bg, color: palette.text }}
                   >
                     {track.source === Track.Source.ScreenShare ? '🖥️' : getInitials(track.participant.name, track.participant.identity)}
@@ -223,9 +223,9 @@ export const VideoGrid: React.FC = () => {
 
           return (
             <div key={`${track.participant.identity}-${track.source}`} className="w-full h-full flex items-center justify-center">
-              <div className={`relative w-full h-full rounded-xl overflow-hidden bg-[#292b2f] border border-white/[0.06] transition-all hover:border-white/[0.1] duration-300 [&_video]:object-cover [&_video]:w-full [&_video]:h-full ${speakingRing}`}>
+              <div className={`video-tile relative w-full h-full [&_video]:object-cover [&_video]:w-full [&_video]:h-full ${speakingRing}`}>
                 {isHandRaised && (
-                  <div className="absolute top-2 left-2 bg-[#fbbc04] text-[#202124] text-[10px] font-bold px-2 py-1 rounded-full z-10">
+                  <div className="hand-raised-badge">
                     ✋ Raised
                   </div>
                 )}
@@ -241,8 +241,8 @@ export const VideoGrid: React.FC = () => {
                   <ParticleBurst type={reaction.type} key={reaction.id} />
                 )}
 
-                <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-md text-[11px] text-[#e8eaed] font-medium z-10">
-                  {displayName} {isMe ? '(You)' : ''}
+                <div className="tile-name-badge">
+                  <span>{displayName} {isMe ? '(You)' : ''}</span>
                 </div>
               </div>
             </div>

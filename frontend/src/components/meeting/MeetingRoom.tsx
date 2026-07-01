@@ -1898,7 +1898,7 @@ const ActiveRoomContent: React.FC<{
       )}
       
       {/* ── Top bar ── */}
-      <header className={`flex items-center justify-between px-4 py-2 z-35 transition-all duration-300 ${isUiControlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none -translate-y-4'}`}>
+      <header className={`glass-bar flex items-center justify-between px-5 py-2.5 z-35 transition-all duration-300 ${isUiControlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none -translate-y-4'}`}>
         {/* Left: Meeting info */}
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-[13px] font-medium text-[#e8eaed] truncate max-w-[240px]">
@@ -1997,7 +1997,7 @@ const ActiveRoomContent: React.FC<{
             <Settings className="w-4 h-4" />
           </button>
 
-          <div className="flex items-center gap-1 bg-[#3c4043] px-2 py-1 rounded-full text-[11px] text-[#e8eaed] ml-1">
+          <div className="participant-chip ml-1">
             <Users className="w-3 h-3" />
             <span>{participants.length + 1}</span>
           </div>
@@ -2033,9 +2033,9 @@ const ActiveRoomContent: React.FC<{
               {Object.values(activeCaptions).map((caption, idx) => (
                 <div
                   key={idx}
-                  className="bg-black/80 backdrop-blur-sm px-4 py-2.5 rounded-lg text-center transition-all duration-300"
+                  className="captions-overlay text-center transition-all duration-300"
                 >
-                  <span className="text-[#8ab4f8] font-medium text-xs mr-2">{caption.username}:</span>
+                  <span className="text-[#8ab4f8] font-semibold text-xs mr-2">{caption.username}:</span>
                   <span className="text-white text-sm">{caption.text}</span>
                 </div>
               ))}
@@ -2048,7 +2048,7 @@ const ActiveRoomContent: React.FC<{
               {chatToasts.map((toast) => (
                 <div
                   key={toast.id}
-                  className="bg-black/85 border border-white/[0.08] px-3 py-2 rounded-lg text-left shadow-lg animate-in slide-in-from-bottom duration-250 flex flex-col gap-0.5"
+                  className="chat-toast text-left animate-in slide-in-from-bottom duration-250 flex flex-col gap-0.5"
                 >
                   <span className="text-[#8ab4f8] font-bold text-[10px]">{toast.sender}</span>
                   <span className="text-white text-xs leading-normal">{toast.text}</span>
@@ -2060,7 +2060,7 @@ const ActiveRoomContent: React.FC<{
 
         {/* Right Sidebar panels */}
         {isChatPanelOpen && (
-          <div className="w-80 bg-[#292b2f] border-l border-white/[0.06] z-40 overflow-hidden flex flex-col animate-in slide-in-from-right duration-200">
+          <div className="side-panel w-80 z-40 overflow-hidden flex flex-col animate-in slide-in-from-right duration-200">
             <ChatPanel 
               roomId={code || ''} 
               userId={user?.id || ''} 
@@ -2070,13 +2070,13 @@ const ActiveRoomContent: React.FC<{
         )}
 
         {isParticipantsPanelOpen && (
-          <div className="w-80 bg-[#292b2f] border-l border-white/[0.06] z-40 overflow-hidden flex flex-col animate-in slide-in-from-right duration-200">
+          <div className="side-panel w-80 z-40 overflow-hidden flex flex-col animate-in slide-in-from-right duration-200">
             <ParticipantPanel />
           </div>
         )}
 
         {isTranscriptionPanelOpen && (
-          <div className="w-80 bg-[#292b2f] border-l border-white/[0.06] z-40 overflow-hidden flex flex-col animate-in slide-in-from-right duration-200">
+          <div className="side-panel w-80 z-40 overflow-hidden flex flex-col animate-in slide-in-from-right duration-200">
             <TranscriptionPanel />
           </div>
         )}
@@ -2143,7 +2143,7 @@ const ActiveRoomContent: React.FC<{
 
       {/* Mute suggestion */}
       {showMuteSuggestion && (
-        <div className="absolute bottom-20 left-4 z-40 bg-[#292b2f] border border-white/[0.06] text-[#e8eaed] px-4 py-3 rounded-xl flex items-center gap-2.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
+        <div className="mute-suggestion absolute bottom-20 left-4 z-40 text-[#e8eaed] px-4 py-3 flex items-center gap-2.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
           <MicOff className="w-4 h-4 text-[#ea4335]" />
           <div className="flex flex-col">
             <span className="text-xs font-medium">Your mic is muted</span>

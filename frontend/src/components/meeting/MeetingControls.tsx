@@ -116,16 +116,16 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
   };
 
   /* ── Shared pill-button style ── */
-  const basePill = 'w-11 h-11 rounded-full flex items-center justify-center transition-all duration-150 focus:outline-none cursor-pointer';
-  const defaultPill = `${basePill} bg-[#2a2d32] hover:bg-[#3a3d42] text-[#e8eaed]`;
-  const activePill  = `${basePill} bg-[#8ab4f8] hover:bg-[#aecbfa] text-[#202124]`;
-  const dangerPill  = `${basePill} bg-[#ea4335] hover:bg-[#d93025] text-white`;
-  const mutedPill   = `${basePill} bg-[#ea4335] hover:bg-[#d93025] text-white`;
-  const handPill    = `${basePill} bg-[#fbbc04] hover:bg-[#f9ab00] text-[#202124]`;
+  const basePill = 'ctrl-pill focus:outline-none';
+  const defaultPill = `${basePill} ctrl-pill--default`;
+  const activePill  = `${basePill} ctrl-pill--active`;
+  const dangerPill  = `${basePill} ctrl-pill--danger`;
+  const mutedPill   = `${basePill} ctrl-pill--muted`;
+  const handPill    = `${basePill} ctrl-pill--hand`;
 
   return (
     <div className={`fixed bottom-0 left-0 right-0 flex items-center justify-center py-4 px-6 z-30 transition-all duration-300 ${className}`}>
-      <div className="flex items-center gap-2 bg-[#202124] rounded-full px-3 py-2 shadow-lg border border-white/[0.06]">
+      <div className="controls-bar flex items-center gap-2 rounded-full px-4 py-2.5">
 
         {/* Live indicator */}
         <div className="hidden lg:flex items-center gap-1.5 text-[10px] font-semibold tracking-wide text-emerald-400 mr-1 px-2">
@@ -159,7 +159,7 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
             <Smile className="w-[18px] h-[18px]" />
           </button>
           {isReactionPickerOpen && (
-            <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 bg-[#2a2d32] border border-white/10 rounded-full px-2 py-1.5 shadow-xl flex items-center gap-0.5 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
+            <div className="reaction-picker absolute bottom-full mb-3 left-1/2 -translate-x-1/2 px-2 py-1.5 flex items-center gap-0.5 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
               {REACTION_EMOJIS.map((emoji) => (
                 <button key={emoji} onClick={() => handleSendReaction(emoji)} className="text-xl p-1.5 rounded-full hover:bg-white/10 hover:scale-125 transition-all duration-100 active:scale-95 cursor-pointer">
                   {emoji}
