@@ -4,6 +4,8 @@ import logo from '../../assets/logo.png';
 import { useUser, UserButton, useAuth } from '@clerk/clerk-react';
 import { Button, Input, Modal, Badge } from '../ui';
 import { generateGoogleCalendarUrl, downloadIcsFile } from '../../utils/calendar';
+import { Sparkles } from 'lucide-react';
+import { ReleaseNotesModal } from '../meeting/ReleaseNotesModal';
 
 interface ScheduledMeeting {
   id: string;
@@ -43,6 +45,7 @@ export const Dashboard: React.FC = () => {
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
   const [isJobsModalOpen, setIsJobsModalOpen] = useState(false);
+  const [isReleaseNotesOpen, setIsReleaseNotesOpen] = useState(false);
 
   // Helper to fetch authorization header
   const getAuthHeader = async (): Promise<Record<string, string>> => {
@@ -283,6 +286,13 @@ export const Dashboard: React.FC = () => {
           <span className="text-body-sm font-bold tracking-tight">Chatsie</span>
         </div>
         <div className="flex items-center space-x-4">
+          <button
+            onClick={() => setIsReleaseNotesOpen(true)}
+            className="text-xs font-bold text-amber-600 hover:text-amber-700 hover:bg-amber-100 flex items-center gap-1 cursor-pointer bg-amber-50 border border-amber-200 px-3 py-1 rounded-full transition-colors"
+          >
+            <Sparkles className="w-3 h-3" />
+            What's New in v0.5.0
+          </button>
           <span className="text-body-sm font-bold hidden sm:block">{user?.fullName}</span>
           <UserButton afterSignOutUrl="/signin" />
         </div>
@@ -789,6 +799,17 @@ export const Dashboard: React.FC = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* RELEASE NOTES MODAL */}
+      <Modal
+        isOpen={isReleaseNotesOpen}
+        onClose={() => setIsReleaseNotesOpen(false)}
+        title="Release Notes - Chatsie v0.5.0"
+      >
+        <div className="bg-canvas text-ink p-1">
+          <ReleaseNotesModal onClose={() => setIsReleaseNotesOpen(false)} />
+        </div>
       </Modal>
     </div>
   );

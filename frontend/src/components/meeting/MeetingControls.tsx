@@ -127,12 +127,6 @@ export const MeetingControls: React.FC<MeetingControlsProps> = ({
     <div className={`fixed bottom-0 left-0 right-0 flex items-center justify-center py-4 px-6 z-30 transition-all duration-300 ${className}`}>
       <div className="controls-bar flex items-center gap-2 rounded-full px-4 py-2.5">
 
-        {/* Live indicator */}
-        <div className="hidden lg:flex items-center gap-1.5 text-[10px] font-semibold tracking-wide text-emerald-400 mr-1 px-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span>LIVE</span>
-        </div>
-
         {/* ── Core Media ── */}
         <button onClick={toggleAudio} className={!isMicrophoneEnabled ? mutedPill : defaultPill} title={!isMicrophoneEnabled ? 'Unmute Mic' : 'Mute Mic'}>
           {!isMicrophoneEnabled ? <MicOff className="w-[18px] h-[18px]" /> : <Mic className="w-[18px] h-[18px]" />}

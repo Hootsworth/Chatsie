@@ -26,15 +26,13 @@ import { WhiteboardPanel } from './WhiteboardPanel';
 import { BreakoutModal } from './BreakoutModal';
 import { Modal, Button } from '../ui';
 import { DeviceSelector } from './DeviceSelector';
-import { Copy, Check, Users, Keyboard, Mic, MicOff, Video, VideoOff, Camera, User, ExternalLink, Lock, Unlock, Mail, Loader2, Settings, Palette, FileText, PictureInPicture, Circle, MousePointer, MessageSquare, MonitorOff, Headphones, Sparkles, Code } from 'lucide-react';
+import { Copy, Check, Users, Keyboard, Mic, MicOff, Video, VideoOff, Camera, User, ExternalLink, Lock, Unlock, Mail, Loader2, Settings, Palette, FileText, PictureInPicture, Circle, MousePointer, MessageSquare, MonitorOff, Headphones, LayoutGrid } from 'lucide-react';
 import { useGestureDetector } from '../../hooks/useGestureDetector';
 import { SmartJoinDiagnostics } from './SmartJoinDiagnostics';
 import { IntentToSpeakIndicator } from './IntentToSpeakIndicator';
 import { FollowUpEmailModal } from './FollowUpEmailModal';
 import { SpatialAudioRenderer } from './SpatialAudioRenderer';
 import { WorkspacePanel } from './WorkspacePanel';
-import { AiCopilotPanel } from './AiCopilotPanel';
-import { ReleaseNotesModal } from './ReleaseNotesModal';
 
 export const MeetingRoom: React.FC = () => {
   const { code: rawCode } = useParams<{ code: string }>();
@@ -1127,8 +1125,6 @@ const ActiveRoomContent: React.FC<{
     chatMessages,
     isWorkspaceOpen,
     setWorkspaceOpen,
-    isCopilotOpen,
-    setCopilotOpen,
     isSpatialAudioEnabled,
     setSpatialAudioEnabled
   } = useMeetingStore();
@@ -1165,7 +1161,6 @@ const ActiveRoomContent: React.FC<{
   const [isBreakoutModalOpen, setIsBreakoutModalOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
-  const [isReleaseNotesOpen, setIsReleaseNotesOpen] = useState(false);
   const [isTabVisible, setIsTabVisible] = useState(true);
 
   // Soundboard states
@@ -1275,8 +1270,7 @@ const ActiveRoomContent: React.FC<{
           useMeetingStore.getState().isShortcutsOpen ||
           isBreakoutModalOpen ||
           isInviteModalOpen ||
-          isFollowUpModalOpen ||
-          isReleaseNotesOpen
+          isFollowUpModalOpen
         ) {
           return;
         }
@@ -1299,7 +1293,7 @@ const ActiveRoomContent: React.FC<{
         clearTimeout(timeoutId);
       }
     };
-  }, [isBreakoutModalOpen, isInviteModalOpen, isFollowUpModalOpen, isReleaseNotesOpen]);
+  }, [isBreakoutModalOpen, isInviteModalOpen, isFollowUpModalOpen]);
 
   const handleToggleRoomLock = async () => {
     try {
@@ -1967,20 +1961,12 @@ const ActiveRoomContent: React.FC<{
             <Mail className="w-4 h-4" />
           </button>
 
-          <button onClick={() => setWorkspaceOpen(!isWorkspaceOpen)} className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${isWorkspaceOpen ? 'text-[#8ab4f8]' : 'text-[#9aa0a6] hover:text-[#e8eaed]'}`} title="Shared App Workspace">
-            <Code className="w-4 h-4" />
-          </button>
-
-          <button onClick={() => setCopilotOpen(!isCopilotOpen)} className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${isCopilotOpen ? 'text-[#8ab4f8]' : 'text-[#9aa0a6] hover:text-[#e8eaed]'}`} title="AI Copilot">
-            <Sparkles className="w-4 h-4" />
+          <button onClick={() => setWorkspaceOpen(!isWorkspaceOpen)} className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${isWorkspaceOpen ? 'text-[#8ab4f8]' : 'text-[#9aa0a6] hover:text-[#e8eaed]'}`} title="Plugins & Workspace">
+            <LayoutGrid className="w-4 h-4" />
           </button>
 
           <button onClick={() => setSpatialAudioEnabled(!isSpatialAudioEnabled)} className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${isSpatialAudioEnabled ? 'text-emerald-400 bg-emerald-500/10' : 'text-[#9aa0a6] hover:text-[#e8eaed]'}`} title={isSpatialAudioEnabled ? "Spatial 3D Audio Enabled" : "Enable Spatial 3D Audio"}>
             <Headphones className="w-4 h-4" />
-          </button>
-
-          <button onClick={() => setIsReleaseNotesOpen(true)} className="p-2 rounded-full hover:bg-white/10 text-yellow-400 hover:text-yellow-300 transition-colors cursor-pointer" title="What's New in v0.5.0">
-            <Sparkles className="w-4 h-4 fill-yellow-400/20" />
           </button>
 
           {'documentPictureInPicture' in window && (
@@ -2083,10 +2069,6 @@ const ActiveRoomContent: React.FC<{
 
         {isWorkspaceOpen && (
           <WorkspacePanel />
-        )}
-
-        {isCopilotOpen && (
-          <AiCopilotPanel />
         )}
       </div>
 
@@ -2266,15 +2248,6 @@ const ActiveRoomContent: React.FC<{
         />
       </Modal>
 
-      {/* RELEASE NOTES MODAL */}
-      <Modal
-        isOpen={isReleaseNotesOpen}
-        onClose={() => setIsReleaseNotesOpen(false)}
-        title="Release Notes - Chatsie v0.5.0"
-        size="lg"
-      >
-        <ReleaseNotesModal onClose={() => setIsReleaseNotesOpen(false)} />
-      </Modal>
     </div>
   );
 };
