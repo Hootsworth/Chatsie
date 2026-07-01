@@ -108,6 +108,11 @@ interface MeetingState {
   isMultiplayerCursorEnabled: boolean;
   isChatLocked: boolean;
   isScreenShareLocked: boolean;
+  isWorkspaceOpen: boolean;
+  isCopilotOpen: boolean;
+  markdownContent: string;
+  codeContent: string;
+  isSpatialAudioEnabled: boolean;
   
   // Actions
   setCurrentMeeting: (meeting: Meeting | null) => void;
@@ -147,6 +152,11 @@ interface MeetingState {
   setShortcutsOpen: (isOpen: boolean) => void;
   setMultiplayerCursorEnabled: (enabled: boolean) => void;
   setModerationPolicy: (policy: { isChatLocked?: boolean; isScreenShareLocked?: boolean }) => void;
+  setWorkspaceOpen: (isOpen: boolean) => void;
+  setCopilotOpen: (isOpen: boolean) => void;
+  setMarkdownContent: (content: string) => void;
+  setCodeContent: (content: string) => void;
+  setSpatialAudioEnabled: (enabled: boolean) => void;
   resetMeetingState: () => void;
 }
 
@@ -173,6 +183,11 @@ export const useMeetingStore = create<MeetingState>((set) => ({
   isMultiplayerCursorEnabled: false,
   isChatLocked: false,
   isScreenShareLocked: false,
+  isWorkspaceOpen: false,
+  isCopilotOpen: false,
+  markdownContent: '',
+  codeContent: '',
+  isSpatialAudioEnabled: true,
 
   setCurrentMeeting: (meeting) => set({ currentMeeting: meeting }),
   setMyRole: (role) => set({ myRole: role }),
@@ -293,33 +308,63 @@ export const useMeetingStore = create<MeetingState>((set) => ({
     isChatPanelOpen: !state.isChatPanelOpen,
     isParticipantsPanelOpen: false,
     isTranscriptionPanelOpen: false,
-    isWhiteboardOpen: false
+    isWhiteboardOpen: false,
+    isWorkspaceOpen: false,
+    isCopilotOpen: false
   })),
 
   toggleParticipantsPanel: () => set((state) => ({ 
     isParticipantsPanelOpen: !state.isParticipantsPanelOpen,
     isChatPanelOpen: false,
     isTranscriptionPanelOpen: false,
-    isWhiteboardOpen: false
+    isWhiteboardOpen: false,
+    isWorkspaceOpen: false,
+    isCopilotOpen: false
   })),
 
   toggleTranscriptionPanel: () => set((state) => ({
     isTranscriptionPanelOpen: !state.isTranscriptionPanelOpen,
     isChatPanelOpen: false,
     isParticipantsPanelOpen: false,
-    isWhiteboardOpen: false
+    isWhiteboardOpen: false,
+    isWorkspaceOpen: false,
+    isCopilotOpen: false
   })),
 
   toggleWhiteboard: () => set((state) => ({
     isWhiteboardOpen: !state.isWhiteboardOpen,
     isChatPanelOpen: false,
     isParticipantsPanelOpen: false,
-    isTranscriptionPanelOpen: false
+    isTranscriptionPanelOpen: false,
+    isWorkspaceOpen: false,
+    isCopilotOpen: false
   })),
 
   setSettingsOpen: (isOpen) => set({ isSettingsOpen: isOpen }),
   setShortcutsOpen: (isOpen) => set({ isShortcutsOpen: isOpen }),
   setModerationPolicy: (policy) => set(policy),
+
+  setWorkspaceOpen: (isOpen) => set((state) => ({
+    isWorkspaceOpen: isOpen,
+    isCopilotOpen: isOpen ? false : state.isCopilotOpen,
+    isChatPanelOpen: isOpen ? false : state.isChatPanelOpen,
+    isParticipantsPanelOpen: isOpen ? false : state.isParticipantsPanelOpen,
+    isTranscriptionPanelOpen: isOpen ? false : state.isTranscriptionPanelOpen,
+    isWhiteboardOpen: isOpen ? false : state.isWhiteboardOpen
+  })),
+
+  setCopilotOpen: (isOpen) => set((state) => ({
+    isCopilotOpen: isOpen,
+    isWorkspaceOpen: isOpen ? false : state.isWorkspaceOpen,
+    isChatPanelOpen: isOpen ? false : state.isChatPanelOpen,
+    isParticipantsPanelOpen: isOpen ? false : state.isParticipantsPanelOpen,
+    isTranscriptionPanelOpen: isOpen ? false : state.isTranscriptionPanelOpen,
+    isWhiteboardOpen: isOpen ? false : state.isWhiteboardOpen
+  })),
+
+  setMarkdownContent: (content) => set({ markdownContent: content }),
+  setCodeContent: (content) => set({ codeContent: content }),
+  setSpatialAudioEnabled: (enabled) => set({ isSpatialAudioEnabled: enabled }),
 
   resetMeetingState: () => set({
     currentMeeting: null,
@@ -342,6 +387,11 @@ export const useMeetingStore = create<MeetingState>((set) => ({
     isShortcutsOpen: false,
     isMultiplayerCursorEnabled: false,
     isChatLocked: false,
-    isScreenShareLocked: false
+    isScreenShareLocked: false,
+    isWorkspaceOpen: false,
+    isCopilotOpen: false,
+    markdownContent: '',
+    codeContent: '',
+    isSpatialAudioEnabled: true
   })
 }));

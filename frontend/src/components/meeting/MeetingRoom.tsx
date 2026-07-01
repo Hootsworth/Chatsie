@@ -11,7 +11,7 @@ import { applyVirtualBackgroundToStream } from '../../utils/mediaProcessors';
 import { playSynthesizedSound, SOUND_DEFINITIONS } from '../../utils/soundSynthesizer';
 
 import { signalingClient } from '../../services/signaling';
-import { LiveKitRoom, useLocalParticipant, RoomAudioRenderer, useRoomContext } from '@livekit/components-react';
+import { LiveKitRoom, useLocalParticipant, useRoomContext } from '@livekit/components-react';
 import '@livekit/components-styles';
 import { createPortal } from 'react-dom';
 import { PasswordPrompt } from './PasswordPrompt';
@@ -26,11 +26,15 @@ import { WhiteboardPanel } from './WhiteboardPanel';
 import { BreakoutModal } from './BreakoutModal';
 import { Modal, Button } from '../ui';
 import { DeviceSelector } from './DeviceSelector';
-import { Copy, Check, Users, Keyboard, Mic, MicOff, Video, VideoOff, Camera, User, ExternalLink, Lock, Unlock, Mail, Loader2, Settings, Palette, FileText, PictureInPicture, Circle, MousePointer, MessageSquare, MonitorOff } from 'lucide-react';
+import { Copy, Check, Users, Keyboard, Mic, MicOff, Video, VideoOff, Camera, User, ExternalLink, Lock, Unlock, Mail, Loader2, Settings, Palette, FileText, PictureInPicture, Circle, MousePointer, MessageSquare, MonitorOff, Headphones, Sparkles, Code } from 'lucide-react';
 import { useGestureDetector } from '../../hooks/useGestureDetector';
 import { SmartJoinDiagnostics } from './SmartJoinDiagnostics';
 import { IntentToSpeakIndicator } from './IntentToSpeakIndicator';
 import { FollowUpEmailModal } from './FollowUpEmailModal';
+import { SpatialAudioRenderer } from './SpatialAudioRenderer';
+import { WorkspacePanel } from './WorkspacePanel';
+import { AiCopilotPanel } from './AiCopilotPanel';
+import { ReleaseNotesModal } from './ReleaseNotesModal';
 
 export const MeetingRoom: React.FC = () => {
   const { code: rawCode } = useParams<{ code: string }>();
@@ -958,7 +962,7 @@ export const MeetingRoom: React.FC = () => {
       className="h-screen w-screen overflow-hidden bg-[#202124] text-[#e8eaed]"
       style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column' }}
     >
-      <RoomAudioRenderer />
+      <SpatialAudioRenderer />
       <ActiveRoomContent
         code={code || ''}
         user={user}
@@ -1120,7 +1124,13 @@ const ActiveRoomContent: React.FC<{
     isScreenShareLocked,
     setModerationPolicy,
     transcripts,
-    chatMessages
+    chatMessages,
+    isWorkspaceOpen,
+    setWorkspaceOpen,
+    isCopilotOpen,
+    setCopilotOpen,
+    isSpatialAudioEnabled,
+    setSpatialAudioEnabled
   } = useMeetingStore();
 
   const {
@@ -1155,6 +1165,7 @@ const ActiveRoomContent: React.FC<{
   const [isBreakoutModalOpen, setIsBreakoutModalOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
+  const [isReleaseNotesOpen, setIsReleaseNotesOpen] = useState(false);
   const [isTabVisible, setIsTabVisible] = useState(true);
 
   // Soundboard states
@@ -1264,7 +1275,8 @@ const ActiveRoomContent: React.FC<{
           useMeetingStore.getState().isShortcutsOpen ||
           isBreakoutModalOpen ||
           isInviteModalOpen ||
-          isFollowUpModalOpen
+          isFollowUpModalOpen ||
+          isReleaseNotesOpen
         ) {
           return;
         }
@@ -1287,7 +1299,7 @@ const ActiveRoomContent: React.FC<{
         clearTimeout(timeoutId);
       }
     };
-  }, [isBreakoutModalOpen, isInviteModalOpen, isFollowUpModalOpen]);
+  }, [isBreakoutModalOpen, isInviteModalOpen, isFollowUpModalOpen, isReleaseNotesOpen]);
 
   const handleToggleRoomLock = async () => {
     try {
@@ -1573,6 +1585,17 @@ const ActiveRoomContent: React.FC<{
       setModerationPolicy(policy);
     };
 
+    const handleWorkspaceUpdate = (data: { type: 'markdown' | 'code'; content: string }) => {
+      const isEditingMarkdown = document.activeElement?.id === 'workspace-markdown-textarea';
+      const isEditingCode = document.activeElement?.id === 'workspace-code-textarea';
+      
+      if (data.type === 'markdown' && !isEditingMarkdown) {
+        useMeetingStore.getState().setMarkdownContent(data.content);
+      } else if (data.type === 'code' && !isEditingCode) {
+        useMeetingStore.getState().setCodeContent(data.content);
+      }
+    };
+
     signalingClient.on('chat-received', handleChatReceived);
     signalingClient.on('hand-raised', handleHandRaised);
     signalingClient.on('lower-hands-command', handleLowerHandsCommand);
@@ -1594,6 +1617,7 @@ const ActiveRoomContent: React.FC<{
     signalingClient.on('question-deleted', handleQuestionDeleted);
     signalingClient.on('multiplayer-cursors-toggled', handleMultiplayerCursorsToggled);
     signalingClient.on('moderation-policy-updated', handleModerationPolicy);
+    signalingClient.on('workspace-update', handleWorkspaceUpdate);
 
     return () => {
       signalingClient.off('chat-received', handleChatReceived);
@@ -1617,6 +1641,7 @@ const ActiveRoomContent: React.FC<{
       signalingClient.off('question-deleted', handleQuestionDeleted);
       signalingClient.off('multiplayer-cursors-toggled', handleMultiplayerCursorsToggled);
       signalingClient.off('moderation-policy-updated', handleModerationPolicy);
+      signalingClient.off('workspace-update', handleWorkspaceUpdate);
     };
   }, [
     localParticipant,
@@ -1942,6 +1967,22 @@ const ActiveRoomContent: React.FC<{
             <Mail className="w-4 h-4" />
           </button>
 
+          <button onClick={() => setWorkspaceOpen(!isWorkspaceOpen)} className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${isWorkspaceOpen ? 'text-[#8ab4f8]' : 'text-[#9aa0a6] hover:text-[#e8eaed]'}`} title="Shared App Workspace">
+            <Code className="w-4 h-4" />
+          </button>
+
+          <button onClick={() => setCopilotOpen(!isCopilotOpen)} className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${isCopilotOpen ? 'text-[#8ab4f8]' : 'text-[#9aa0a6] hover:text-[#e8eaed]'}`} title="AI Copilot">
+            <Sparkles className="w-4 h-4" />
+          </button>
+
+          <button onClick={() => setSpatialAudioEnabled(!isSpatialAudioEnabled)} className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${isSpatialAudioEnabled ? 'text-emerald-400 bg-emerald-500/10' : 'text-[#9aa0a6] hover:text-[#e8eaed]'}`} title={isSpatialAudioEnabled ? "Spatial 3D Audio Enabled" : "Enable Spatial 3D Audio"}>
+            <Headphones className="w-4 h-4" />
+          </button>
+
+          <button onClick={() => setIsReleaseNotesOpen(true)} className="p-2 rounded-full hover:bg-white/10 text-yellow-400 hover:text-yellow-300 transition-colors cursor-pointer" title="What's New in v0.5.0">
+            <Sparkles className="w-4 h-4 fill-yellow-400/20" />
+          </button>
+
           {'documentPictureInPicture' in window && (
             <button onClick={togglePip} className="p-2 rounded-full hover:bg-white/10 text-[#9aa0a6] hover:text-[#e8eaed] transition-colors cursor-pointer" title="PiP">
               <PictureInPicture className="w-4 h-4" />
@@ -2038,6 +2079,14 @@ const ActiveRoomContent: React.FC<{
           <div className="w-80 bg-[#292b2f] border-l border-white/[0.06] z-40 overflow-hidden flex flex-col animate-in slide-in-from-right duration-200">
             <TranscriptionPanel />
           </div>
+        )}
+
+        {isWorkspaceOpen && (
+          <WorkspacePanel />
+        )}
+
+        {isCopilotOpen && (
+          <AiCopilotPanel />
         )}
       </div>
 
@@ -2215,6 +2264,16 @@ const ActiveRoomContent: React.FC<{
           transcripts={transcripts}
           chatMessages={chatMessages}
         />
+      </Modal>
+
+      {/* RELEASE NOTES MODAL */}
+      <Modal
+        isOpen={isReleaseNotesOpen}
+        onClose={() => setIsReleaseNotesOpen(false)}
+        title="Release Notes - Chatsie v0.5.0"
+        size="lg"
+      >
+        <ReleaseNotesModal onClose={() => setIsReleaseNotesOpen(false)} />
       </Modal>
     </div>
   );

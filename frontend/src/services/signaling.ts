@@ -40,6 +40,7 @@ export interface SignalingEventMap {
   'breakout-ended': () => void;
   'room-lock-toggled': (data: { isLocked: boolean }) => void;
   'moderation-policy-updated': (data: { isChatLocked?: boolean; isScreenShareLocked?: boolean }) => void;
+  'workspace-update': (data: { type: 'markdown' | 'code'; content: string }) => void;
   'waiting-doodle-draw': (data: { x1: number; y1: number; x2: number; y2: number; color: string; thickness: number }) => void;
   'waiting-doodle-clear': () => void;
   'soundboard-play': (data: { userId: string; soundId: string }) => void;
@@ -81,6 +82,7 @@ export interface ISignalingClient {
   sendEndBreakout(): void;
   sendRoomLockToggle(isLocked: boolean): void;
   sendModerationPolicy(policy: { isChatLocked?: boolean; isScreenShareLocked?: boolean }): void;
+  sendWorkspaceUpdate(type: 'markdown' | 'code', content: string): void;
   sendWaitingDoodleDraw(x1: number, y1: number, x2: number, y2: number, color: string, thickness: number): void;
   sendWaitingDoodleClear(): void;
   sendSoundboardPlay(soundId: string): void;
@@ -159,6 +161,7 @@ class SocketIOSignalingClient implements ISignalingClient {
     this.socket.on('breakout-ended', () => this.emit('breakout-ended'));
     this.socket.on('room-lock-toggled', (data) => this.emit('room-lock-toggled', data));
     this.socket.on('moderation-policy-updated', (data) => this.emit('moderation-policy-updated', data));
+    this.socket.on('workspace-update', (data) => this.emit('workspace-update', data));
     this.socket.on('waiting-doodle-draw', (data) => this.emit('waiting-doodle-draw', data));
     this.socket.on('waiting-doodle-clear', () => this.emit('waiting-doodle-clear'));
     this.socket.on('soundboard-play', (data) => this.emit('soundboard-play', data));
@@ -282,6 +285,13 @@ class SocketIOSignalingClient implements ISignalingClient {
     if (this.socket) {
       this.socket.emit('moderation-policy', { roomId: this.roomId, policy });
       this.emit('moderation-policy-updated', policy);
+    }
+  }
+
+  sendWorkspaceUpdate(type: 'markdown' | 'code', content: string): void {
+    if (this.socket) {
+      this.socket.emit('workspace-update', { roomId: this.roomId, type, content });
+      this.emit('workspace-update', { type, content });
     }
   }
 
@@ -490,6 +500,9 @@ class SupabaseSignalingClient implements ISignalingClient {
       })
       .on('broadcast', { event: 'moderation-policy-updated' }, (payload) => {
         this.emit('moderation-policy-updated', payload.payload);
+      })
+      .on('broadcast', { event: 'workspace-update' }, (payload) => {
+        this.emit('workspace-update', payload.payload);
       })
       .on('broadcast', { event: 'waiting-doodle-draw' }, (payload) => {
         this.emit('waiting-doodle-draw', payload.payload);
@@ -812,6 +825,15 @@ class SupabaseSignalingClient implements ISignalingClient {
       payload: policy
     });
     this.emit('moderation-policy-updated', policy);
+  }
+
+  sendWorkspaceUpdate(type: 'markdown' | 'code', content: string): void {
+    this.channel?.send({
+      type: 'broadcast',
+      event: 'workspace-update',
+      payload: { type, content }
+    });
+    this.emit('workspace-update', { type, content });
   }
 
   sendMultiplayerCursorsToggle(enabled: boolean): void {

@@ -2192,6 +2192,84 @@ app.get('/api/turn-credentials', async (req, res) => {
   }
 });
 
+// POST: Copilot AI Query Proxy (to bypass CORS for OpenAI and Claude)
+app.post('/api/copilot/query', async (req, res) => {
+  try {
+    const { provider, apiKey, messages, systemPrompt } = req.body;
+
+    if (!provider || !messages || !Array.isArray(messages)) {
+      return res.status(400).json({ error: 'Missing required parameters: provider and messages array.' });
+    }
+
+    if (provider === 'openai') {
+      const key = apiKey || process.env.OPENAI_API_KEY;
+      if (!key) {
+        return res.status(400).json({ error: 'OpenAI API key is missing. Set it locally in Chatsie settings.' });
+      }
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${key}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+            ...messages
+          ]
+        })
+      });
+
+      if (!response.ok) {
+        const errDetails = await response.text();
+        return res.status(response.status).json({ error: `OpenAI API error: ${errDetails}` });
+      }
+
+      const data = await response.json();
+      return res.status(200).json(data);
+    } 
+
+    if (provider === 'claude') {
+      const key = apiKey || process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY;
+      if (!key) {
+        return res.status(400).json({ error: 'Claude API key is missing. Set it locally in Chatsie settings.' });
+      }
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-3-5-sonnet-20240620',
+          max_tokens: 1024,
+          ...(systemPrompt ? { system: systemPrompt } : {}),
+          messages: messages.map((m: any) => ({
+            role: m.role === 'assistant' ? 'assistant' : 'user',
+            content: m.content
+          }))
+        })
+      });
+
+      if (!response.ok) {
+        const errDetails = await response.text();
+        return res.status(response.status).json({ error: `Claude API error: ${errDetails}` });
+      }
+
+      const data = await response.json();
+      return res.status(200).json(data);
+    }
+
+    return res.status(400).json({ error: `Unsupported provider: ${provider}` });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Internal Server Error', details: error.message });
+  }
+});
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -2570,6 +2648,11 @@ io.on('connection', (socket: Socket) => {
   socket.on('moderation-policy', (data: { roomId: string; policy: { isChatLocked?: boolean; isScreenShareLocked?: boolean } }) => {
     const { roomId, policy } = data;
     socket.to(roomId).emit('moderation-policy-updated', policy);
+  });
+
+  socket.on('workspace-update', (data: { roomId: string; type: 'markdown' | 'code'; content: string }) => {
+    const { roomId, type, content } = data;
+    socket.to(roomId).emit('workspace-update', { type, content });
   });
 
   // Toggle Multiplayer Cursors
