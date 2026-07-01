@@ -22,10 +22,11 @@ import { ChatPanel } from './ChatPanel';
 import { ParticipantPanel } from './ParticipantPanel';
 import { TranscriptionPanel } from './TranscriptionPanel';
 import { ReactionOverlay } from './ReactionOverlay';
+import { WhiteboardPanel } from './WhiteboardPanel';
 import { BreakoutModal } from './BreakoutModal';
 import { Modal, Button } from '../ui';
 import { DeviceSelector } from './DeviceSelector';
-import { Copy, Check, Users, Keyboard, Mic, MicOff, Video, VideoOff, Camera, User, ExternalLink, Mail, Loader2, Settings, FileText, PictureInPicture, Circle, LayoutGrid } from 'lucide-react';
+import { Copy, Check, Users, Keyboard, Mic, MicOff, Video, VideoOff, Camera, User, ExternalLink, Mail, Loader2, Settings, FileText, PictureInPicture, Circle, LayoutGrid, Palette } from 'lucide-react';
 import { useGestureDetector } from '../../hooks/useGestureDetector';
 import { SmartJoinDiagnostics } from './SmartJoinDiagnostics';
 import { IntentToSpeakIndicator } from './IntentToSpeakIndicator';
@@ -1089,6 +1090,7 @@ const ActiveRoomContent: React.FC<{
     isChatPanelOpen,
     isParticipantsPanelOpen,
     isTranscriptionPanelOpen,
+    isWhiteboardOpen,
     isSettingsOpen,
     isShortcutsOpen,
     setSettingsOpen,
@@ -1102,6 +1104,7 @@ const ActiveRoomContent: React.FC<{
     addParticipant,
     removeParticipant,
     updateParticipantMute,
+    toggleWhiteboard,
     toggleTranscriptionPanel,
     setPolls,
     addPoll,
@@ -1885,6 +1888,10 @@ const ActiveRoomContent: React.FC<{
             <Mail className="w-4 h-4" />
           </button>
 
+          <button onClick={toggleWhiteboard} className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${isWhiteboardOpen ? 'text-[#8ab4f8]' : 'text-[#9aa0a6] hover:text-[#e8eaed]'}`} title="Whiteboard">
+            <Palette className="w-4 h-4" />
+          </button>
+
           <button onClick={() => setWorkspaceOpen(!isWorkspaceOpen)} className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${isWorkspaceOpen ? 'text-[#8ab4f8]' : 'text-[#9aa0a6] hover:text-[#e8eaed]'}`} title="Plugins & Workspace">
             <LayoutGrid className="w-4 h-4" />
           </button>
@@ -1915,7 +1922,11 @@ const ActiveRoomContent: React.FC<{
         
         {/* Central area */}
         <div className="flex-grow flex flex-col min-h-0 overflow-y-auto no-scrollbar relative">
-          {isTabVisible ? (
+          {isWhiteboardOpen ? (
+            <div className="flex-grow p-2 min-h-0 bg-[#1e1f20] border-2 border-white/5 rounded-2xl m-2 overflow-hidden">
+              <WhiteboardPanel />
+            </div>
+          ) : isTabVisible ? (
             <VideoGrid />
           ) : (
             <div className="flex-grow flex flex-col items-center justify-center bg-[#292b2f] rounded-xl m-2 p-8 select-none">
@@ -1993,7 +2004,7 @@ const ActiveRoomContent: React.FC<{
         <div className={`absolute left-1/2 transform -translate-x-1/2 z-40 w-full max-w-2xl px-4 transition-all duration-300 ${
           isUiControlsVisible ? 'bottom-20 opacity-100' : 'bottom-6 opacity-0 pointer-events-none'
         }`}>
-          <div className="bg-[#292b2f] border border-white/[0.06] rounded-xl p-4 shadow-lg flex flex-col gap-3">
+          <div className="bg-[#1e1f20] border-2 border-white/5 rounded-3xl p-4 shadow-lg flex flex-col gap-3">
             <div className="flex justify-between items-center border-b border-white/[0.06] pb-2">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-[#8ab4f8]">🔊 Soundboard</span>

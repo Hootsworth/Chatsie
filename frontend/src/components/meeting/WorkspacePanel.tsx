@@ -6,7 +6,6 @@ import {
   ArrowLeft, Bot, Send, Brain, Key, Settings, 
   AlertCircle, RefreshCw, Plus, Trash2, ArrowRight, Play, Music, Palette
 } from 'lucide-react';
-import { WhiteboardPanel } from './WhiteboardPanel';
 
 interface CopilotMessage {
   role: 'user' | 'assistant';
@@ -30,8 +29,8 @@ export const WorkspacePanel: React.FC = () => {
     chatMessages
   } = useMeetingStore();
 
-  // Navigation: 'hub' | 'markdown' | 'code' | 'copilot' | 'kanban' | 'whiteboard'
-  const [activeView, setActiveView] = useState<'hub' | 'markdown' | 'code' | 'copilot' | 'kanban' | 'whiteboard'>('hub');
+  // Navigation: 'hub' | 'markdown' | 'code' | 'copilot' | 'kanban'
+  const [activeView, setActiveView] = useState<'hub' | 'markdown' | 'code' | 'copilot' | 'kanban'>('hub');
   
   // Markdown View State
   const [markdownView, setMarkdownView] = useState<'edit' | 'preview'>('edit');
@@ -381,17 +380,6 @@ export const WorkspacePanel: React.FC = () => {
             <Brain className="w-4 h-4" />
           </button>
 
-          {/* Whiteboard */}
-          <button
-            onClick={() => setActiveView('whiteboard')}
-            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-              activeView === 'whiteboard' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm' : 'text-white/40 hover:text-white/80 hover:bg-white/5'
-            }`}
-            title="Whiteboard"
-          >
-            <Palette className="w-4 h-4" />
-          </button>
-
           {/* Kanban Board (Enabled if installed) */}
           <button
             onClick={() => isKanbanInstalled && setActiveView('kanban')}
@@ -422,7 +410,6 @@ export const WorkspacePanel: React.FC = () => {
               {activeView === 'code' && 'Code Sandbox'}
               {activeView === 'copilot' && 'AI Copilot'}
               {activeView === 'kanban' && 'Kanban Board'}
-              {activeView === 'whiteboard' && 'Shared Whiteboard'}
             </h2>
             <p className="text-[10px] text-white/50">
               {activeView === 'hub' && 'Select or install workspace tools'}
@@ -430,7 +417,6 @@ export const WorkspacePanel: React.FC = () => {
               {activeView === 'code' && 'JavaScript Sandbox editor'}
               {activeView === 'copilot' && 'Context-aware AI meeting assistant'}
               {activeView === 'kanban' && 'Active project board'}
-              {activeView === 'whiteboard' && 'Sleek workspace sketchpad'}
             </p>
           </div>
           <button
@@ -501,25 +487,6 @@ export const WorkspacePanel: React.FC = () => {
                     <button 
                       onClick={() => setActiveView('copilot')}
                       className="text-[10px] font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 cursor-pointer"
-                    >
-                      Launch Tool <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Whiteboard */}
-              <div className="p-3.5 bg-white/5 border border-white/[0.04] rounded-xl flex items-start gap-3 hover:bg-white/[0.07] transition-all">
-                <div className="p-2 rounded-lg bg-pink-500/10 text-pink-400 flex-shrink-0">
-                  <Palette className="w-4 h-4" />
-                </div>
-                <div className="flex-1 min-w-0 space-y-1">
-                  <h4 className="text-xs font-bold text-white">Shared Whiteboard</h4>
-                  <p className="text-[10px] text-white/60 leading-normal">Collaborative drawing canvas for design sketchpads directly in the workspace.</p>
-                  <div className="pt-1">
-                    <button 
-                      onClick={() => setActiveView('whiteboard')}
-                      className="text-[10px] font-semibold text-pink-400 hover:text-pink-300 flex items-center gap-0.5 cursor-pointer"
                     >
                       Launch Tool <ArrowRight className="w-3 h-3" />
                     </button>
@@ -1072,13 +1039,6 @@ export const WorkspacePanel: React.FC = () => {
               </div>
 
             </div>
-          </div>
-        )}
-
-        {/* 6. WHITEBOARD TOOL */}
-        {activeView === 'whiteboard' && (
-          <div className="flex-grow flex flex-col min-h-0 bg-[#1a1b1e]">
-            <WhiteboardPanel />
           </div>
         )}
 
